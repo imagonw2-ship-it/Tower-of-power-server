@@ -12,11 +12,11 @@
     "build": "python3 scripts/build_client.py"
   },
   "dependencies": {
-    "ws": "8.18.3"
+    "ws": "8.21.3"
   },
   "devDependencies": {
-    "playwright": "1.58.2",
     "@sparticuz/chromium": "^143.0.4",
+    "playwright": "1.58.2",
     "prettier": "3.6.2"
   }
 }

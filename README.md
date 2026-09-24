@@ -22,7 +22,11 @@ account databases, passwords, tokens, or signing keys.
 ## Deploy on Railway
 
 1. Connect this repository to the existing Railway service and deploy `main`.
-   The included `Dockerfile` and `railway.json` use Node 24 and `/health`.
+   Select the Dockerfile builder with path `Dockerfile` (Node 24). Set the
+   healthcheck to `/health`, timeout to 60 seconds, and restart policy to
+   On Failure with 5 retries in the service settings. New Railway services
+   no longer accept `railway.json`; that file is retained as a legacy reference.
+   The live service uses these settings directly in Railway.
 2. Attach a persistent volume to the service at `/data`. Accounts must be on
    this volume so deployments and container replacements do not erase them.
 3. Set the following service variables:
