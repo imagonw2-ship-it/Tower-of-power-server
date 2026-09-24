@@ -1,0 +1,10 @@
+node_modules
+data
+android
+test
+client
+scripts
+.git
+.env
+*.zip
+*.apk
