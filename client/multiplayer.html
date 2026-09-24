@@ -1,0 +1,8 @@
+<section id="multiplayerPanel" class="panel netPanel" hidden aria-label="Multiplayer">
+<p class="eyebrow">ONLINE / CROSS-PLAY</p><h2>MULTIPLAYER</h2><p id="netIdentity">Not signed in</p>
+<details id="serverSettings"><summary>SERVER ADDRESS</summary><label for="serverAddress">HTTPS multiplayer server</label><input id="serverAddress" type="url" placeholder="https://your-server.example" autocomplete="url"><button id="saveServer">CONNECT TO SERVER</button></details>
+<div id="accountForm"><label for="accountUsername">USERNAME</label><input id="accountUsername" autocomplete="username" maxlength="20" placeholder="3–20 letters, numbers or underscores"><label for="accountPassword">PASSWORD</label><input id="accountPassword" type="password" autocomplete="current-password" minlength="12" maxlength="128" placeholder="At least 12 characters"><button id="accountCreate">CREATE ACCOUNT</button><button id="accountLogin">LOGIN</button><button id="accountGuest">PLAY AS GUEST</button></div>
+<div id="worldMenu" hidden><button id="worldHost">CREATE WORLD / HOST</button><label for="joinCode">ROOM CODE</label><input id="joinCode" maxlength="5" placeholder="K7P4Q" autocapitalize="characters" autocomplete="off"><button id="worldJoin">JOIN WORLD</button><button id="accountLogout">LOGOUT</button></div>
+<div id="worldLobby" hidden><p>ROOM CODE</p><div id="roomCodeLabel"></div><p id="lobbyPlayers"></p><p id="lobbyEquipment"></p><button id="roundStart">START ROUND</button><button id="roundResume" hidden>RETURN TO WORLD</button><button id="worldLeave">LEAVE WORLD</button></div>
+<p id="netMessage" role="status"></p><button id="multiplayerBack">BACK</button></section>
+<div id="networkStatus" role="status" hidden></div><div id="onlineRoster" hidden></div>
