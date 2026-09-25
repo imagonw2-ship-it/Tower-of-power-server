@@ -50,10 +50,13 @@ account databases, passwords, tokens, or signing keys.
 5. Verify `/health`, account creation, and two clients joining the same room.
    Set up database backups before distributing the server broadly.
 
-In the APK or downloaded HTML, enter the generated **HTTPS origin** in
-MULTIPLAYER > SERVER ADDRESS. A GitHub repository URL is not a game server
-address. The browser game served by this server automatically uses its own
-origin. No public server address is hardcoded into the client.
+The APK and downloaded HTML now default to the live server at
+`https://tower-of-power-server-live-production.up.railway.app`. Open MULTIPLAYER
+and choose PLAY AS GUEST or sign in; no server address is required. The hosted
+browser game uses its own origin. Advanced SERVER SETTINGS still allow a custom
+HTTPS origin, and USE DEFAULT restores the live server. Entered addresses are
+applied automatically by guest, login, create, host and join actions. A GitHub
+repository URL is not a game server address.
 
 ## Play together
 
