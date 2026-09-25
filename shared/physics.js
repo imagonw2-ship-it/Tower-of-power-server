@@ -84,7 +84,7 @@ export function blocked(a, b) {
   }
   return false;
 }
-export function movePlayer(p, input, dt, obstacles = []) {
+export function movePlayer(p, input, dt, obstacles = [], collideLegs = () => {}) {
   const oldX = p.x,
     oldZ = p.z;
   let x = clamp(input.x || 0, -1, 1),
@@ -100,8 +100,12 @@ export function movePlayer(p, input, dt, obstacles = []) {
   p.pitch = input.pitch;
   const speed =
     (p.crouching ? 1.35 : p.sprinting ? 6.6 : 3) * (p.boost > 0 ? 1.4 : 1);
-  p.x += (x * Math.cos(p.yaw) - z * Math.sin(p.yaw)) * speed * dt;
-  p.z += (-x * Math.sin(p.yaw) - z * Math.cos(p.yaw)) * speed * dt;
+  const dx = (x * Math.cos(p.yaw) - z * Math.sin(p.yaw)) * speed * dt,
+    dz = (-x * Math.sin(p.yaw) - z * Math.cos(p.yaw)) * speed * dt,
+    steps = Math.max(1, Math.ceil(Math.hypot(dx,dz) / .16));
+  for(let step=0;step<steps;step++) {
+  p.x += dx / steps;
+  p.z += dz / steps;
   collideShed(p);
   for (const o of obstacles) {
     const dx = p.x - o.x,
@@ -111,6 +115,8 @@ export function movePlayer(p, input, dt, obstacles = []) {
       p.x = o.x + (d > 0.001 ? dx / d : 1) * o.r;
       p.z = o.z + (d > 0.001 ? dz / d : 0) * o.r;
     }
+  }
+  collideLegs(p);
   }
   p.x = clamp(p.x, -1500, 1500);
   p.z = clamp(p.z, -1500, 1500);
