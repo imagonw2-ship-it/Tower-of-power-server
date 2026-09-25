@@ -28,8 +28,11 @@ for (const id of [
   "networkStatus",
   "onlineRoster",
   "serverSettings",
+  "serverState", "defaultServer", "loginTab", "registerTab",
+  "accountFields", "accountHelp", "accountCredentials", "joinForm",
 ])
   netUI[id] = document.getElementById(id);
+let networkBusy = false, accountMode = "login";
 let networkPanelOpen = false,
   remoteMesh = null,
   remoteHead = null,
@@ -37,7 +40,11 @@ let networkPanelOpen = false,
 const net = new TowerNetwork({
   status: (s) => {
     netUI.networkStatus.textContent = s;
-    netUI.networkStatus.hidden = !networkPanelOpen && !net.active;
+    netUI.networkStatus.hidden = networkPanelOpen || !net.active;
+    netUI.serverState.textContent = s;
+    netUI.serverState.dataset.state = ["CONNECTED", "SERVER READY"].includes(s)
+      ? "ready" : /OFFLINE|LOST/.test(s) ? "offline" : "waiting";
+    refreshNetworkButtons();
   },
   identity: () => refreshNetworkUI(),
   error: (message) => (netUI.netMessage.textContent = message),
@@ -97,15 +104,26 @@ const net = new TowerNetwork({
     }
   },
 });
+netUI.serverAddress.value = net.url;
+function refreshNetworkButtons() {
+  const connecting = !!net.socket && !net.connected;
+  for (const button of netUI.multiplayerPanel.querySelectorAll("[data-net-action]"))
+    button.disabled = networkBusy || connecting;
+  for (const id of ["serverAddress", "saveServer", "defaultServer"])
+    netUI[id].disabled = networkBusy || net.active || !!net.socket;
+}
+function applyServerInput() {
+  net.setServer(netUI.serverAddress.value);
+  netUI.serverAddress.value = net.url;
+}
 function refreshNetworkUI() {
   netUI.netIdentity.textContent = net.player
     ? net.player.username + (net.player.guest ? " / GUEST" : " / ACCOUNT")
-    : "Not signed in";
+    : "Choose how you want to play.";
   netUI.accountForm.hidden = !!net.player;
   netUI.worldMenu.hidden = !net.player || net.active;
   netUI.worldLobby.hidden = !net.active;
-  if (document.activeElement !== netUI.serverAddress)
-    netUI.serverAddress.value = net.url;
+  refreshNetworkButtons();
   const s = net.snapshots.at(-1);
   if (net.active) {
     netUI.roomCodeLabel.textContent = net.code;
@@ -145,7 +163,7 @@ function refreshNetworkUI() {
   netUI.onlineRoster.hidden =
     !net.active ||
     !["playing", "paused", "fieldPanel", "lost"].includes(game.mode);
-  netUI.networkStatus.hidden = !networkPanelOpen && !net.active;
+  netUI.networkStatus.hidden = networkPanelOpen || !net.active;
 }
 function openMultiplayer() {
   sound.start();
@@ -155,7 +173,6 @@ function openMultiplayer() {
   netUI.multiplayerPanel.hidden = false;
   ui.menu.hidden = true;
   ui.pausePanel.hidden = true;
-  netUI.serverSettings.open = !net.url;
   refreshNetworkUI();
   net.verify().catch((e) => (netUI.netMessage.textContent = e.message));
 }
@@ -172,13 +189,20 @@ function leaveMultiplayer() {
   mainMenu();
 }
 function guarded(fn) {
-  return async () => {
+  return async (event) => {
+    event?.preventDefault();
+    if (networkBusy) return;
+    networkBusy = true;
+    refreshNetworkButtons();
     netUI.netMessage.textContent = "";
     try {
       await fn();
       refreshNetworkUI();
     } catch (e) {
       netUI.netMessage.textContent = e.message;
+    } finally {
+      networkBusy = false;
+      refreshNetworkUI();
     }
   };
 }
@@ -188,11 +212,41 @@ document
 netUI.saveServer.addEventListener(
   "click",
   guarded(async () => {
-    net.setServer(netUI.serverAddress.value.trim());
-    await net.request("/health");
-    netUI.netMessage.textContent = "SERVER REACHABLE";
+    applyServerInput();
+    await net.checkServer();
+    netUI.netMessage.textContent = "Server ready. Choose guest or sign in to play.";
   }),
 );
+netUI.defaultServer.addEventListener("click", guarded(async () => {
+  netUI.serverAddress.value = TowerNetwork.DEFAULT_SERVER;
+  applyServerInput();
+  await net.checkServer();
+  netUI.netMessage.textContent = "Default server ready.";
+}));
+function selectAccountMode(mode) {
+  accountMode = mode;
+  const register = mode === "register";
+  netUI.loginTab.setAttribute("aria-selected", String(!register));
+  netUI.registerTab.setAttribute("aria-selected", String(register));
+  netUI.accountFields.setAttribute("aria-labelledby", register ? "registerTab" : "loginTab");
+  netUI.accountCreate.hidden = !register;
+  netUI.accountLogin.hidden = register;
+  netUI.accountPassword.autocomplete = register ? "new-password" : "current-password";
+  netUI.accountPassword.placeholder = register ? "At least 12 characters" : "Your password";
+  netUI.accountHelp.textContent = register ? "Username: 3–20 letters, numbers or _. Password: 12+ characters." : "Your account works on every device.";
+}
+netUI.loginTab.addEventListener("click", () => selectAccountMode("login"));
+netUI.registerTab.addEventListener("click", () => selectAccountMode("register"));
+netUI.accountCredentials.addEventListener("submit", event => {
+  event.preventDefault();
+  netUI[accountMode === "register" ? "accountCreate" : "accountLogin"].click();
+});
+netUI.accountCredentials.addEventListener("keydown", event => {
+  if (event.key === "Enter" && event.target.tagName === "INPUT") {
+    event.preventDefault();
+    netUI[accountMode === "register" ? "accountCreate" : "accountLogin"].click();
+  }
+});
 for (const [kind, id] of [
   ["register", "accountCreate"],
   ["login", "accountLogin"],
@@ -201,6 +255,9 @@ for (const [kind, id] of [
   netUI[id].addEventListener(
     "click",
     guarded(async () => {
+      applyServerInput();
+      if (kind !== "guest" && (!netUI.accountUsername.value.trim() || !netUI.accountPassword.value))
+        throw Error("Enter your username and password.");
       const password = netUI.accountPassword.value;
       netUI.accountPassword.value = "";
       await net.authenticate(
@@ -216,11 +273,11 @@ netUI.accountLogout.addEventListener(
 );
 netUI.worldHost.addEventListener(
   "click",
-  guarded(() => net.host()),
+  guarded(() => { applyServerInput(); net.host(); }),
 );
-netUI.worldJoin.addEventListener(
-  "click",
-  guarded(() => net.join(netUI.joinCode.value.trim().toUpperCase())),
+netUI.joinForm.addEventListener(
+  "submit",
+  guarded(() => { applyServerInput(); net.join(netUI.joinCode.value.trim().toUpperCase()); }),
 );
 netUI.roundStart.addEventListener("click", () => net.send({ type: "start" }));
 netUI.roundResume.addEventListener("click", () => {

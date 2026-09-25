@@ -1,5 +1,19 @@
 // Transport/credentials/reconnect only. Rendering lives in multiplayer.js.
 class TowerNetwork {
+  static DEFAULT_SERVER = "https://tower-of-power-server-live-production.up.railway.app";
+  static normalizeServer(value) {
+    let address = String(value || "").trim();
+    if (!address) return TowerNetwork.DEFAULT_SERVER;
+    if (!/^[a-z][a-z\d+.-]*:\/\//i.test(address)) address = "https://" + address;
+    let u;
+    try { u = new URL(address); } catch { throw Error("Enter a valid server address, or use the default server."); }
+    if (u.protocol !== "https:" && !(u.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname)))
+      throw Error("Use an HTTPS server address.");
+    if (u.username || u.password || u.search || u.hash)
+      throw Error("Enter only the server address, without login details or query parameters.");
+    return u.origin;
+  }
   constructor(hooks = {}) {
     this.hooks = hooks;
     this.socket = null;
@@ -8,7 +22,7 @@ class TowerNetwork {
     this.actionSeq = 0;
     this.player = null;
     this.token = null;
-    this.status = "SERVER OFFLINE";
+    this.status = "READY TO CONNECT";
     this.snapshots = [];
     this.items = [];
     this.intent = null;
@@ -22,14 +36,16 @@ class TowerNetwork {
     try {
       stored = localStorage.getItem("top-server") || "";
     } catch {}
-    this.url =
-      stored ||
+    if (/your-server\.example|appassets\.androidplatform\.net/.test(stored)) stored = "";
+    const fallback =
       ((location.protocol === "https:" ||
         location.hostname === "localhost" ||
         location.hostname === "127.0.0.1") &&
       location.hostname !== "appassets.androidplatform.net"
         ? location.origin
-        : "");
+        : TowerNetwork.DEFAULT_SERVER);
+    try { this.url = TowerNetwork.normalizeServer(stored || fallback); }
+    catch { this.url = TowerNetwork.normalizeServer(fallback); }
     this.loadSession();
   }
   get active() {
@@ -54,25 +70,33 @@ class TowerNetwork {
     } catch {}
   }
   setServer(value) {
-    const u = new URL(value);
-    if (
-      u.protocol !== "https:" &&
-      !(
-        u.protocol === "http:" &&
-        ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname)
-      )
-    )
-      throw Error("Use an HTTPS server address.");
-    if (u.username || u.password || u.search || u.hash)
-      throw Error("Enter only the server origin.");
+    const origin = TowerNetwork.normalizeServer(value);
+    if (origin === this.url) return;
+    if (this.active || this.socket)
+      throw Error("Leave the world before changing servers.");
     this.leave();
-    this.url = u.origin;
+    this.url = origin;
     this.token = null;
     this.player = null;
     try {
       localStorage.setItem("top-server", this.url);
     } catch {}
     this.loadSession();
+    this.setStatus("READY TO CONNECT");
+    this.hooks.identity?.();
+  }
+  async checkServer() {
+    const origin = this.url;
+    this.setStatus("CONNECTING...");
+    let result;
+    try { result = await this.request("/health"); }
+    catch (error) { this.setStatus("SERVER OFFLINE"); throw error; }
+    if (result.protocol !== 1) {
+      this.setStatus("SERVER OFFLINE");
+      throw Error("This address is not a compatible TOWER OF POWER server.");
+    }
+    if (this.url === origin && !this.socket) this.setStatus("SERVER READY");
+    return result;
   }
   async request(path, body) {
     if (!this.url) throw Error("Enter your multiplayer server address first.");
@@ -93,6 +117,10 @@ class TowerNetwork {
       if (!r.ok) throw Error(result.error || "Request failed.");
       return result;
     } catch (e) {
+      if (e instanceof SyntaxError) {
+        this.setStatus("SERVER OFFLINE");
+        throw Error("That address did not return a game server response. Try Use default.");
+      }
       if (e.name === "AbortError" || e instanceof TypeError) {
         this.setStatus("SERVER OFFLINE");
         throw Error("Server unavailable. Singleplayer is still available.");
@@ -110,6 +138,7 @@ class TowerNetwork {
     );
     this.token = s.token;
     this.player = s.player;
+    this.setStatus("SERVER READY");
     try {
       sessionStorage.setItem("top-auth:" + this.url, JSON.stringify(s));
     } catch {}
@@ -282,6 +311,6 @@ class TowerNetwork {
     this.pending.clear();
     this.roundStarted = false;
     this.lossAt = 0;
-    this.setStatus("SERVER OFFLINE");
+    this.setStatus("READY TO CONNECT");
   }
 }

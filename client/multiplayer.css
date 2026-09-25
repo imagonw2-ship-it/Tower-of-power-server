@@ -1,0 +1,73 @@
+/* Compact online menu, shared by the browser and Android. */
+.netPanel { left:5vw; top:50%; width:min(740px,90vw); max-height:calc(100dvh - 32px); padding:0; overflow:hidden; display:flex; flex-direction:column; background:#080c0bee; border:1px solid #b6bcb02b; box-shadow:0 18px 70px #0008; backdrop-filter:blur(12px); }
+.netPanel[hidden], .netPanel [hidden] { display:none!important; }
+.netHeader { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:22px 26px 18px; border-bottom:1px solid #c8d0bd20; flex-shrink:0; }
+.netHeader .eyebrow { font:9px/1.5 FieldBlock,monospace; letter-spacing:1.5px; color:#989e91; margin:0 0 8px; }
+.netPanel h2 { margin:0; font-size:27px; font-style:italic; letter-spacing:-1px; }
+.netPanel h3 { font-size:15px; line-height:1.5; font-style:italic; margin:14px 0 8px; }
+.serverState { display:flex; align-items:center; gap:7px; font:9px/1.4 monospace; color:#b9b9ac; white-space:nowrap; }
+.serverState::before { content:''; width:6px; height:6px; border-radius:50%; background:#918e7b; }
+.serverState[data-state="ready"]::before { background:#b2d697; box-shadow:0 0 9px #9ac57970; }
+.serverState[data-state="offline"]::before { background:#dc6b68; }
+.netBody { padding:0 26px 16px; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#6a7363 #131714; }
+.netPanel #netIdentity { font:11px/1.4 monospace; color:#a7af9d; margin:15px 0; overflow-wrap:anywhere; }
+.netGrid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.netCard { min-width:0; margin:0; padding:18px; border:1px solid #d4dcc521; background:#d4dcc503; }
+.netStep { font:8px/1.5 FieldBlock,monospace; color:#9da990; letter-spacing:1px; }
+.netPanel p { font:12px/1.6 monospace; color:#c1c6b8; margin:10px 0; }
+.netPanel small { display:block; color:#929b88; font:10px/1.6 monospace; }
+.netPanel label { display:block; font:9px/1.5 FieldBlock,monospace; letter-spacing:1px; margin:12px 0 6px; color:#bfc7b4; }
+.netPanel input { box-sizing:border-box; width:100%; height:42px; margin:0 0 10px; border:1px solid #747e6555; border-radius:2px; background:#01050260; color:#e8ecdd; padding:10px 12px; font:13px monospace; outline:none; }
+.netPanel input::placeholder { color:#757f6c; opacity:1; }
+.netPanel input:focus { border-color:#c8d4b1; box-shadow:0 0 0 2px #c8d4b118; }
+.netPanel button { min-width:0; min-height:42px; width:100%; margin:10px 0 0; padding:10px 12px; font-size:10px; line-height:1.5; display:flex; align-items:center; justify-content:space-between; gap:8px; border:1px solid transparent; border-left:2px solid #bec8ac42; border-radius:0; text-align:left; background:transparent; }
+.netPanel button:hover, .netPanel button:focus-visible { background:#dce5ca15; border-color:#bfcaaa44; border-left-color:#d5dfc2; box-shadow:none; }
+.netPanel button:disabled { opacity:.38; cursor:default; }
+.netPanel .netPrimary { border-color:#c64a4945; border-left-color:#bd243b; margin:22px 0 12px; }
+.netPanel .netPrimary:hover { background:#b91c3329; border-color:#ce4054; }
+.accountTabs { display:flex; gap:12px; border-bottom:1px solid #c5ccb326; }
+.netPanel .accountTabs button { flex:1; justify-content:center; min-height:28px; padding:0 0 10px; margin:0; border:0; border-bottom:2px solid transparent; font-size:8px; white-space:nowrap; color:#858f79; }
+.netPanel .accountTabs button[aria-selected="true"] { color:#e8ebdb; border-bottom-color:#b92c3d; }
+.netPanel #joinCode { height:58px; font:25px FieldBlock,monospace; letter-spacing:7px; text-transform:uppercase; margin-top:10px; }
+.netPanel #roomCodeLabel { font:32px/1.5 FieldBlock,monospace; color:#e5e9d7; letter-spacing:7px; margin:12px 0; }
+.netPanel .netQuiet { width:auto; font-size:9px; color:#a4ad96; }
+#serverSettings { border-top:1px solid #c8d0bd20; margin-top:18px; padding-top:12px; }
+#serverSettings summary { display:flex; justify-content:space-between; cursor:pointer; padding:4px 0; font:italic 9px/1.5 FieldBlock,monospace; color:#a3ad94; }
+#serverSettings summary::before { content:'+'; margin-right:8px; }
+#serverSettings[open] summary::before { content:'−'; }
+#serverSettings summary span { flex:1; text-align:right; font:10px monospace; color:#727e66; }
+#serverSettings p { font-size:11px; }
+.serverActions { display:flex; gap:12px; }
+.serverActions button { width:auto; font-size:9px; margin-top:0; }
+.netFooter { flex-shrink:0; display:flex; align-items:center; gap:18px; min-height:57px; padding:6px 26px; background:#05080580; border-top:1px solid #c8d0bd20; }
+.netFooter #multiplayerBack { width:auto; margin:0; flex-shrink:0; }
+.netFooter #netMessage { margin:0; color:#dec299; font-size:11px; line-height:1.4; }
+#menu #gameLogo { border:none; border-radius:0; box-shadow:none; width:84px; height:84px; margin-bottom:20px; }
+body.touch .netPanel { max-height:calc(100dvh - 24px); }
+@media (max-height:540px) {
+  .netPanel { max-height:calc(100dvh - 20px); }
+  .netHeader { padding:12px 20px; }
+  .netHeader .eyebrow { margin-bottom:4px; font-size:8px; }
+  .netPanel h2 { font-size:21px; }
+  .netBody { padding:0 20px 10px; }
+  .netPanel #netIdentity { margin:10px 0; }
+  .netCard { padding:12px 16px; }
+  .netPanel label { margin-top:8px; font-size:8px; }
+  .netPanel input { height:38px; margin-bottom:6px; }
+  .netPanel #accountHelp { display:none; }
+  .netPanel h3 { font-size:13px; margin-top:12px; }
+  .netPanel p { font-size:11px; }
+  .netPanel button { margin-top:8px; }
+  .netPanel .netPrimary { margin-top:14px; }
+  .netFooter { min-height:46px; padding:2px 20px; }
+  #serverSettings { margin-top:12px; padding-top:8px; }
+  #menu #gameLogo { width:56px; height:56px; margin-bottom:8px; }
+}
+@media (max-width:560px) {
+  .netGrid { grid-template-columns:1fr; gap:12px; }
+  .netHeader { gap:10px; padding:16px; }
+  .netHeader h2 { font-size:19px; }
+  .netBody { padding-left:16px; padding-right:16px; }
+  .serverState { font-size:8px; }
+  .netFooter { padding-left:16px; padding-right:16px; }
+}

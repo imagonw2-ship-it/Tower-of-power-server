@@ -1,8 +1,55 @@
 <section id="multiplayerPanel" class="panel netPanel" hidden aria-label="Multiplayer">
-<p class="eyebrow">ONLINE / CROSS-PLAY</p><h2>MULTIPLAYER</h2><p id="netIdentity">Not signed in</p>
-<details id="serverSettings"><summary>SERVER ADDRESS</summary><label for="serverAddress">HTTPS multiplayer server</label><input id="serverAddress" type="url" placeholder="https://your-server.example" autocomplete="url"><button id="saveServer">CONNECT TO SERVER</button></details>
-<div id="accountForm"><label for="accountUsername">USERNAME</label><input id="accountUsername" autocomplete="username" maxlength="20" placeholder="3–20 letters, numbers or underscores"><label for="accountPassword">PASSWORD</label><input id="accountPassword" type="password" autocomplete="current-password" minlength="12" maxlength="128" placeholder="At least 12 characters"><button id="accountCreate">CREATE ACCOUNT</button><button id="accountLogin">LOGIN</button><button id="accountGuest">PLAY AS GUEST</button></div>
-<div id="worldMenu" hidden><button id="worldHost">CREATE WORLD / HOST</button><label for="joinCode">ROOM CODE</label><input id="joinCode" maxlength="5" placeholder="K7P4Q" autocapitalize="characters" autocomplete="off"><button id="worldJoin">JOIN WORLD</button><button id="accountLogout">LOGOUT</button></div>
-<div id="worldLobby" hidden><p>ROOM CODE</p><div id="roomCodeLabel"></div><p id="lobbyPlayers"></p><p id="lobbyEquipment"></p><button id="roundStart">START ROUND</button><button id="roundResume" hidden>RETURN TO WORLD</button><button id="worldLeave">LEAVE WORLD</button></div>
-<p id="netMessage" role="status"></p><button id="multiplayerBack">BACK</button></section>
+  <header class="netHeader">
+    <div><p class="eyebrow">TOWER OF POWER / ONLINE</p><h2>MULTIPLAYER</h2></div>
+    <span id="serverState" class="serverState" role="status">READY TO CONNECT</span>
+  </header>
+  <div class="netBody">
+    <p id="netIdentity">Choose how you want to play.</p>
+    <div id="accountForm" class="netGrid">
+      <div class="netCard guestCard">
+        <span class="netStep">01 / QUICK PLAY</span><h3>ENTER THE FIELD</h3>
+        <p>Host a world or join your friends with a room code.</p>
+        <button id="accountGuest" class="netPrimary" data-net-action>PLAY AS GUEST <span aria-hidden="true">↗</span></button>
+        <small>No account needed. Browser + Android cross-play.</small>
+      </div>
+      <form id="accountCredentials" class="netCard">
+        <div class="accountTabs" role="tablist" aria-label="Account options">
+          <button id="loginTab" type="button" role="tab" aria-selected="true" aria-controls="accountFields">LOGIN</button>
+          <button id="registerTab" type="button" role="tab" aria-selected="false" aria-controls="accountFields">CREATE ACCOUNT</button>
+        </div>
+        <div id="accountFields" role="tabpanel" aria-labelledby="loginTab">
+          <label for="accountUsername">USERNAME</label>
+          <input id="accountUsername" autocomplete="username" maxlength="20" autocapitalize="none" spellcheck="false" placeholder="Your username">
+          <label for="accountPassword">PASSWORD</label>
+          <input id="accountPassword" type="password" autocomplete="current-password" maxlength="128" placeholder="Your password">
+          <small id="accountHelp">Your account works on every device.</small>
+          <button id="accountLogin" type="button" data-net-action>LOGIN <span aria-hidden="true">→</span></button>
+          <button id="accountCreate" type="button" data-net-action hidden>CREATE ACCOUNT <span aria-hidden="true">→</span></button>
+        </div>
+      </form>
+    </div>
+    <div id="worldMenu" hidden>
+      <div class="netGrid">
+        <div class="netCard"><span class="netStep">01 / START A WORLD</span><h3>BRING YOUR FRIENDS</h3><p>Create a room, share its code, then start when everyone is ready.</p><button id="worldHost" class="netPrimary" data-net-action>CREATE WORLD / HOST <span aria-hidden="true">↗</span></button></div>
+        <form id="joinForm" class="netCard"><span class="netStep">02 / FIND YOUR GROUP</span><label for="joinCode">ROOM CODE</label><input id="joinCode" maxlength="5" placeholder="K7P4Q" autocapitalize="characters" autocomplete="off" spellcheck="false"><button id="worldJoin" type="submit" data-net-action>JOIN WORLD <span aria-hidden="true">→</span></button></form>
+      </div>
+      <button id="accountLogout" class="netQuiet" data-net-action>LOGOUT</button>
+    </div>
+    <div id="worldLobby" hidden>
+      <div class="netGrid">
+        <div class="netCard"><span class="netStep">YOUR ROOM CODE</span><div id="roomCodeLabel"></div><p>Share this code with your friends.</p><button id="roundStart">START ROUND <span aria-hidden="true">→</span></button><button id="roundResume" hidden>RETURN TO WORLD</button></div>
+        <div class="netCard"><span class="netStep">PLAYERS / EQUIPMENT</span><p id="lobbyPlayers"></p><p id="lobbyEquipment"></p></div>
+      </div>
+      <button id="worldLeave" class="netQuiet">LEAVE WORLD</button>
+    </div>
+    <details id="serverSettings">
+      <summary>SERVER SETTINGS <span>Advanced</span></summary>
+      <p>The live server is already set. Change this only to use another server.</p>
+      <label for="serverAddress">HTTPS SERVER ADDRESS</label>
+      <input id="serverAddress" type="url" autocomplete="url" autocapitalize="none" spellcheck="false">
+      <div class="serverActions"><button id="saveServer" data-net-action>CHECK CONNECTION</button><button id="defaultServer" data-net-action>USE DEFAULT</button></div>
+    </details>
+  </div>
+  <footer class="netFooter"><button id="multiplayerBack">← BACK</button><p id="netMessage" role="status" aria-live="polite"></p></footer>
+</section>
 <div id="networkStatus" role="status" hidden></div><div id="onlineRoster" hidden></div>
