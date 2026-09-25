@@ -1,9 +1,15 @@
 from pathlib import Path
+import base64, re
 root=Path(__file__).resolve().parents[1];s=(root/'client/game.base.html').read_text()
 def replace(a,b):
  global s
  if a not in s:raise ValueError('Missing hook '+a[:100])
  s=s.replace(a,b)
+icon='data:image/svg+xml;base64,'+base64.b64encode((root/'client/turbine-icon.svg').read_bytes()).decode()
+s,n=re.subn(r'(<img id="gameLogo"[^>]*src=")[^"]*(")',lambda m:m[1]+icon+m[2],s)
+if n!=1:raise ValueError('Missing game logo hook')
+replace('</head>','<link rel="icon" type="image/svg+xml" href="'+icon+'">\n</head>')
+replace('</style>',(root/'client/multiplayer.css').read_text()+'\n</style>')
 replace('<!-- NETWORK_UI -->',(root/'client/multiplayer.html').read_text());replace('  // INFRASTRUCTURE_CODE',(root/'client/sign.js').read_text()+'\n'+(root/'client/infrastructure.js').read_text());replace('  // NETWORK_CODE',(root/'client/networking.js').read_text()+'\n'+(root/'client/multiplayer.js').read_text())
 replace('function updateEnemy(dt){','function updateEnemy(dt){\n    if(net.active)return;');replace('function updatePowerCreature(dt){','function updatePowerCreature(dt){\n    if(net.active)return;');replace('function emitNoise(radius){','function emitNoise(radius){\n    if(net.active){game.noisePulse=1;game.lastNoiseRadius=radius;return;}')
 replace("if(game.mode==='playing'&&world.cycle)world.phase","if(game.mode==='playing'&&world.cycle&&!net.active)world.phase");replace('updateGame(dt);updateEnvironment(dt);','updateGame(dt);updateNetworkFrame(dt);updateEnvironment(dt);');replace("}else if(locked&&game.mode==='playing'){","}else if(locked&&game.mode==='playing'&&(!net.active||net.connected)){")
