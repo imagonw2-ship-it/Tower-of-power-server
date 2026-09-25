@@ -1,4 +1,6 @@
 // Reuses the current game's awakening, pathfinding, hearing, and foot planting.
+import { SoundTargets, legColliders, resolveLegCollision, tickStomp, stompHits, pylonLegPoints } from "../shared/enemy-combat.js";
+import { PYLON_HEADING, PYLON_RIG, STATIC_PYLONS, groundedPylon } from "../shared/power-layout.js";
 import { terrainHeight, shed, clamp } from "../shared/physics.js";
 export function createEnemySimulation(world) {
   const lerp = (a, b, t) => a + (b - a) * t,
@@ -22,37 +24,22 @@ export function createEnemySimulation(world) {
     powerWake: () => event("powerWake", powerCreature),
     powerStep: () => event("powerStep", powerCreature),
   };
-  const POWER_RIG = {
-    feet: [
-      [-15.008241653442383, 0.0, -13.531598567962646],
-      [16.8116512298584, 0.0, -12.085808753967285],
-      [-15.29408073425293, 0.0, 18.465094566345215],
-      [15.616836547851562, 0.0, 19.969297409057617],
-    ],
-    hips: [
-      [-10.21045970916748, 33.0, -7.294733285903931],
-      [9.826166152954102, 33.0, -5.4003448486328125],
-      [-8.394546031951904, 33.0, 10.25119161605835],
-      [8.402820587158203, 33.0, 10.678690910339355],
-    ],
-    knees: [
-      [-12.70530632019043, 15.84, -10.537903232574463],
-      [13.458618392944336, 15.84, -8.876786079406738],
-      [-11.982304077148438, 15.84, 14.522421150207519],
-      [12.15410888671875, 15.84, 15.509806289672852],
-    ],
-    bottoms: [
-      0.0174331646412611, 0.049592941999435425, 0.0, 0.053768374025821686,
-    ],
-    height: 124.75720977783203,
-  };
+  const POWER_RIG = PYLON_RIG;
+  const turbineTargets = new SoundTargets(), powerTargets = new SoundTargets();
+  let collisionSegments = [];
+  const staticLegs = STATIC_PYLONS.flatMap(t => {
+    const pose=groundedPylon(t,POWER_RIG,terrainHeight);
+    const scaled={hips:POWER_RIG.hips.map(p=>p.map(v=>v*t.scale)),knees:POWER_RIG.knees.map(p=>p.map(v=>v*t.scale)),feet:POWER_RIG.feet.map(p=>p.map(v=>v*t.scale))};
+    return [0,1,2,3].flatMap(i=>{const p=pylonLegPoints(pose,scaled,i);return [{a:p[1],b:p[2],r0:.7,r1:.45}];});
+  });
   function resetPowerCreature() {
     const y = terrainHeight(POWER_ZONE.x, POWER_ZONE.z);
     Object.assign(powerCreature, {
       x: POWER_ZONE.x,
       z: POWER_ZONE.z,
       y,
-      heading: 0,
+      heading: PYLON_HEADING,
+      attack: null, attackCooldown: 0, targetId: null,
       state: "dormant",
       clock: 0,
       wake: 0,
@@ -73,9 +60,9 @@ export function createEnemySimulation(world) {
     });
     powerCreature.feet = POWER_RIG.feet.map((p) => {
       const at = [
-        POWER_ZONE.x + p[0],
-        terrainHeight(POWER_ZONE.x + p[0], POWER_ZONE.z + p[2]) + 0.06,
-        POWER_ZONE.z + p[2],
+        POWER_ZONE.x + p[2],
+        terrainHeight(POWER_ZONE.x + p[2], POWER_ZONE.z - p[0]) + 0.06,
+        POWER_ZONE.z - p[0],
       ];
       return {
         position: at.slice(),
@@ -133,6 +120,7 @@ export function createEnemySimulation(world) {
     let moving = 0;
     for (let i = 0; i < 4; i++) {
       const f = p.feet[i];
+      if (p.attack?.foot === i) continue;
       if (f.progress >= 1) continue;
       moving++;
       f.progress = Math.min(1, f.progress + dt / f.duration);
@@ -151,7 +139,7 @@ export function createEnemySimulation(world) {
         game.shake = Math.max(game.shake, 1.4 / (1 + d * 0.035));
       }
     }
-    if (p.state === "waking" || moving || p.stepRest > 0) return;
+    if (p.attack || p.state === "waking" || moving || p.stepRest > 0) return;
     const order = [0, 3, 1, 2];
     let selected = -1,
       largest = 3.4;
@@ -271,7 +259,7 @@ export function createEnemySimulation(world) {
     const speed =
         (fast ? 10.7 : p.state === "searching" ? 3.4 : 2.5) *
         Math.max(0.1, Math.cos(turn)) *
-        clamp(navDistance / 7, 0, 1),
+        clamp((navDistance - (fast && p.memoryAge < 2 ? 21 : 0)) / 7, 0, 1) * (p.attack ? 0 : 1),
       accel = 1 - Math.exp(-(fast ? 7 : 4) * dt);
     p.vx += (Math.sin(p.heading) * speed - p.vx) * accel;
     p.vz += (Math.cos(p.heading) * speed - p.vz) * accel;
@@ -513,6 +501,7 @@ export function createEnemySimulation(world) {
     enemy.impact *= Math.exp(-6 * dt);
     let swinging = false;
     for (const foot of enemy.feet) {
+      if (enemy.attack && enemy.feet[enemy.attack.foot] === foot) continue;
       if (foot.progress >= 1) continue;
       swinging = true;
       foot.progress = Math.min(1, foot.progress + dt / foot.duration);
@@ -531,7 +520,7 @@ export function createEnemySimulation(world) {
         enemy.stepRest = enemy.state === "running" ? 0.025 : 0.12;
       }
     }
-    if (swinging || enemy.stepRest > 0) return;
+    if (enemy.attack || swinging || enemy.stepRest > 0) return;
     let selected = -1,
       error = 3.6;
     for (let n = 0; n < 3; n++) {
@@ -655,7 +644,7 @@ export function createEnemySimulation(world) {
     );
     const speed = runningNow ? 11.4 : enemy.state === "searching" ? 3.6 : 2.4;
     const alignment = Math.max(0.08, Math.cos(turn)),
-      stop = clamp(navDistance / (runningNow ? 6 : 4), 0, 1),
+      stop = clamp((navDistance - (runningNow && enemy.memoryAge < 2 ? 48 : 0)) / (runningNow ? 6 : 4), 0, 1) * (enemy.attack ? 0 : 1),
       acceleration = runningNow ? 9 : 4.5;
     enemy.vx +=
       (Math.sin(enemy.heading) * speed * alignment * stop - enemy.vx) *
@@ -700,31 +689,39 @@ export function createEnemySimulation(world) {
     turbine,
     powerCreature,
     events,
+    collide(p) {
+      resolveLegCollision(p, collisionSegments, terrainHeight(p.x,p.z));
+    },
     noise(p, radius) {
-      Object.assign(player, p);
-      emitNoise(radius);
+      const occluded = body => shedBlocksSight([body.x,terrainHeight(body.x,body.z)+1.6,body.z],[p.x,p.y,p.z]);
+      if(!world.turbineStopped)turbineTargets.hear(p,radius,turbine,enemy.state==='dormant'?1.8:1,occluded(turbine));
+      if(!world.powerStopped)powerTargets.hear(p,radius,powerCreature,powerCreature.state==='dormant'?1.5:1,occluded(powerCreature));
     },
     step(dt, players) {
-      const alive = players.filter((p) => p.alive);
-      if (alive.length) Object.assign(player, alive[0]);
-      else Object.assign(player, { x: 9999, y: 0, z: 9999 });
+      const alive=players.filter(p=>p.alive);
+      const applyTarget=(tracker,body,state,power)=>{
+        const target=tracker.step(dt,alive,body,t=>Math.hypot(t.x-shed.x,t.z-shed.z)>=8),old=state.targetId;
+        state.targetId=target.id;
+        if(target.fresh){state.noise=power?target.position:{position:target.position,life:.3};}
+        if(old&&!target.id&&state.state==='running'){state.state='searching';state.clock=0;state.navAge=0;}
+        const chosen=alive.find(p=>p.id===target.id);
+        Object.assign(player,chosen||{x:9999,y:0,z:9999});
+      };
+      applyTarget(turbineTargets,turbine,enemy,false);
       updateEnemy(dt);
+      applyTarget(powerTargets,powerCreature,powerCreature,true);
       updatePowerCreature(dt);
-      for (const p of alive)
-        for (const a of [{ ...turbine, state: enemy.state }, powerCreature])
-          if (
-            ["running", "searching", "patrolling"].includes(a.state) &&
-            Math.hypot(p.x - a.x, p.z - a.z) < 7.2 &&
-            !shedBlocksSight(
-              [a.x, terrainHeight(a.x, a.z) + 2, a.z],
-              [p.x, p.y, p.z],
-            )
-          ) {
-            p.alive = false;
-            p.health = 0;
-            p.input.x = p.input.z = 0;
-            events.push({ kind: "caught", id: p.id, x: p.x, z: p.z });
-          }
+      const impact=kind=>(point,radius)=>{
+        events.push({kind:kind==='turbine'?'enemyStep':'powerStep',x:point[0],z:point[2],stomp:true});
+        for(const p of alive)if(stompHits(p,point,radius,terrainHeight,shedBlocksSight)){
+          p.alive=false;p.health=0;p.input.x=p.input.z=0;
+          events.push({kind:'caught',id:p.id,x:p.x,z:p.z});
+        }
+      };
+      if(!world.turbineStopped)tickStomp(enemy,turbine,'turbine',dt,terrainHeight,shedBlocksSight,impact('turbine'));
+      if(!world.powerStopped)tickStomp(powerCreature,powerCreature,'power',dt,terrainHeight,shedBlocksSight,impact('power'));
+      collisionSegments=legColliders(turbine,enemy,powerCreature,POWER_RIG,terrainHeight).concat(staticLegs);
+      for(const p of alive)if(p.alive)resolveLegCollision(p,collisionSegments,terrainHeight(p.x,p.z));
     },
     snapshot() {
       const select = (o, keys) =>
@@ -742,6 +739,7 @@ export function createEnemySimulation(world) {
             "crouch",
             "lean",
             "bank",
+            "targetId", "attack",
             "anchor",
             "vx",
             "vz",
@@ -763,6 +761,7 @@ export function createEnemySimulation(world) {
             "rigBlend",
             "bodyDrop",
             "bodyBob",
+            "targetId", "attack",
             "vx",
             "vz",
           ]),
