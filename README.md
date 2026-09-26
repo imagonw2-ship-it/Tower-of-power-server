@@ -1,3 +1,12 @@
+## Version 11.2: flashlight, face censor and item interactions
+
+- The flat censor covers the visible face, leaves the hood visible, and shrinks with distance. Removed fixed screen padding; it follows the recorded image's VHS distortion and remains occluded by nearer objects.
+- Flashlight energy is added in linear light, with a brighter hotspot, broader spill, gradual distance falloff, matching shadow coverage and a light source at the held model's lens. Equipping it restores the player's on/off preference.
+- A glass pickup prompt follows the item under the player's aim. It sends the displayed item ID and retains server reach, sight and ownership validation. It disappears when out of reach, obscured, collected or disconnected.
+- Equipment switches lower the old item, swap out of view and raise the new item. Remote hazmat hands animate the same transition. Rapid switches and inventory selection are supported.
+- Android 11.2 / versionCode 15 keeps the existing app identity and signing key. No account, protocol or database migration is needed.
+- 47 automated checks passed, including native graphics pixel tests for flashlight visibility/falloff/shadowing and full-client pickup/animation checks. Physical Android testing remains unverified.
+
 ## Version 11.1: grips, camera and bodycam censor
 
 - Camera, soda and flashlight attach to a shared palm frame with individual physical grip anchors. Wrist rotation and aiming are carried through idle, walk, sprint and crouch.
