@@ -120,7 +120,7 @@ export function createEnemySimulation(world) {
     let moving = 0;
     for (let i = 0; i < 4; i++) {
       const f = p.feet[i];
-      if (p.attack?.foot === i) continue;
+      if (p.attack?.kind==='bodyDrop'||p.attack?.foot === i) continue;
       if (f.progress >= 1) continue;
       moving++;
       f.progress = Math.min(1, f.progress + dt / f.duration);
@@ -251,7 +251,7 @@ export function createEnemySimulation(world) {
         Math.cos(desired - p.heading),
       );
     const fast = p.state === "running";
-    p.heading += clamp(
+    if(!p.attack)p.heading += clamp(
       turn,
       -dt * (fast ? 0.74 : 0.42),
       dt * (fast ? 0.74 : 0.42),
@@ -501,7 +501,7 @@ export function createEnemySimulation(world) {
     enemy.impact *= Math.exp(-6 * dt);
     let swinging = false;
     for (const foot of enemy.feet) {
-      if (enemy.attack && enemy.feet[enemy.attack.foot] === foot) continue;
+      if (enemy.attack && (enemy.attack.kind==='bodyDrop'||enemy.feet[enemy.attack.foot] === foot)) continue;
       if (foot.progress >= 1) continue;
       swinging = true;
       foot.progress = Math.min(1, foot.progress + dt / foot.duration);
@@ -637,7 +637,7 @@ export function createEnemySimulation(world) {
       -(runningNow ? 0.95 : 0.48) * dt,
       (runningNow ? 0.95 : 0.48) * dt,
     );
-    enemy.heading += rotation;
+    if(!enemy.attack)enemy.heading += rotation;
     const navDistance = Math.hypot(
       enemy.navTarget[0] - turbine.x,
       enemy.navTarget[1] - turbine.z,
@@ -701,7 +701,7 @@ export function createEnemySimulation(world) {
       const alive=players.filter(p=>p.alive);
       const applyTarget=(tracker,body,state,power)=>{
         const target=tracker.step(dt,alive,body,t=>Math.hypot(t.x-shed.x,t.z-shed.z)>=8),old=state.targetId;
-        state.targetId=target.id;
+        state.targetId=target.id;state.heardVelocity=target.velocity;
         if(target.fresh){state.noise=power?target.position:{position:target.position,life:.3};}
         if(old&&!target.id&&state.state==='running'){state.state='searching';state.clock=0;state.navAge=0;}
         const chosen=alive.find(p=>p.id===target.id);

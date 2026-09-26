@@ -17,6 +17,7 @@ export function makePlayer(account, index) {
     health: 1,
     inventory: { flashlight: false, sodas: 0 },
     torch: false,
+    heldItem: "camera",
     boost: 0,
     drinking: 0,
     photo: 0,
@@ -56,6 +57,7 @@ export function acceptInput(p, m, now) {
 export function tickPlayer(p, dt, world, now) {
   p.boost = Math.max(0, p.boost - dt);
   p.drinking = Math.max(0, p.drinking - dt);
+  if(p.heldItem==="soda"&&p.inventory.sodas===0&&p.drinking===0)p.heldItem="none";
   p.photo = Math.max(0, p.photo - dt);
   p.cooldown = Math.max(0, p.cooldown - dt);
   if (!p.alive || !p.connected || now - p.lastInput > 350) {
@@ -92,6 +94,7 @@ export function wirePlayer(p) {
     connected: p.connected,
     inventory: p.inventory,
     torch: p.torch,
+    heldItem: p.heldItem,
     boost: p.boost,
     drinking: p.drinking,
     photo: p.photo,

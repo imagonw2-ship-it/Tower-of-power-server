@@ -155,14 +155,15 @@ export function attachNetworking(
           }
         }
         if (room.phase === "playing" && p.alive) {
+          if(m.action==='equip'&&(['none','camera'].includes(m.item)||(m.item==='flashlight'&&p.inventory.flashlight)||(m.item==='soda'&&p.inventory.sodas>0))){p.heldItem=m.item;if(m.item!=='flashlight')p.torch=false;ok=true;}
           if (m.action === "pickup") ok = takeItem(w, p, m.itemId);
           if (m.action === "torch" && p.inventory.flashlight) {
-            p.torch = !!m.on;
+            p.torch = !!m.on;if(p.torch)p.heldItem="flashlight";
             ok = true;
           }
           if (m.action === "photo" && p.cooldown <= 0) {
             p.cooldown = 0.9;
-            p.photo = 0.22;
+            p.photo = 0.22;p.heldItem="camera";p.torch=false;
             w.sim.noise(p, 100);
             ok = true;
           }
@@ -176,7 +177,7 @@ export function attachNetworking(
               w.itemRevision++;
             }
             p.boost = 15;
-            p.drinking = 1.1;
+            p.drinking = 1.1;p.heldItem="soda";p.torch=false;
             w.sim.noise(p, 18);
             ok = true;
           }
