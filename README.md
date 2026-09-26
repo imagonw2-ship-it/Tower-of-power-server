@@ -5,6 +5,30 @@ backend, shared by desktop browsers, mobile browsers, Chromebooks, and the
 Android APK. The game, imported models, touch controls, enemies, graphics,
 audio, and singleplayer mode are preserved.
 
+## Version 10: Field Kit and leg attacks
+
+Touch play uses an outer-edge sprint joystick, a context-only pickup button,
+and one large Use button. Open KIT to equip the camera, flashlight or stacked
+sodas. The smaller buttons crouch and cycle zoom; world controls are in Pause.
+Desktop keeps its existing shortcuts and adds I/Tab for the kit and R to use
+its selected tool. Android Back closes the kit before returning to the menu.
+
+The power corridor has six grounded background towers and conductors attached
+to crossarm insulators. The moving tower releases its conductors as it wakes.
+Warning signs read correctly on both sides; the concrete yard has larger bays,
+narrow expansion joints and drainage channels. Leg concrete collars are gone.
+
+Both giants use solid leg segments and a telegraphed, aimed foot stomp. The
+landing point locks before impact; proximity to the torso alone does not cause
+a catch. Online damage and collisions are resolved by the server. Sound target
+tracking commits to one player, forgets silent targets, and can switch away
+from unreachable shelter targets after a commitment period. Crouching in grass
+still reduces noise. Each room owns its own target memory.
+
+Shared combat rules are in `shared/enemy-combat.js`, corridor layout in
+`shared/power-layout.js`, and equipment UI in `client/equipment.*`. The new
+modules are embedded into the standalone HTML, with no new runtime download.
+
 ## Run locally
 
 Requires Node.js 24 or newer for built-in SQLite.
@@ -118,3 +142,9 @@ guest multiplayer, separate devices, room codes, starter-item scaling,
 movement validation, reconnects, independent rooms, shared enemies, and account
 persistence. `test/browser.mjs` additionally checks the actual game UI and
 singleplayer; provide `CHROMIUM_PATH` for a compatible Chromium installation.
+
+The version 10 automated suite has 33 passing checks. It includes the complete
+compiled game script with a DOM and recording graphics adapter, plus real
+HTTP/WebSocket multiplayer tests. That adapter checks geometry and integration,
+not actual GPU rendering. Final appearance and performance still require a
+WebGL 2 device; the available cloud browser does not support WebGL 2.

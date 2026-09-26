@@ -1,6 +1,6 @@
 {
   "name": "tower-of-power-online",
-  "version": "8.0.0",
+  "version": "10.0.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@sparticuz/chromium": "^143.0.4",
+    "linkedom": "0.18.13",
     "playwright": "1.58.2",
     "prettier": "3.6.2"
   }
