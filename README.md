@@ -1,3 +1,16 @@
+## Version 11.0: equipment and hazmat update
+
+This release keeps the existing WebGL2 game, mobile controls and authoritative room server.
+
+- Neutral transparent controls and a dedicated toggle sprint button. The movement stick no longer enables sprint. Mobile keyboard hints and the menu logo are removed.
+- One equipped hand, a backpack grid, drag/tap equipment selection, bigger held flashlight and a neutral aluminum soda can.
+- Uploaded Class A NBC hazmat player model, Mixamo walk/run/idle poses and a crouch walk derived from Mixamo's sneak pose plus walk cycle. Equipped items attach to the right hand. An opaque black censor bar follows each head.
+- Turbine legs stay inside separate angular sectors; stomps predict motion from successive audible positions, then lock their aim. Both giants use a telegraphed body drop when they hear a player beneath their center.
+- Equipped items are checked and synchronized by the server. Only the world owner sees and can use world controls in multiplayer.
+- Android 11.0 / versionCode 13 uses the existing package and signing identity. No database migration is required. Protocol 1 remains supported.
+
+Validation includes the full game harness, native ANGLE shader compile/link, real HTTP/WebSocket device tests, attack reach/prediction/drop tests and avatar geometry/hand checks. A physical Android device was not available in this environment.
+
 ## Version 10.2 startup fix
 
 Renamed a reserved GLSL word in the concrete shader that prevented version 10 from starting on real graphics drivers. Startup errors now report the shader stage. The game preserves the Field Kit, power corridor fixes, leg collisions and multiplayer targeting.
