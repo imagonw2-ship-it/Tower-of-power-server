@@ -19,21 +19,21 @@ test('item contact stays in the palm during idle, locomotion, crouch, turning an
   }
 });
 
-test('flat censor encloses the actual skinned head at different angles, poses and zoom levels',()=>{
+test('face censor covers the visible face while leaving the hood visible',()=>{
   const {run}=launch();
   run("resetWorld(true);setMode('playing');locked=true;world.turbineStopped=true;world.powerStopped=true;settings.vhs=0;player.yaw=0;player.pitch=0;const p={id:'head-test',x:player.x,z:player.z-5,yaw:0,pitch:0,vx:0,vz:0,heldItem:'none'};");
   const data=run('AVATAR_ASSET');
-  // Use real hood and respirator vertices, not the implementation's bounding box.
+  // Use actual respirator geometry, independent of the censor bounds.
   const points=[];
-  for(const mesh of data.meshes){
+  for(const mesh of data.meshes.filter(m=>m.name==='GasMask')){
     const b=Buffer.from(mesh.vertices,'base64');
     for(let i=0;i<mesh.vertexCount;i++){
       const o=i*32,p=[b.readFloatLE(o),b.readFloatLE(o+4),b.readFloatLE(o+8)];
-      if(p[1]<1.55)continue;
+      if(p[2]<.055||p[1]<1.535)continue;
       points.push({p,b0:b[o+21],b1:b[o+22],w:b[o+23]/255});
     }
   }
-  for(const yaw of [0,1.57,3.14,4.71])for(const crouch of [false,true])for(const zoom of [1,2.8]){
+  for(const yaw of [2.3,3.14,4.0])for(const crouch of [false,true])for(const zoom of [1,2.8]){
     run(`game.zoom=${zoom};updateCamera(0);Object.assign(p,{yaw:${yaw},crouching:${crouch}});headCensorCount=0;avatarCache.clear();appendHazmat(p,1.7);`);
     assert.equal(run('headCensorCount'),1);
     const rect=run('Array.from(headCensorRects.slice(0,4))'),bones=run('Array.from(avatarCache.get(p.id).bones)'),vp=run('Array.from(viewProjection)'),root=run('Array.from(multiply(transform(p.x,shedFloor(p.x,p.z),p.z),rotateY(p.yaw+Math.PI)))');
@@ -43,10 +43,29 @@ test('flat censor encloses the actual skinned head at different angles, poses an
       if(clip[3]<=0)continue;
       const u=clip[0]/clip[3]*.5+.5,w=clip[1]/clip[3]*.5+.5;
       if(u<0||u>1||w<0||w>1)continue;visible++;
-      assert.ok(u>=rect[0]&&u<=rect[2]&&w>=rect[1]&&w<=rect[3],`exposed head: yaw=${yaw} crouch=${crouch} zoom=${zoom}`);
+      assert.ok(u>=rect[0]&&u<=rect[2]&&w>=rect[1]&&w<=rect[3],`exposed face: yaw=${yaw} crouch=${crouch} zoom=${zoom} vertex=${v.p} projected=${u},${w} rect=${rect}`);
     }
     assert.ok(visible>100);
+    const hi=data.bones.indexOf('head'),hood=point(vp,point(root,point(bones.slice(hi*16,hi*16+16),[0,1.872,0])));
+    const hx=hood[0]/hood[3]*.5+.5,hy=hood[1]/hood[3]*.5+.5;
+    assert.ok(hx<rect[0]||hx>rect[2]||hy<rect[1]||hy>rect[3],'hood top should remain visible');
   }
+  run('p.yaw=0;headCensorCount=0;appendHazmat(p,3);');assert.equal(run('headCensorCount'),0,'no floating mask on the back of the hood');
   run('p.z=player.z+8;headCensorCount=0;appendHazmat(p,3);');assert.equal(run('headCensorCount'),0);
   run('headCensorCount=7;buildObjects();');assert.equal(run('headCensorCount'),0,'stale masks cleared on singleplayer frame');
+});
+
+
+test('face censor shrinks with distance with no fixed screen padding or tape-roll expansion',()=>{
+  const {run}=launch();
+  run("resetWorld(true);setMode('playing');locked=true;player.yaw=0;player.pitch=0;settings.vhs=1;updateCamera(0);const p={id:'distance-test',x:player.x,z:player.z-3,yaw:Math.PI,heldItem:'none'};");
+  const sizes=[];
+  for(const distance of [3,6,12,24,48,96]){
+    run(`p.z=player.z-${distance};headCensorCount=0;avatarCache.clear();appendHazmat(p,2);`);
+    assert.equal(run('headCensorCount'),1);
+    sizes.push(run('[headCensorRects[2]-headCensorRects[0],headCensorRects[3]-headCensorRects[1]]'));
+  }
+  for(let i=1;i<sizes.length;i++)for(let k=0;k<2;k++)assert.ok(sizes[i][k]<sizes[i-1][k]*.57,'doubling distance must almost halve the mask');
+  const initial=run('Array.from(headCensorRects)');
+  run('time=9.1;headCensorCount=0;appendHazmat(p,2);');assert.deepEqual(run('Array.from(headCensorRects)'),initial);
 });
