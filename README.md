@@ -1,3 +1,12 @@
+## Version 11.3: first-person arms and shared lighting
+
+- The flat censor covers the face and upper hood edge without gaps, follows VHS displacement and still shrinks with distance. Fully hidden players stay occluded.
+- The uploaded hazmat sleeve and glove appear in first person, with grip-aligned holding, switching and drinking poses. The extra mesh reuses the existing texture.
+- Up to three nearby multiplayer flashlights illuminate shared surfaces. Their beams follow the held lens; shed walls and the pitched roof block both local and remote lights.
+- The shed has darker interior ambient light, doorway bounce and roof/wall shadows even at lower shadow settings.
+- The contextual item pickup buttons, inventory, controls, enemy systems and networking remain in place. Android 11.3 / versionCode 16 retains the existing signing identity and protocol.
+- Verification is limited to 15 focused checks, including native GLES shader and pixel checks. Physical Android testing remains unverified.
+
 ## Version 11.2: flashlight, face censor and item interactions
 
 - The flat censor covers the visible face, leaves the hood visible, and shrinks with distance. Removed fixed screen padding; it follows the recorded image's VHS distortion and remains occluded by nearer objects.
