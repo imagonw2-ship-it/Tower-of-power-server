@@ -4,6 +4,19 @@ const avatarCache=new Map();let avatarParts=[],avatarClips={},cameraItemMesh,cam
 const avatarBoneCount=AVATAR_ASSET.bones.length;
 const headCensorRects=new Float32Array(8*4),headCensorDepths=new Float32Array(8);
 let headCensorCount=0;
+const remoteTorchPositions=new Float32Array(12),remoteTorchDirections=new Float32Array(12),remoteTorchDistances=new Float32Array(3);
+let remoteTorchCount=0,povArmMesh,povArmTexture;
+const povArmBones=new Float32Array(32*16);
+let povHandMatrix=identity();
+function appendRemoteTorch(grip,strength,distance){
+  if(strength<=.01)return;
+  let slot=remoteTorchCount;
+  if(slot<3)remoteTorchCount++;
+  else{slot=remoteTorchDistances.indexOf(Math.max(...remoteTorchDistances));if(distance>=remoteTorchDistances[slot])return;}
+  remoteTorchDistances[slot]=distance;
+  remoteTorchPositions.set([grip[12]-grip[8]*.085,grip[13]-grip[9]*.085,grip[14]-grip[10]*.085,strength],slot*4);
+  remoteTorchDirections.set([...norm([-grip[8],-grip[9],-grip[10]]),0],slot*4);
+}
 // All props share the same palm frame. Each origin is adjusted to its actual grip,
 // rather than putting the asset's center at the wrist.
 const itemGripAnchors={camera:[.059,-.003,.008],flashlight:[-.008,-.145,.005],soda:[0,.095,0]};
@@ -15,8 +28,39 @@ function itemGripMatrix(kind){
 function buildAvatars(){
   const textures={};for(const [k,v] of Object.entries(AVATAR_ASSET.textures))textures[k]=importedTexture(v,5);
   avatarParts=AVATAR_ASSET.meshes.map(m=>({mesh:unpackModel(m),texture:textures[m.texture]}));
+  povArmMesh=unpackModel(POV_ARM_ASSET);povArmTexture=textures.suit;
   for(const [name,clip] of Object.entries(AVATAR_ASSET.clips))avatarClips[name]={...clip,values:new Float32Array(Uint8Array.from(atob(clip.data),c=>c.charCodeAt(0)).buffer)};
   cameraItemMesh=unpackModel(CAMERA_ASSET);cameraItemTexture=importedTexture(CAMERA_ASSET.texture,5);
+}
+function appendPovArm(item,kind){
+  // Solve the glove from the prop's grip, then bend the sleeve toward it. The
+  // same pose drives holding, drinking, walking sway and the equipment swap.
+  const point=(m,p)=>[0,1,2].map(k=>m[k]*p[0]+m[4+k]*p[1]+m[8+k]*p[2]+m[12+k]);
+  const h=identity(),grip=point(item,itemGripAnchors[kind]);
+  for(let j=0;j<3;j++){
+    const col=[8,0,4][j],axis=norm([item[col],item[col+1],item[col+2]]);
+    for(let k=0;k<3;k++)h[j*4+k]=axis[k];
+  }
+  for(let k=0;k<3;k++)h[12+k]=grip[k]-h[k]*itemPalm[0]-h[4+k]*itemPalm[1]-h[8+k]*itemPalm[2];
+  povHandMatrix=h;
+  const ids=['upperarm_r','lowerarm_r','hand_r'].map(n=>AVATAR_ASSET.bones.indexOf(n)),bind=ids.map(i=>AVATAR_ASSET.bind[i]);
+  const positions=bind.map(m=>Array.from(m.slice(12,15))),ul=Math.hypot(...positions[1].map((v,k)=>v-positions[0][k])),ll=Math.hypot(...positions[2].map((v,k)=>v-positions[1][k]));
+  const wrist=Array.from(h.slice(12,15));
+  let shoulder=cameraPosition.map((v,k)=>v+right[k]*.39-up[k]*.49-forward[k]*.02);
+  let delta=wrist.map((v,k)=>v-shoulder[k]),distance=Math.hypot(...delta),axis=norm(delta);
+  const reach=(ul+ll)*.985;
+  if(distance>reach){shoulder=shoulder.map((v,k)=>v+axis[k]*(distance-reach));distance=reach;}
+  distance=Math.max(.02,distance);
+  const pole=right.map((v,k)=>v*.75-up[k]*.7),bend=norm(pole.map((v,k)=>v-axis[k]*dot(pole,axis)));
+  const along=(ul*ul-ll*ll+distance*distance)/(2*distance),out=Math.sqrt(Math.max(0,ul*ul-along*along));
+  const elbow=shoulder.map((v,k)=>v+axis[k]*along+bend[k]*out);
+  const joints=[shoulder,elbow,wrist];
+  for(let i=0;i<3;i++){
+    const pose=i===2?h:avatarAim(bind[i],positions[i+1].map((v,k)=>v-positions[i][k]),joints[i+1].map((v,k)=>v-joints[i][k]));
+    if(i<2)for(let k=0;k<3;k++)pose[12+k]=joints[i][k];
+    povArmBones.set(multiply(pose,AVATAR_ASSET.inverseBind[ids[i]]),i*16);
+  }
+  objectDraws.push({mesh:povArmMesh,model:identity(),bones:povArmBones,texture:povArmTexture,material:5,assetKind:5,castShadow:false,receiveTorch:false,povArm:true});
 }
 function avatarMatrix(p,q){
   const n=Math.hypot(...q)||1,x=q[0]/n,y=q[1]/n,z=q[2]/n,w=q[3]/n;
@@ -56,10 +100,10 @@ function appendHeadCensor(root,skin){
   let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity,depth=1,visible=false;
   const center=[model[4]*1.665+model[8]*.14+model[12],model[5]*1.665+model[9]*.14+model[13],model[6]*1.665+model[10]*.14+model[14]];
   const toViewer=norm(center.map((v,i)=>cameraPosition[i]-v));
-  if(dot(toViewer,[model[8],model[9],model[10]])<.04)return;
+  if(dot(toViewer,[model[8],model[9],model[10]])<-.2)return;
   // Face only. Scene-UV bounds follow the exact same VHS displacement as the
   // photographed face, so no fixed pixel padding is needed at long distances.
-  for(const x of [-.116,.116])for(const y of [1.515,1.813])for(const z of [.05,.215]){
+  for(const x of [-.168,.168])for(const y of [1.50,1.90])for(const z of [-.12,.25]){
     const w=m[3]*x+m[7]*y+m[11]*z+m[15];if(w<=.02)continue;
     let u=(m[0]*x+m[4]*y+m[8]*z+m[12])/w*.5+.5,v=(m[1]*x+m[5]*y+m[9]*z+m[13])/w*.5+.5;
     depth=Math.min(depth,(m[2]*x+m[6]*y+m[10]*z+m[14])/w*.5+.5);
@@ -96,5 +140,6 @@ function appendHazmat(p,clock){
     const h=a.matrices[AVATAR_ASSET.bones.indexOf('hand_r')],grip=multiply(root,multiply(h,itemGripMatrix(held)));
     const mesh=held==='flashlight'?flashlightMesh:held==='soda'?sodaMesh:cameraItemMesh;
     objectDraws.push({mesh,model:grip,material:5,texture:held==='camera'?cameraItemTexture:undefined,assetKind:held==='camera'?6:held==='flashlight'?1:2,castShadow:shadow});
+    if(p.torch&&held==='flashlight'&&distance<60)appendRemoteTorch(grip,1-ease(a.motion.lower),distance);
   }
 }

@@ -49,8 +49,10 @@ function appendHeldEquipment(){
   if(game.mode!=='playing'||game.zoom>=2.5||tool==='none')return;
   if(tool==='flashlight'&&!game.hasFlashlight)return;
   if(tool==='soda'&&game.sodas<=0&&game.drinking<=0)return;
+  const model=heldEquipmentMatrix(tool);
+  appendPovArm(model,tool);
   objectDraws.push({mesh:tool==='flashlight'?flashlightMesh:tool==='soda'?sodaMesh:cameraItemMesh,
-    model:heldEquipmentMatrix(tool),material:5,assetKind:tool==='flashlight'?1:tool==='soda'?2:6,
+    model,material:5,assetKind:tool==='flashlight'?1:tool==='soda'?2:6,
     texture:tool==='camera'?cameraItemTexture:undefined,castShadow:false,receiveTorch:false});
 }
 function torchStrength(){return game.hasFlashlight&&game.torchOn&&equippedTool==='flashlight'&&equipmentMotion.shown==='flashlight'?1-ease(equipmentMotion.lower):0;}
