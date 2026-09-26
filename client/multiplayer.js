@@ -429,6 +429,7 @@ function updateNetworkFrame(dt) {
   game.sodas = p.inventory.sodas;
   game.boostTime = p.boost;
   game.torchOn = p.torch;
+  if(p.heldItem&&p.actionSeq>=net.actionSeq)equippedTool=p.heldItem;
   game.sodaTaken = true;
   if (!p.alive && !["lost", "transition"].includes(game.mode)) {
     sound.caught();
@@ -474,55 +475,11 @@ function appendNetworkObjects() {
       });
   const q = snapshotPair();
   if (!q) return;
-  if (!remoteMesh) {
-    remoteMesh = mesh3D(infraBox(0, 0, 0, 0.43, 0.7, 0.25, [0.29, 0.32, 0.27]));
-    remoteHead = mesh3D(
-      infraBox(0, 0, 0, 0.25, 0.26, 0.24, [0.58, 0.52, 0.42]),
-    );
-    remoteLimb = mesh3D(
-      infraBox(0, 0, 0, 0.14, 0.63, 0.16, [0.19, 0.23, 0.21]),
-    );
-  }
-  for (const cur of q.b.players) {
-    if (cur.id === net.player.id || !cur.alive) continue;
-    const prev = q.a.players.find((p) => p.id === cur.id) || cur,
-      p = poseBetween(prev, cur, q.t);
-    if (Math.hypot(p.x - player.x, p.z - player.z) > 240) continue;
-    const base = shedFloor(p.x, p.z),
-      c = p.crouching ? 0.55 : 1,
-      gait = net.snapshots.at(-1).world.elapsed * (p.sprinting ? 12 : 8),
-      move = Math.min(1, Math.hypot(p.vx, p.vz)),
-      root = multiply(transform(p.x, base, p.z), rotateY(p.yaw));
-    const add = (mesh, x, y, z, rx = 0) =>
-      objectDraws.push({
-        mesh,
-        model: multiply(root, multiply(transform(x, y, z), rotateX(rx))),
-      });
-    add(remoteMesh, 0, 0.99 * c, 0, p.crouching ? 0.32 : 0);
-    add(remoteHead, 0, 1.51 * c, -0.02);
-    for (const side of [-1, 1]) {
-      add(
-        remoteLimb,
-        side * 0.13,
-        0.37 * c,
-        Math.sin(gait) * side * 0.11 * move,
-        Math.sin(gait) * side * 0.32 * move + (p.crouching ? 0.7 : 0),
-      );
-      add(
-        remoteLimb,
-        side * 0.31,
-        1.02 * c,
-        0,
-        -Math.sin(gait) * side * 0.25 * move,
-      );
-    }
-    if (p.inventory.flashlight)
-      objectDraws.push({
-        mesh: flashlightMesh,
-        model: multiply(root, transform(0.31, 1.15 * c, -0.15)),
-        material: 5,
-        assetKind: 1,
-      });
+  const present=new Set(q.b.players.map(p=>p.id));for(const id of avatarCache.keys())if(!present.has(id))avatarCache.delete(id);
+  for(const cur of q.b.players){
+    if(cur.id===net.player.id||!cur.alive)continue;
+    const prev=q.a.players.find(p=>p.id===cur.id)||cur,p=poseBetween(prev,cur,q.t);
+    appendHazmat(p,net.snapshots.at(-1).world.elapsed);
     if (p.photo > 0 && Math.hypot(p.x - player.x, p.z - player.z) < 35)
       game.flash = Math.max(game.flash, (0.15 * p.photo) / 0.22);
   }

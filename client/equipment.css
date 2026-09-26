@@ -1,31 +1,34 @@
-/* Quiet thumb controls and a three-pocket equipment roll, separate from the VHS overlay. */
-#touchControls svg,#fieldKit svg,#desktopKit svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
-#touchActions{display:block;width:170px;height:157px;right:max(26px,env(safe-area-inset-right));bottom:max(25px,env(safe-area-inset-bottom));pointer-events:none}
-#touchActions .touchBtn,#touchPickup{position:absolute;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;pointer-events:auto;width:54px;height:54px;border-radius:16px;background:#1822249e!important;border:1px solid #e8eeee3d!important;box-shadow:0 3px 14px #0003;backdrop-filter:blur(3px);font:8px/1.1 monospace!important;letter-spacing:.8px!important;text-shadow:none!important}
-#touchActions .touchBtn:hover,#touchPickup:hover{background:#344649ce!important}
-#touchActions .touchBtn.latched,#touchActions .touchBtn.active{border-color:#b9c8baff!important;background:#506356dc!important}
-#touchUse{right:0;bottom:0;width:78px!important;height:78px!important;border-radius:25px!important;background:#ced9d2de!important;color:#182621!important;border-color:#f3f7ebaa!important;font-weight:bold!important}
-#touchUse svg{width:30px;height:30px;stroke-width:1.8}
-#touchCrouch{left:10px;bottom:0}#touchKit{right:12px;top:0}#touchAim{left:10px;top:26px}
-#touchPickup{left:50%;bottom:38px;transform:translateX(-50%);width:auto;min-width:126px!important;height:46px;flex-direction:row;gap:10px;padding:8px 16px!important;border-radius:25px;font-size:10px!important;background:#c8d7b8e6!important;color:#142219!important}
-#touchPickup:active{transform:translateX(-50%) scale(.96)}
-#touchPause{right:max(25px,env(safe-area-inset-right));top:max(18px,env(safe-area-inset-top));width:44px;height:40px;border-radius:12px;background:#18222499;display:grid;place-items:center;border:1px solid #e8eeee30}
-#touchPause svg{width:20px;height:20px}
-#joyBase{left:max(30px,env(safe-area-inset-left));bottom:max(30px,env(safe-area-inset-bottom));width:118px;height:118px;border:1px solid #e9efdf70;background:#23313238;box-shadow:inset 0 0 0 16px #00000012,0 4px 20px #0002}
-#joyKnob{width:43px;height:43px;left:36.5px;top:36.5px;border:1px solid #fff7;background:#e6ebdfb5;box-shadow:0 3px 9px #0004}
-#joyBase.running{border-color:#e4f2da;background:#647c614d}#joyRun{position:absolute;top:-17px;left:0;right:0;text-align:center;font:8px monospace;letter-spacing:2px;color:#e4edd9;opacity:.55;pointer-events:none}#joyBase.running #joyRun{opacity:1}
-#touchLesson{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);width:44%;text-align:center;pointer-events:none;color:#d2ddcc;font:9px/1.8 monospace;letter-spacing:.3px;text-shadow:0 1px 3px #000;z-index:41}
-#desktopKit{display:none;position:fixed;left:50%;bottom:24px;transform:translateX(-50%);align-items:center;gap:10px;padding:9px 13px;min-width:0;margin:0;background:#101b18bb;border:1px solid #c3ccba44;border-radius:12px;font:10px monospace;letter-spacing:1px;z-index:12}
-body.playing:not(.touch) #desktopKit{display:flex}#desktopKit kbd{border:1px solid #ddd6;border-radius:4px;padding:3px 5px;color:#e7e7d7;margin-left:16px;font:10px monospace}
-#fieldKit{position:fixed;inset:0;z-index:60;background:#07100f83;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);padding:20px}
-.kitSheet{width:min(630px,94vw);max-height:92vh;overflow:auto;padding:24px;border:1px solid #b3c2bc30;border-radius:22px;background:linear-gradient(145deg,#24302bfa,#101917fa);box-shadow:0 18px 70px #0008;color:#e3e8de;font:13px/1.4 system-ui,sans-serif;text-shadow:none}
-.kitSheet header{display:flex;align-items:center;justify-content:space-between}.kitEyebrow{font:9px monospace;letter-spacing:2.3px;color:#97aa9e;margin:0 0 5px}.kitSheet h2{font:italic 27px FieldBlock,monospace;letter-spacing:-1px;margin:0}
-#kitClose{min-width:0;width:40px;height:40px;padding:0;margin:0;text-align:center;font:28px/1 system-ui;border:1px solid #b3c2bc35;border-radius:12px;background:#d5e5d80c}
-.kitLead{font-size:12px;color:#9baea2;margin:17px 0}.kitPockets{display:flex;gap:12px}
-.kitCard{position:relative;flex:1;min-width:0;margin:0;padding:14px 12px;border:1px solid #9aafa232;border-radius:13px;background:#06100d33;text-shadow:none;letter-spacing:0;display:flex;flex-direction:column;align-items:flex-start;gap:9px;font:12px system-ui,sans-serif;color:#d7dfd2;transition:background .16s,border-color .16s}
-.kitCard:hover,.kitCard:focus-visible{border-color:#c3d9ba;background:#a8c2aa16;text-shadow:none}.kitCard[aria-pressed=true]{border-color:#bcd0b7;background:#9cb09620;box-shadow:inset 0 3px 0 #bcd0b7}.kitCard:disabled{opacity:.43;cursor:default}
-.kitNumber{font:9px monospace;letter-spacing:.6px;color:#9fb3a5}.kitCard svg{width:42px!important;height:42px!important;margin:6px 0;color:#d0dfc8}.kitCard strong{font-size:15px;font-weight:550}.kitDetail{font-size:11px;color:#a2b2a5;min-height:28px}.kitTag{font:8px monospace;letter-spacing:.9px;color:#bdd3b7;margin-top:auto}.kitCard b{display:inline-block;font:10px monospace;margin-left:4px;padding:2px 5px;border-radius:5px;background:#bcd0b726}
-.kitSheet footer{display:flex;justify-content:space-between;gap:14px;margin-top:17px;color:#8c9e92;font:9px monospace;letter-spacing:.3px}
-body.inventory #shade{opacity:0}body.touch #equipment{left:160px;bottom:6px;font-size:8px}body.touch #frameCount{right:205px;bottom:6px;font-size:8px}
-body.touch.playing #hint,body.touch.playing.equipped #hint{bottom:98px;width:40%;font-size:10px}body.touch #photoPreview{right:205px;bottom:35px}body.touch #stealthReadout{right:90px;top:53px}
-@media(max-height:440px){.kitSheet{padding:16px 20px}.kitLead{margin:9px 0;font-size:11px}.kitCard{padding:11px;gap:6px}.kitCard svg{width:32px!important;height:32px!important;margin:0}.kitDetail{min-height:15px;font-size:10px}.kitSheet footer{margin-top:12px}.kitSheet h2{font-size:22px}}
+/* Neutral glass controls stay outside the VHS pass. */
+#touchControls svg,#fieldKit svg,#desktopKit svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+#touchControls button,#desktopKit,body.playing button{color:#fff!important;background:rgba(255,255,255,.025)!important;border:1px solid rgba(255,255,255,.32)!important;box-shadow:inset 0 1px 0 #ffffff15,0 3px 16px #0002!important;backdrop-filter:blur(7px);text-shadow:0 1px 2px #0007!important}
+#touchControls button:hover,#touchControls button:active,#touchControls button.latched{background:rgba(255,255,255,.13)!important;border-color:#ffffffa0!important}
+#touchControls button.latched:after{content:'';position:absolute;width:17px;height:2px;background:#fff;bottom:6px;left:50%;transform:translateX(-50%);border-radius:1px}
+#touchActions{display:block;width:164px;height:155px;right:max(26px,env(safe-area-inset-right));bottom:max(25px,env(safe-area-inset-bottom));pointer-events:none}
+#touchActions .touchBtn,#touchPickup,#touchSprint,#touchWorld{position:absolute;display:flex;align-items:center;justify-content:center;pointer-events:auto;width:55px;height:55px;min-width:0;padding:0!important;margin:0;border-radius:17px}
+#touchControls .touchBtn span{display:none!important}
+#touchUse{right:0;bottom:0;width:76px!important;height:76px!important;border-radius:25px!important}#touchUse svg{width:33px;height:33px}
+#touchCrouch{left:9px;bottom:0}#touchKit{right:10px;top:0}#touchAim{left:9px;top:25px}
+#touchPickup{left:50%;bottom:35px;transform:translateX(-50%);width:60px!important;height:55px!important;border-radius:18px}
+#touchPause{right:max(25px,env(safe-area-inset-right));top:max(18px,env(safe-area-inset-top));width:44px;height:40px;min-width:0;border-radius:12px;display:grid;place-items:center;padding:0!important}
+#touchPause svg{width:20px;height:20px}#touchWorld{left:max(26px,env(safe-area-inset-left));top:66px;width:42px;height:38px;border-radius:12px}#touchWorld svg{width:22px;height:22px}
+#touchSprint{left:max(66px,calc(env(safe-area-inset-left) + 36px));bottom:max(169px,calc(env(safe-area-inset-bottom) + 139px));width:52px;height:49px;border-radius:15px}
+#joyBase{left:max(30px,env(safe-area-inset-left));bottom:max(30px,env(safe-area-inset-bottom));width:118px;height:118px;border:1px solid #ffffff60;background:#ffffff03;box-shadow:inset 0 0 0 16px #ffffff04;backdrop-filter:blur(3px)}
+#joyKnob{width:43px;height:43px;left:36.5px;top:36.5px;border:1px solid #fff7;background:#ffffff28;box-shadow:0 3px 9px #0003}
+#touchLesson,body.touch #onboarding,body.touch #torchControls,body.touch #sodaControls,body.touch #equipment,body.touch .kitKeyTip{display:none!important}
+#desktopKit{display:none;position:fixed;left:50%;bottom:24px;transform:translateX(-50%);align-items:center;gap:10px;padding:9px 13px;min-width:0;margin:0;border-radius:12px;font:10px monospace;letter-spacing:1px;z-index:12}
+body.playing:not(.touch) #desktopKit{display:flex}#desktopKit kbd{border:1px solid #ddd6;border-radius:4px;padding:3px 5px;margin-left:16px;font:10px monospace}
+#fieldKit{position:fixed;inset:0;z-index:60;background:linear-gradient(117deg,#000a,#15151580);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(7px);padding:20px;color:#eee}
+#fieldKit:before{content:'';position:absolute;inset:0;pointer-events:none;opacity:.15;background:repeating-linear-gradient(132deg,transparent 0 182px,#ffffff4a 183px,transparent 184px 355px),linear-gradient(23deg,transparent 43%,#fff3 43.1%,transparent 43.3%)}
+.kitSheet{width:min(890px,94vw);max-height:94vh;overflow:auto;padding:22px 32px;font:13px/1.4 Georgia,serif;text-shadow:none;position:relative}
+.kitSheet header{display:flex;align-items:center;justify-content:flex-end;gap:24px;border-bottom:1px solid #ffffff30;padding-bottom:12px;margin-bottom:22px}.kitSheet h2{font:700 32px Georgia,serif;margin:0;letter-spacing:-1px}.kitSheet h3{font:bold 14px Georgia,serif;margin:0 0 10px;padding:8px 14px;background:linear-gradient(174deg,#eeeeeec9,#a8a8a85c);color:#141414;text-align:right;clip-path:polygon(2% 0,100% 2%,98% 100%,0 92%)}
+#kitClose{min-width:0;width:38px;height:38px;padding:0;margin:0;text-align:center;font:28px/1 system-ui;border:1px solid #ffffff40;border-radius:8px;background:#ffffff09}
+.kitLayout{display:grid;grid-template-columns:180px minmax(250px,1fr);gap:70px;align-items:start}.kitHand{padding:18px 18px 38px;background:linear-gradient(110deg,#ffffff09,#ffffff02);border:1px solid #ffffff12}.kitBag{padding-top:18px}.kitPockets{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.kitSlot{background:#00000060;border:1px solid #ffffff28;box-shadow:inset 0 1px 10px #0003;min-width:0;min-height:78px;aspect-ratio:1.22;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;position:relative;margin:0;padding:7px!important;color:#eee;text-shadow:none!important;font:11px system-ui;letter-spacing:0}
+#handSlot{width:100%;aspect-ratio:1;margin-top:3px}#handSlot svg{width:40px;height:40px}.kitCard:hover,.kitSlot:focus-visible{border-color:#fff9;background:#ffffff10}.kitCard[aria-pressed=true]{border-color:#fffc;background:#ffffff12}.kitCard:disabled{opacity:.32;cursor:default}.kitCard strong{font-weight:500}.kitCard svg{width:32px!important;height:32px!important}.kitDetail{display:none}.kitTag,#handHint{font:7px monospace;letter-spacing:.8px;opacity:.6}.kitCard b{position:absolute;right:7px;top:7px;font:10px monospace}.kitEmpty{opacity:.55}
+.kitSheet footer{display:flex;justify-content:space-between;gap:14px;margin-top:18px;color:#ffffff85;font:10px monospace}
+body.inventory #shade{opacity:0}body.touch #frameCount{right:200px;bottom:6px;font-size:8px}body.touch.playing #hint,body.touch.playing.equipped #hint{bottom:100px;width:40%;font-size:10px}body.touch #photoPreview{right:205px;bottom:35px}body.touch #stealthReadout{right:90px;top:53px}
+@media(max-height:470px){.kitSheet{padding:6px 20px}.kitSheet header{margin-bottom:7px;padding-bottom:5px}.kitSheet h2{font-size:25px}.kitLayout{grid-template-columns:130px minmax(220px,380px);gap:48px;justify-content:center}.kitHand,.kitBag{padding-top:7px}.kitHand{padding-bottom:25px}.kitSheet h3{font-size:11px;padding:5px 9px;margin-bottom:6px}.kitSlot{min-height:59px;aspect-ratio:1.65;gap:2px}.kitCard svg{width:24px!important;height:24px!important}.kitCard strong{font-size:9px}.kitTag{font-size:6px}.kitSheet footer{margin-top:8px;font-size:8px}}
+@media(max-width:550px) and (min-height:471px){.kitSheet{padding:12px}.kitLayout{grid-template-columns:100px 1fr;gap:18px}.kitHand{padding:9px}.kitSlot{aspect-ratio:1;min-height:62px}.kitCard strong{font-size:9px}.kitSheet h3{font-size:10px}}
+
+.panel button{background:#ffffff03!important;border:1px solid #ffffff25;border-radius:8px;backdrop-filter:blur(6px);color:#eee!important}.panel button:hover,.panel button:focus-visible{background:#ffffff16!important;border-color:#ffffff70}
+body.touch #controlsOpen{display:none!important}

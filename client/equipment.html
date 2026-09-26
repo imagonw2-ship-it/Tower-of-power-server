@@ -7,18 +7,21 @@
   <symbol id="icon-pickup" viewBox="0 0 24 24"><path d="M8 12V5a2 2 0 0 1 4 0v7-9a2 2 0 0 1 4 0v9-6a2 2 0 0 1 4 0v10l-4 5H9l-6-7a2 2 0 0 1 3-2l2 2"/></symbol>
   <symbol id="icon-zoom" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6M7 10h6M10 7v6"/></symbol>
   <symbol id="icon-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
-</defs></svg>
+<symbol id="icon-run" viewBox="0 0 24 24"><circle cx="15" cy="4" r="2"/><path d="m13 8-3 5 5 3-2 5M13 8l4 4h4M11 9 7 7l-3 4M10 13l-3 5H2"/></symbol><symbol id="icon-world" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-6 5-6 13 0 18 6-5 6-13 0-18"/></symbol></defs></svg>
 <section id="fieldKit" role="dialog" aria-modal="true" aria-labelledby="kitTitle" hidden>
-  <div class="kitSheet">
-    <header><div><p class="kitEyebrow">YOUR EQUIPMENT</p><h2 id="kitTitle">FIELD KIT</h2></div><button id="kitClose" aria-label="Close field kit">×</button></header>
-    <p class="kitLead">Choose what your Use button does. Collected supplies stay in your kit.</p>
-    <div class="kitPockets" role="group" aria-label="Equipment">
-      <button class="kitCard" data-tool="camera" aria-pressed="true"><span class="kitNumber">01 / TOOL</span><svg><use href="#icon-camera"/></svg><strong>Camera</strong><span class="kitDetail">Flash photograph</span><span class="kitTag">READY</span></button>
-      <button class="kitCard" data-tool="flashlight" aria-pressed="false"><span class="kitNumber">02 / LIGHT</span><svg><use href="#icon-flashlight"/></svg><strong>Flashlight</strong><span class="kitDetail">Find it in the shed</span><span class="kitTag">NOT COLLECTED</span></button>
-      <button class="kitCard" data-tool="soda" aria-pressed="false"><span class="kitNumber">03 / SUPPLY</span><svg><use href="#icon-soda"/></svg><strong>Soda <b id="kitSodas">0</b></strong><span class="kitDetail">15-second speed boost</span><span class="kitTag">EMPTY</span></button>
-    </div>
-    <footer><span id="kitStatus">Select a tool to equip it.</span><span>I / ESC TO CLOSE</span></footer>
+ <div class="kitSheet">
+  <header><h2 id="kitTitle">Inventory</h2><button id="kitClose" aria-label="Close inventory">×</button></header>
+  <div class="kitLayout">
+   <section class="kitHand"><h3>MAIN HAND</h3><button id="handSlot" class="kitSlot" aria-label="Empty hand"><svg><use id="handIcon" href="#icon-camera"/></svg><strong id="handName">Camera</strong><span id="handHint">UNEQUIP</span></button></section>
+   <section class="kitBag"><h3>BACKPACK</h3><div class="kitPockets" role="group" aria-label="Backpack">
+    <button class="kitCard kitSlot" data-tool="camera" draggable="true" aria-pressed="true"><svg><use href="#icon-camera"/></svg><strong>Camera</strong><span class="kitDetail">Flash photograph</span><span class="kitTag">IN HAND</span></button>
+    <button class="kitCard kitSlot" data-tool="flashlight" draggable="true" aria-pressed="false"><svg><use href="#icon-flashlight"/></svg><strong>Flashlight</strong><span class="kitDetail">Find in shed</span><span class="kitTag">NOT COLLECTED</span></button>
+    <button class="kitCard kitSlot" data-tool="soda" draggable="true" aria-pressed="false"><svg><use href="#icon-soda"/></svg><strong>Soda <b id="kitSodas">0</b></strong><span class="kitDetail">Speed boost</span><span class="kitTag">EMPTY</span></button>
+    <div class="kitSlot kitEmpty"></div><div class="kitSlot kitEmpty"></div><div class="kitSlot kitEmpty"></div><div class="kitSlot kitEmpty"></div><div class="kitSlot kitEmpty"></div><div class="kitSlot kitEmpty"></div>
+   </div></section>
   </div>
+  <footer><span id="kitStatus">Select an item to equip it.</span><span class="kitKeyTip">I / ESC TO CLOSE</span></footer>
+ </div>
 </section>
-<button id="desktopKit" aria-label="Open field kit"><svg><use href="#icon-kit"/></svg><span id="equippedName">CAMERA</span><kbd>I</kbd></button>
-<div id="touchLesson" hidden>LEFT THUMB: MOVE · PUSH TO THE EDGE TO RUN<br>RIGHT THUMB: LOOK · KIT: CHOOSE A TOOL</div>
+<button id="desktopKit" aria-label="Open inventory"><svg><use href="#icon-kit"/></svg><span id="equippedName">CAMERA</span><kbd>I</kbd></button>
+<div id="touchLesson" hidden></div>
