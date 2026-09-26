@@ -5,6 +5,7 @@ Input: JSON array of alternating vertex/fragment shader sources on stdin.
 """
 import ctypes as c
 import json
+import math
 import os
 from pathlib import Path
 import sys
@@ -52,7 +53,7 @@ delete_program = gl('glDeleteProgram', None, [U])
 sources = json.load(sys.stdin)
 assert sources and len(sources) % 2 == 0
 failures, programs = [], []
-names = ['sky','ground','grass','objects','camera effects','shadows']
+names = ['sky','ground','grass','objects','camera effects','shadows','flashlight probe']
 for pair in range(len(sources)//2):
     program = create_program()
     shaders = []
@@ -114,6 +115,32 @@ for pair in range(len(sources)//2):
             pixel=(c.c_ubyte*4)();gl('glReadPixels',None,[I,I,I,I,U,U,P])(0,0,1,1,0x1908,0x1401,pixel)
             assert (max(pixel[:3])==0)==redacted, f'Head censor pixel check failed: {count,depth,flash,list(pixel)}'
         assert gl('glGetError',U,[])()==0,'Graphics error during censor pixel checks'
+    if not errors and pair == 6:
+        gl('glUseProgram',None,[U])(program)
+        location=gl('glGetUniformLocation',I,[U,c.c_char_p])
+        uf=gl('glUniform1f',None,[I,c.c_float]);ui=gl('glUniform1i',None,[I,I])
+        v3=gl('glUniform3f',None,[I,c.c_float,c.c_float,c.c_float])
+        v3(location(program,b'u_torchPosition'),0,0,0);v3(location(program,b'u_torchDirection'),0,0,-1)
+        uf(location(program,b'u_receiveTorch'),1);ui(location(program,b'u_torchShadowMap'),1)
+        gl('glUniform2f',None,[I,c.c_float,c.c_float])(location(program,b'u_torchTexel'),1,1)
+        near,far=.09,90;f=1/math.tan(math.radians(32))
+        vp=(c.c_float*16)(f,0,0,0,0,f,0,0,0,0,(far+near)/(near-far),-1,0,0,2*far*near/(near-far),0)
+        gl('glUniformMatrix4fv',None,[I,I,U,c.POINTER(c.c_float)])(location(program,b'u_torchVP'),1,0,vp)
+        def sample(x,d,on=1,shadow=0,blocked=False):
+            uf(location(program,b'u_torch'),on);uf(location(program,b'u_torchShadowStrength'),shadow)
+            gl('glUniform2f',None,[I,c.c_float,c.c_float])(location(program,b'u_probe'),x,d)
+            active_texture(0x84C1);bind_texture(0x0DE1,depth_tex)
+            tex_image(0x0DE1,0,0x81A6,1,1,0,0x1902,0x1405,(U*1)(0 if blocked else 0xffffffff))
+            gl('glDrawArrays',None,[U,I,I])(0x0004,0,3)
+            pixel=(c.c_ubyte*4)();gl('glReadPixels',None,[I,I,I,I,U,U,P])(0,0,1,1,0x1908,0x1401,pixel)
+            return sum(pixel[:3])/3/255
+        dark=sample(0,12,0);center=sample(0,12);spill=sample(3,12);outside=sample(8,12);far_light=sample(0,25)
+        assert center>dark+.17, f'Night grass beam is too faint: {dark,center}'
+        assert dark+.015<spill<center and outside<dark+.01, f'Beam shape/falloff invalid: {dark,center,spill,outside}'
+        assert dark+.035<far_light<center, f'Flashlight range is too short: {dark,far_light,center}'
+        assert abs(sample(0,12,shadow=1)-center)<.015, 'Clear shadow map suppressed the beam'
+        assert sample(0,12,shadow=1,blocked=True)<dark+.01, 'Flashlight shines through occluders'
+        assert gl('glGetError',U,[])()==0,'Graphics error in flashlight probe'
     failures.extend(errors)
     programs.append({'name':name, 'linked':not errors})
     for shader in shaders: delete_shader(shader)
