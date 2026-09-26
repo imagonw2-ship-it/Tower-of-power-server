@@ -1295,7 +1295,8 @@
     `,`
       precision highp float;
       in vec2 v_uv;
-      uniform sampler2D u_scene,u_sceneDepth;
+      uniform sampler2D u_scene;
+      uniform highp sampler2D u_sceneDepth;
       uniform int u_censorCount;
       uniform vec4 u_censorRects[8];
       uniform float u_censorDepths[8];
