@@ -39,10 +39,10 @@ function avatarAim(matrix,from,to){
   }
   return out;
 }
-function avatarHold(poses,pitch=0){
+function avatarHold(poses,pitch=0,lowering=0){
   const idx=name=>AVATAR_ASSET.bones.indexOf(name),u=idx('upperarm_r'),l=idx('lowerarm_r'),h=idx('hand_r');
   const pos=m=>[m[12],m[13],m[14]],a=pos(poses[u]),b=pos(poses[l]),c=pos(poses[h]),upper=b.map((v,k)=>v-a[k]),lower=c.map((v,k)=>v-b[k]);
-  const aim=clamp(pitch,-.75,.65),updir=norm([.035,-.84,.54]),lowdir=norm([.02,-.12+Math.sin(aim),Math.cos(aim)]),ul=Math.hypot(...upper),ll=Math.hypot(...lower);
+  const aim=clamp(pitch,-.75,.65),dip=ease(lowering),updir=norm([.035,-.84-dip*.25,.54*(1-dip*.8)]),lowdir=norm([.02,-.12+Math.sin(aim)-dip*1.5,Math.cos(aim)*(1-dip*.65)]),ul=Math.hypot(...upper),ll=Math.hypot(...lower);
   poses[u]=avatarAim(poses[u],upper,updir);poses[l]=avatarAim(poses[l],lower,lowdir);poses[h]=avatarAim(poses[h],lower,lowdir);
   for(let k=0;k<3;k++){poses[l][12+k]=a[k]+updir[k]*ul;poses[h][12+k]=poses[l][12+k]+lowdir[k]*ll;}
   // Thumb upward, fingers forward, palm inward. Prevent clip-specific wrist rolls
@@ -54,27 +54,28 @@ function appendHeadCensor(root,skin){
   if(headCensorCount>=8)return;
   const model=multiply(root,skin),m=multiply(viewProjection,model);
   let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity,depth=1,visible=false;
-  // Whole hood + respirator, not only the face. Bounds are in avatar bind space.
-  for(const x of [-.18,.18])for(const y of [1.45,1.92])for(const z of [-.28,.27]){
+  const center=[model[4]*1.665+model[8]*.14+model[12],model[5]*1.665+model[9]*.14+model[13],model[6]*1.665+model[10]*.14+model[14]];
+  const toViewer=norm(center.map((v,i)=>cameraPosition[i]-v));
+  if(dot(toViewer,[model[8],model[9],model[10]])<.04)return;
+  // Face only. Scene-UV bounds follow the exact same VHS displacement as the
+  // photographed face, so no fixed pixel padding is needed at long distances.
+  for(const x of [-.116,.116])for(const y of [1.515,1.813])for(const z of [.05,.215]){
     const w=m[3]*x+m[7]*y+m[11]*z+m[15];if(w<=.02)continue;
     let u=(m[0]*x+m[4]*y+m[8]*z+m[12])/w*.5+.5,v=(m[1]*x+m[5]*y+m[9]*z+m[13])/w*.5+.5;
     depth=Math.min(depth,(m[2]*x+m[6]*y+m[10]*z+m[14])/w*.5+.5);
-    // Invert the lens warp, keeping the final censor rectangular in screen space.
-    const qx=u-.5,qy=v-.5;let px=qx,py=qy;
-    for(let j=0;j<4;j++){const f=1+(px*px+py*py)*.062*settings.vhs;px=qx/f;py=qy/f;}
-    u=px+.5;v=py+.5;minX=Math.min(minX,u);maxX=Math.max(maxX,u);minY=Math.min(minY,v);maxY=Math.max(maxY,v);visible=true;
+    minX=Math.min(minX,u);maxX=Math.max(maxX,u);minY=Math.min(minY,v);maxY=Math.max(maxY,v);visible=true;
   }
   if(!visible||maxX<0||minX>1||maxY<0||minY>1)return;
-  const roll=(time*.055)%1,rollPad=roll>minY-.03&&roll<maxY+.03?.016*settings.vhs:0;
-  const px=(.0035*settings.vhs+rollPad)+(2.2*settings.vhs+2)/canvas.width,py=2/canvas.height;
+  const px=(maxX-minX)*.035,py=(maxY-minY)*.025;
   headCensorRects.set([minX-px,minY-py,maxX+px,maxY+py],headCensorCount*4);
-  headCensorDepths[headCensorCount++]=Math.max(0,depth-.00001);
+  headCensorDepths[headCensorCount++]=Math.max(0,depth-.0000005);
 }
 function appendHazmat(p,clock){
   const distance=Math.hypot(p.x-player.x,p.z-player.z);if(distance>150)return;
-  let a=avatarCache.get(p.id);if(!a){a={last:-1,pose:new Float32Array(avatarBoneCount*7),sample:new Float32Array(avatarBoneCount*7),bones:new Float32Array(32*16),matrices:[],held:false};avatarCache.set(p.id,a);}
+  let a=avatarCache.get(p.id);if(!a){a={last:-1,renderTime:clock,motion:createToolMotion(p.heldItem||'camera'),pose:new Float32Array(avatarBoneCount*7),sample:new Float32Array(avatarBoneCount*7),bones:new Float32Array(32*16),matrices:[],held:false};avatarCache.set(p.id,a);}
   const speed=Math.hypot(p.vx||0,p.vz||0),clip=p.crouching?(speed>.2?'crouch':'crouchIdle'):speed>.2?(p.sprinting?'run':'walk'):'idle';
-  const held=p.heldItem||'camera';
+  advanceToolMotion(a.motion,p.heldItem||'camera',clamp(clock-a.renderTime,0,.1));a.renderTime=clock;
+  const held=a.motion.shown;
   if(clock-a.last>1/(distance>60?12:30)||a.last<0||held!==a.held){
     avatarSample(clip,clock,a.sample);
     const blend=a.last<0||clock<a.last?1:1-Math.exp(-Math.min(.1,clock-a.last)*18);
@@ -83,7 +84,7 @@ function appendHazmat(p,clock){
       for(let k=0;k<7;k++)a.pose[o+k]=lerp(a.pose[o+k],a.sample[o+k]*(k>=3?sign:1),blend);
       a.matrices[i]=avatarMatrix(a.pose.subarray(o,o+3),a.pose.subarray(o+3,o+7));
     }
-    if(held!=='none')avatarHold(a.matrices,p.pitch||0);
+    if(held!=='none')avatarHold(a.matrices,p.pitch||0,a.motion.lower);
     for(let i=0;i<avatarBoneCount;i++)a.bones.set(multiply(a.matrices[i],AVATAR_ASSET.inverseBind[i]),i*16);
     a.last=clock;a.held=held;
   }

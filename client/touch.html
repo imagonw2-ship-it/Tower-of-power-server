@@ -1,7 +1,6 @@
   <div id="touchControls" aria-label="Game controls">
     <div id="touchLookZone" aria-label="Drag to look"></div>
     <div id="joyBase" aria-label="Move"><div id="joyKnob"></div></div>
-    <button class="touchBtn" id="touchPickup" aria-label="Pick up item" hidden><svg><use href="#icon-pickup"/></svg><span>PICK UP</span></button>
     <button class="touchBtn" id="touchSprint" aria-label="Toggle sprint" aria-pressed="false"><svg><use href="#icon-run"/></svg></button>
 <button class="touchBtn" id="touchWorld" aria-label="World controls"><svg><use href="#icon-world"/></svg></button>
 <div id="touchActions">
@@ -13,3 +12,5 @@
     <button id="touchPause" aria-label="Pause"><svg><use href="#icon-pause"/></svg></button>
     <div hidden aria-hidden="true"><button id="touchLight"></button><button id="touchCamera"></button><button id="touchSoda"></button><button id="touchZoomIn"></button><button id="touchZoomOut"></button></div>
   </div>
+
+<div id="itemPickupOverlay"><button id="touchPickup" aria-label="Pick up item" hidden><svg><use href="#icon-pickup"/></svg><span id="pickupName"></span><kbd>E</kbd></button></div>

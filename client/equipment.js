@@ -1,8 +1,59 @@
 const fieldKit=document.getElementById('fieldKit');
 const kitCards=[...document.querySelectorAll('[data-tool]')];
 let equippedTool='camera',kitPreviousFlashlight=false,kitRefresh=0,kitReturn='playing';
-function canEquip(tool){return tool==='none'||tool==='camera'||(tool==='flashlight'&&game.hasFlashlight)||(tool==='soda'&&game.sodas>0);}
-function equipTool(tool){if(!canEquip(tool))return false;equippedTool=tool;if(net.active)net.action('equip',{item:tool});if(tool!=='flashlight'&&game.torchOn){if(net.active)net.action('torch',{on:false});else game.torchOn=false;}refreshFieldKit();return true;}
+function createToolMotion(tool){return{shown:tool,target:tool,phase:'idle',lower:0};}
+const equipmentMotion=createToolMotion('camera');
+let torchPreferred=true;
+function advanceToolMotion(m,target,dt,inventory=false){
+  m.target=target;
+  if(inventory){m.shown=target;m.lower=1;m.phase='raise';return;}
+  if(m.shown!==target&&m.phase!=='lower')m.phase='lower';
+  if(m.phase==='lower'){
+    m.lower=Math.min(1,m.lower+dt/.16);
+    if(m.lower>=1){m.shown=target;m.phase='raise';}
+  }else if(m.phase==='raise'){
+    m.lower=Math.max(0,m.lower-dt/.24);if(m.lower<=0)m.phase='idle';
+  }
+}
+function resetEquipmentMotion(){Object.assign(equipmentMotion,createToolMotion('camera'));torchPreferred=true;}
+function canEquip(tool){return tool==='none'||tool==='camera'||(tool==='flashlight'&&game.hasFlashlight)||(tool==='soda'&&(game.sodas>0||game.drinking>0));}
+function setTorch(on){if(net.active)net.action('torch',{on});else game.torchOn=on;}
+function equipTool(tool){
+  if(!canEquip(tool))return false;
+  const changed=tool!==equippedTool;
+  if(equippedTool==='flashlight'&&changed)torchPreferred=game.torchOn;
+  equippedTool=tool;if(net.active)net.action('equip',{item:tool});
+  if(tool==='flashlight'&&changed)setTorch(torchPreferred);
+  else if(tool!=='flashlight'&&game.torchOn)setTorch(false);
+  if(changed){sound.noise(.09,.06,900);advanceToolMotion(equipmentMotion,tool,0);}
+  refreshFieldKit();return true;
+}
+function toggleFlashlight(){
+  if(!game.hasFlashlight)return;
+  if(equippedTool!=='flashlight'){torchPreferred=true;equipTool('flashlight');}
+  else{torchPreferred=!game.torchOn;setTorch(torchPreferred);}
+  sound.noise(.045,.22,1800);refreshFieldKit();
+}
+function heldEquipmentMatrix(tool=equipmentMotion.shown){
+  const dip=ease(equipmentMotion.lower),sway=Math.sin(bob.phase)*bob.blend*.008;
+  const drinking=tool==='soda'&&game.drinking>0?Math.sin((1-game.drinking/1.1)*Math.PI):0;
+  const x=tool==='flashlight'?.27:tool==='soda'?.22:.22;
+  const y=tool==='flashlight'?.24:tool==='soda'?.35:.20,z=tool==='flashlight'?.51:tool==='soda'?.41:.42;
+  const p=cameraPosition.map((v,i)=>v+right[i]*(x+sway+dip*.055)-up[i]*(y+dip*.46+(game.sprinting?.045:0)-drinking*.24)+forward[i]*(z-dip*.1));
+  const basis=new Float32Array([right[0],right[1],right[2],0,up[0],up[1],up[2],0,-forward[0],-forward[1],-forward[2],0,...p,1]);
+  const tilt=multiply(rotateX(dip*.62+drinking*.8),rotateZ(-dip*.17));
+  return multiply(multiply(basis,tilt),tool==='flashlight'?transform(0,0,0,1.3,1.3,1.3):identity());
+}
+function appendHeldEquipment(){
+  const tool=equipmentMotion.shown;
+  if(game.mode!=='playing'||game.zoom>=2.5||tool==='none')return;
+  if(tool==='flashlight'&&!game.hasFlashlight)return;
+  if(tool==='soda'&&game.sodas<=0&&game.drinking<=0)return;
+  objectDraws.push({mesh:tool==='flashlight'?flashlightMesh:tool==='soda'?sodaMesh:cameraItemMesh,
+    model:heldEquipmentMatrix(tool),material:5,assetKind:tool==='flashlight'?1:tool==='soda'?2:6,
+    texture:tool==='camera'?cameraItemTexture:undefined,castShadow:false,receiveTorch:false});
+}
+function torchStrength(){return game.hasFlashlight&&game.torchOn&&equippedTool==='flashlight'&&equipmentMotion.shown==='flashlight'?1-ease(equipmentMotion.lower):0;}
 function refreshFieldKit(){
   if(!canEquip(equippedTool))equippedTool='camera';
   document.getElementById('kitSodas').textContent=game.sodas;
@@ -39,13 +90,14 @@ function useEquipment(){
   if(equippedTool==='camera')takePhoto();
   else if(equippedTool==='soda')drinkSoda();
   else if(equippedTool==='flashlight'&&game.hasFlashlight){
-    if(net.active)net.action('torch',{on:!game.torchOn});else game.torchOn=!game.torchOn;
-    sound.noise(.045,.22,1800);
+    toggleFlashlight();
   }
   refreshFieldKit();
 }
 function updateFieldKit(dt){
   fieldKit.hidden=game.mode!=='inventory';
+  advanceToolMotion(equipmentMotion,equippedTool,dt,game.mode==='inventory');
+  updatePickupPrompt();
   document.getElementById('touchLesson').hidden=true;
   const ownsWorld=!net.active||net.snapshots.at(-1)?.ownerId===net.player?.id;worldMenuButton.hidden=!ownsWorld;document.getElementById('touchWorld').hidden=!ownsWorld;document.getElementById('touchSprint').classList.toggle('latched',mobileInput.sprint);document.getElementById('touchSprint').setAttribute('aria-pressed',String(mobileInput.sprint));
   if(game.mode!=='playing'&&game.mode!=='inventory')return;
@@ -53,7 +105,6 @@ function updateFieldKit(dt){
   kitPreviousFlashlight=game.hasFlashlight;
   kitRefresh-=dt;if(kitRefresh>0)return;kitRefresh=.12;
   refreshFieldKit();
-  document.getElementById('touchPickup').hidden=!nearestItem();
   document.getElementById('touchZoomLabel').textContent=game.zoomTarget.toFixed(1).replace('.0','')+'×';
   document.getElementById('joyBase').classList.toggle('running',game.sprinting);
 }

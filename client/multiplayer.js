@@ -333,23 +333,6 @@ setInterval(() => {
     net.input(networkInput());
   }
 }, 50);
-function netNearestItem() {
-  const items = [];
-  for (const i of net.items) {
-    if (i.holder || (i.kind === "flashlight" && game.hasFlashlight)) continue;
-    const p = [i.x, i.y + (i.kind === "soda" ? 0.1 : 0), i.z],
-      delta = p.map((v, k) => v - [player.x, player.y, player.z][k]),
-      d = Math.hypot(...delta),
-      f = dot(norm(delta), Array.from(forward));
-    if (
-      d < 2.35 &&
-      f > 0.88 &&
-      !shedBlocksSight([player.x, player.y, player.z], p)
-    )
-      items.push({ ...i, p, score: d * 0.015 + (1 - f) * 12 });
-  }
-  return items.sort((a, b) => a.score - b.score)[0] || null;
-}
 function snapshotPair() {
   const ss = net.snapshots;
   if (!ss.length) return null;
