@@ -10,8 +10,10 @@ export class SoundTargets {
     const distance = Math.hypot(player.x - body.x, player.z - body.z);
     if (!player.alive || distance > radius * (blocked ? .6 : 1) * dormant) return;
     const old = this.tracks.get(player.id);
+    const track=old?{sample:[old.x,old.z],sampleTime:old.heard,heardVelocity:old.velocity}:{};
+    rememberSoundMotion(track,[player.x,player.z],this.time);
     this.tracks.set(player.id, { id: player.id, x: player.x, z: player.z,
-      heard: this.time, ignoreUntil: old?.ignoreUntil || 0, revision: (old?.revision || 0) + 1 });
+      velocity:track.heardVelocity, heard: this.time, ignoreUntil: old?.ignoreUntil || 0, revision: (old?.revision || 0) + 1 });
   }
   step(dt, players, body, canReach = () => true) {
     this.time += dt;
@@ -41,7 +43,32 @@ export class SoundTargets {
     const fresh = !!current && current.revision !== this.revision;
     if (current) this.revision = current.revision;
     return { id: this.id, fresh, position: current ? [current.x, current.z] : null,
-      age: current ? this.time - current.heard : Infinity };
+      velocity:current?.velocity||[0,0], age: current ? this.time - current.heard : Infinity };
+  }
+}
+
+// Prediction uses successive audible locations, never a silent player's live velocity.
+export function rememberSoundMotion(state, position, now) {
+  const dt=now-(state.sampleTime??-99),old=state.sample;
+  let velocity=[0,0];
+  if(old&&dt>.04&&dt<2.5){
+    velocity=position.map((v,i)=>(v-old[i])/dt);
+    const speed=Math.hypot(...velocity);if(speed>16)velocity=velocity.map(v=>v*16/speed);
+    velocity=velocity.map((v,i)=>combatMix(state.heardVelocity?.[i]||0,v,.72));
+  }
+  state.heardVelocity=velocity;state.sample=position.slice();state.sampleTime=now;
+}
+export function constrainTurbineFoot(body,state,index,point) {
+  const nominal=(state.heading||0)+index*Math.PI*2/3;
+  const dx=point[0]-body.x,dz=point[2]-body.z;
+  const offset=Math.atan2(Math.sin(Math.atan2(dx,dz)-nominal),Math.cos(Math.atan2(dx,dz)-nominal));
+  const angle=nominal+combatClamp(offset,-.82,.82),r=combatClamp(Math.hypot(dx,dz),12,68);
+  return [body.x+Math.sin(angle)*r,point[1],body.z+Math.cos(angle)*r];
+}
+export function constrainTurbineFeet(body,state){
+  for(let i=0;i<state.feet.length;i++){
+    const f=state.feet[i];f.position=constrainTurbineFoot(body,state,i,f.position);
+    if(f.target)f.target=constrainTurbineFoot(body,state,i,f.target);
   }
 }
 
@@ -50,7 +77,7 @@ export function turbineLegPoints(body, state, index, heightAt) {
   const progress = combatClamp((state.awake - (.65 + index * .55)) / 2.6, 0, 1);
   const u = combatEase(progress), ground = heightAt(body.x, body.z);
   const radius = combatMix(17, 53, u), extracting = !state.feet[index];
-  const foot = state.feet[index]?.position || [body.x + dx * radius,
+  const foot = state.feet[index] ? constrainTurbineFoot(body,state,index,state.feet[index].position) : [body.x + dx * radius,
     combatMix(ground - 8, heightAt(body.x + dx * radius, body.z + dz * radius) + .10, u) + Math.sin(progress * Math.PI) * 14,
     body.z + dz * radius];
   const hip = [body.x + dx * 4, body.y + 1, body.z + dz * 4];
@@ -114,30 +141,61 @@ export function resolveLegCollision(player, segments, ground, crouching = player
   }
 }
 
-// One foot owns the attack until recovery. Aim is locked before the downswing.
+// Commit to one attack and one target. The downswing cannot home after the player.
 export function tickStomp(state, body, kind, dt, heightAt, blocked, impact) {
   state.attackCooldown=Math.max(0,(state.attackCooldown||0)-dt);
-  if (state.attack) {
-    const a=state.attack,foot=state.feet[a.foot];
-    if(!foot){state.attack=null;return;}
-    const old=a.age;a.age+=dt;
-    const lift=kind==='turbine'?13:9, rise=combatEase(combatClamp(a.age/.55,0,1));
+  if(kind==='turbine')constrainTurbineFeet(body,state);
+  if(state.attack){
+    const a=state.attack,old=a.age;a.age+=dt;
+    state.vx=state.vz=0;
+    if(a.kind==='bodyDrop'){
+      const fold=combatEase(combatClamp(a.age/.44,0,1));
+      const slam=combatEase(combatClamp((a.age-.48)/.30,0,1));
+      const recover=combatEase(combatClamp((a.age-.98)/.95,0,1));
+      const amount=(fold*.16+slam*.84)*(1-recover);
+      body.y=combatMix(a.baseY,a.bottomY,amount);
+      if(old<.78&&a.age>=.78){state.impact=1;impact(a.point,a.radius);}
+      if(a.age>=1.93){body.y=a.baseY;state.attack=null;state.attackCooldown=2.6;}
+      return;
+    }
+    const foot=state.feet[a.foot];if(!foot){state.attack=null;return;}
+    const lift=kind==='turbine'?13:9,rise=combatEase(combatClamp(a.age/.55,0,1));
     const drop=combatEase(combatClamp((a.age-.72)/.2,0,1));
     foot.position=a.start.map((v,k)=>combatMix(v,a.point[k],rise));
     foot.position[1]=combatMix(a.start[1],a.point[1],rise)+lift*rise*(1-drop);
     foot.progress=combatClamp(a.age/1.32,0,1);
+    if(kind==='turbine')foot.position=constrainTurbineFoot(body,state,a.foot,foot.position);
     if(old<.92&&a.age>=.92){state.impact=1;impact(a.point,kind==='turbine'?2.6:2.25);}
     if(a.age>=1.32){foot.position=a.point.slice();foot.target=a.point.slice();foot.start=a.point.slice();foot.progress=1;state.attack=null;state.attackCooldown=kind==='turbine'?.75:.55;}
     return;
   }
   if(state.state!=='running'||state.memoryAge>1.6||state.attackCooldown>0||!state.feet.length)return;
-  const point=[state.lastKnown[0],heightAt(...state.lastKnown)+.08,state.lastKnown[1]];
-  const range=kind==='turbine'?66:30;
-  if(Math.hypot(point[0]-body.x,point[2]-body.z)>range||blocked([body.x,heightAt(body.x,body.z)+2,body.z],point.map((v,k)=>v+(k===1?1:0))))return;
-  let foot=-1,distance=Infinity;
-  state.feet.forEach((f,i)=>{const d=Math.hypot(f.position[0]-point[0],f.position[2]-point[2]);if(f.progress>=1&&d<distance){foot=i;distance=d;}});
+  const distance=Math.hypot(state.lastKnown[0]-body.x,state.lastKnown[1]-body.z);
+  const heardPoint=[state.lastKnown[0],heightAt(...state.lastKnown)+1,state.lastKnown[1]];
+  if(blocked([body.x,heightAt(body.x,body.z)+2,body.z],heardPoint))return;
+  if(distance<(kind==='turbine'?10:8)){
+    const ground=heightAt(body.x,body.z),radius=kind==='turbine'?7.6:6.6;
+    state.attack={kind:'bodyDrop',foot:-1,age:0,point:[body.x,ground+.08,body.z],radius,
+      baseY:body.y,bottomY:kind==='turbine'?ground+.65:ground-32.4,targetId:state.targetId||null};
+    state.vx=state.vz=0;return;
+  }
+  const velocity=state.heardVelocity||[0,0],lead=Math.max(0,.72-state.memoryAge*.35);
+  const speed=Math.hypot(...velocity)||1,scale=Math.min(1,7/(speed*lead||1));
+  const x=state.lastKnown[0]+velocity[0]*lead*scale,z=state.lastKnown[1]+velocity[1]*lead*scale;
+  const point=[x,heightAt(x,z)+.08,z],range=kind==='turbine'?66:30;
+  if(Math.hypot(x-body.x,z-body.z)>range||blocked([body.x,heightAt(body.x,body.z)+2,body.z],[x,point[1]+1,z]))return;
+  let foot=-1,nearest=Infinity;
+  state.feet.forEach((f,i)=>{
+    if(kind==='turbine'){
+      const limited=constrainTurbineFoot(body,state,i,point);
+      if(Math.hypot(limited[0]-x,limited[2]-z)>.1)return;
+    }
+    const d=Math.hypot(f.position[0]-x,f.position[2]-z);
+    if(f.progress>=1&&d<nearest){foot=i;nearest=d;}
+  });
   if(foot<0)return;
-  state.attack={foot,age:0,start:state.feet[foot].position.slice(),point,targetId:state.targetId||null};
+  state.attack={kind:'stomp',foot,age:0,start:state.feet[foot].position.slice(),point,targetId:state.targetId||null};
+  state.vx=state.vz=0;
 }
 
 export function stompHits(player, point, radius, heightAt, blocked) {
