@@ -1,3 +1,12 @@
+## Version 11.1: grips, camera and bodycam censor
+
+- Camera, soda and flashlight attach to a shared palm frame with individual physical grip anchors. Wrist rotation and aiming are carried through idle, walk, sprint and crouch.
+- A textured CC0 camera discovered on Sketchfab replaces the box camera in first person and multiplayer. Asset and original creator credits are in ASSET_CREDITS.md.
+- Mobile toggle sprint is above the right-hand action buttons.
+- Whole-head censor rectangles are applied in screen space after VHS processing, including saved photos. The scene depth texture prevents the censor from drawing through nearer objects.
+- Android 11.1 / versionCode 14 retains the existing package and signing identity; protocol 1 and the account database are unchanged.
+- Added grip-contact and real skinned-head coverage checks, plus native GLES pixel checks for censorship, foreground occlusion and flash. Physical Android device testing is still required.
+
 ## Version 11.0: equipment and hazmat update
 
 This release keeps the existing WebGL2 game, mobile controls and authoritative room server.
