@@ -340,8 +340,12 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
       p.z = sim.powerCreature.z;
       p.connected = false;
       sim.powerCreature.state = "running";
+      p.alive = true;
+      sim.noise(p, 70);
       sim.step(0.01, [p]);
-      assert.equal(p.alive, false, "disconnect cannot grant invulnerability");
+      assert.equal(p.alive, true, "the center no longer causes an invisible instant catch");
+      for(let i=0;i<70&&p.alive;i++)sim.step(.05,[p]);
+      assert.equal(p.alive, false, "a committed foot impact still affects a disconnected character");
       assert.equal(p.health, 0);
     },
   );
