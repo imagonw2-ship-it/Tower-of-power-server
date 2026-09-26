@@ -77,6 +77,43 @@ for pair in range(len(sources)//2):
             info = c.create_string_buffer(16384)
             program_log(program, len(info), None, info)
             errors.append(f'{name} link: {info.value.decode()}')
+    if not errors and pair == 4:
+        # Exercise the actual post shader, including the WebGL2 depth attachment.
+        # A 1px fixture is enough to catch sampler/occlusion/flash regressions.
+        gen_texture = gl('glGenTextures', None, [I,c.POINTER(U)])
+        bind_texture = gl('glBindTexture', None, [U,U])
+        active_texture = gl('glActiveTexture', None, [U])
+        tex_parameter = gl('glTexParameteri', None, [U,U,I])
+        tex_image = gl('glTexImage2D', None, [U,I,I,I,I,I,U,U,P])
+        color_tex, depth_tex, fb = U(), U(), U()
+        for unit, handle, depth in [(0,color_tex,False),(1,depth_tex,True)]:
+            active_texture(0x84C0+unit);gen_texture(1,c.byref(handle));bind_texture(0x0DE1,handle)
+            for key in [0x2800,0x2801]:tex_parameter(0x0DE1,key,0x2600)
+            for key in [0x2802,0x2803]:tex_parameter(0x0DE1,key,0x812F)
+            pixel=(U*1)(int(.9*0xffffffff)) if depth else (c.c_ubyte*4)(255,255,255,255)
+            tex_image(0x0DE1,0,0x81A6 if depth else 0x8058,1,1,0,0x1902 if depth else 0x1908,0x1405 if depth else 0x1401,pixel)
+        gl('glGenFramebuffers',None,[I,c.POINTER(U)])(1,c.byref(fb))
+        bind_fb=gl('glBindFramebuffer',None,[U,U]);bind_fb(0x8D40,fb)
+        attach_tex=gl('glFramebufferTexture2D',None,[U,U,U,U,I])
+        attach_tex(0x8D40,0x8CE0,0x0DE1,color_tex,0);attach_tex(0x8D40,0x8D00,0x0DE1,depth_tex,0)
+        assert gl('glCheckFramebufferStatus',U,[U])(0x8D40)==0x8CD5,'Scene depth texture framebuffer incomplete'
+        bind_fb(0x8D40,0)
+        gl('glUseProgram',None,[U])(program)
+        location=gl('glGetUniformLocation',I,[U,c.c_char_p])
+        ui=gl('glUniform1i',None,[I,I]);uf=gl('glUniform1f',None,[I,c.c_float])
+        ui(location(program,b'u_scene'),0);ui(location(program,b'u_sceneDepth'),1)
+        gl('glUniform2f',None,[I,c.c_float,c.c_float])(location(program,b'u_texel'),1,1)
+        gl('glUniform4fv',None,[I,I,c.POINTER(c.c_float)])(location(program,b'u_censorRects[0]'),1,(c.c_float*4)(.2,.2,.8,.8))
+        uf(location(program,b'u_censorDepths[0]'),.6)
+        gl('glViewport',None,[I,I,I,I])(0,0,1,1)
+        for count,depth,flash,redacted in [(1,.9,0,True),(1,.3,0,False),(0,.9,0,False),(1,.9,1,True)]:
+            ui(location(program,b'u_censorCount'),count);uf(location(program,b'u_flash'),flash)
+            active_texture(0x84C1);bind_texture(0x0DE1,depth_tex)
+            tex_image(0x0DE1,0,0x81A6,1,1,0,0x1902,0x1405,(U*1)(int(depth*0xffffffff)))
+            gl('glDrawArrays',None,[U,I,I])(0x0004,0,3)
+            pixel=(c.c_ubyte*4)();gl('glReadPixels',None,[I,I,I,I,U,U,P])(0,0,1,1,0x1908,0x1401,pixel)
+            assert (max(pixel[:3])==0)==redacted, f'Head censor pixel check failed: {count,depth,flash,list(pixel)}'
+        assert gl('glGetError',U,[])()==0,'Graphics error during censor pixel checks'
     failures.extend(errors)
     programs.append({'name':name, 'linked':not errors})
     for shader in shaders: delete_shader(shader)

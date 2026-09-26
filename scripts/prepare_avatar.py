@@ -66,7 +66,7 @@ def retarget(source):
 # Keep the fingers' weighted vertices with the hand; simplify negligible twist/end bones.
 meshes=[]
 for mesh in raw['meshes']:
- if mesh['name']=='ClassASuit_Visor':continue # Entire face receives an opaque, head-attached censor plate.
+ if mesh['name']=='ClassASuit_Visor':continue # Whole head receives a depth-aware 2D censor in the post pass.
  verts=mesh['vertices'];packed=[];indices=[];seen={}
  for corner in mesh['corners']:
   key=tuple(corner)
