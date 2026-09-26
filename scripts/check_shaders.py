@@ -140,6 +140,21 @@ for pair in range(len(sources)//2):
         assert dark+.035<far_light<center, f'Flashlight range is too short: {dark,far_light,center}'
         assert abs(sample(0,12,shadow=1)-center)<.015, 'Clear shadow map suppressed the beam'
         assert sample(0,12,shadow=1,blocked=True)<dark+.01, 'Flashlight shines through occluders'
+        # A peer's lamp contributes light even when the local lamp is switched off.
+        ui(location(program,b'u_remoteTorchCount'),1)
+        v4=gl('glUniform4fv',None,[I,I,c.POINTER(c.c_float)])
+        v4(location(program,b'u_remoteTorchPositions[0]'),1,(c.c_float*4)(0,0,0,1))
+        v4(location(program,b'u_remoteTorchDirections[0]'),1,(c.c_float*4)(0,0,-1,0))
+        assert sample(0,12,on=0)>dark+.17, 'Other players cannot see the remote flashlight'
+        uf(location(program,b'u_shedEnabled'),1);v3(location(program,b'u_shed'),0,-2,-12)
+        assert sample(2,12,on=0)<dark+.01, 'Remote flashlight leaks through a shed wall'
+        assert sample(0,12,on=0)>dark+.17, 'Open shed doorway incorrectly blocks the remote lamp'
+        ui(location(program,b'u_remoteTorchCount'),0)
+        assert sample(2,12)<dark+.01 and sample(0,12)>dark+.17, 'Local flashlight shed occlusion is wrong'
+        uf(location(program,b'u_probeMode'),1);v3(location(program,b'u_ambient'),1,1,1)
+        assert sample(0,12,on=0)<.3 and sample(8,12,on=0)>.95, 'Shed interior needs ambient shading'
+        uf(location(program,b'u_probeMode'),2);v3(location(program,b'u_lightDirection'),0,1,0)
+        assert sample(0,12,on=0)<.01 and sample(8,12,on=0)>.99, 'Shed roof must cast a shadow'
         assert gl('glGetError',U,[])()==0,'Graphics error in flashlight probe'
     failures.extend(errors)
     programs.append({'name':name, 'linked':not errors})
