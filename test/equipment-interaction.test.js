@@ -61,6 +61,7 @@ test('remote players lower their hand when changing equipment and keep the item 
 
 test('first-person glove stays on each grip while switching and drinking',()=>{
   const {run}=launch();
+  assert.ok(run('POV_ARM_ASSET.parts.ClassASuitGear_low>100'),'the actual glove gear mesh must be included, not just the suit sleeve');
   run("resetWorld(true);setMode('playing');locked=true;game.hasFlashlight=true;game.sodas=2;updateCamera(0);const point=(m,p)=>[0,1,2].map(k=>m[k]*p[0]+m[4+k]*p[1]+m[8+k]*p[2]+m[12+k]);");
   for(const tool of ['camera','flashlight','soda'])for(const dip of [0,.5,1]){
     run(`equipmentMotion.shown='${tool}';equipmentMotion.lower=${dip};objectDraws.length=0;appendHeldEquipment();`);
