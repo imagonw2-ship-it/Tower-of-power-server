@@ -268,6 +268,16 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
       assert.equal((await action(host, "soda")).ok, false);
     },
   );
+  await t.test('equipped items are validated and replicated between devices', async()=>{
+    assert.equal((await action(phone,'equip',{item:'flashlight'})).ok,false);
+    assert.equal((await action(host,'equip',{item:'unlimited-items'})).ok,false);
+    assert.equal((await action(host,'equip',{item:'flashlight'})).ok,true);
+    await until(()=>phone.snapshot?.players.find(p=>p.id===hostPlayer.id)?.heldItem==='flashlight');
+    assert.equal((await action(host,'torch',{on:true})).ok,true);
+    assert.equal((await action(host,'equip',{item:'none'})).ok,true);
+    assert.equal(hostPlayer.torch,false);
+    await until(()=>phone.snapshot?.players.find(p=>p.id===hostPlayer.id)?.heldItem==='none');
+  });
   await t.test(
     "disconnect/reconnect preserves identity, items and owner-independent world",
     async () => {

@@ -110,3 +110,36 @@ test('leg geometry remains finite throughout waking, running and attacking',()=>
     assert.ok(segments.every(s=>[...s.a,...s.b,s.r0,s.r1].every(Number.isFinite)));
   }
 });
+
+test('audible velocity leads the next stomp without following a silent player',()=>{
+  const tracker=new SoundTargets(),body={x:0,y:30,z:0},p=actor('runner',0,48);
+  tracker.hear(p,100,body,1);tracker.step(.5,[p],body);p.x=4;tracker.hear(p,100,body,1);
+  const heard=tracker.step(.05,[p],body);assert.ok(heard.velocity[0]>4);
+  p.x=100;const quiet=tracker.step(.1,[p],body);assert.deepEqual(quiet.position,[4,48]);
+  const state={state:'running',heading:0,awake:8,crouch:0,memoryAge:0,lastKnown:heard.position,heardVelocity:heard.velocity,feet:[0,1,2].map(i=>({position:[Math.sin(i*Math.PI*2/3)*53,0,Math.cos(i*Math.PI*2/3)*53],progress:1}))};
+  tickStomp(state,body,'turbine',.05,()=>0,clear,()=>{});assert.ok(state.attack.point[0]>4&&state.attack.point[0]<12);
+  const aim=state.attack.point.slice();state.lastKnown=[20,50];tickStomp(state,body,'turbine',.05,()=>0,clear,()=>{});assert.deepEqual(state.attack.point,aim);
+});
+test('turbine feet remain in distinct angular sectors during attacks and turning',async()=>{
+  const {constrainTurbineFeet,turbineLegPoints}=await import('../shared/enemy-combat.js');
+  const body={x:0,y:32,z:0},state={heading:0,awake:8,crouch:0,feet:[0,1,2].map(i=>({position:[0,0,-45],progress:1}))};
+  for(let t=0;t<200;t++){
+    state.heading=t*.02;constrainTurbineFeet(body,state);
+    for(let i=0;i<3;i++){
+      const foot=turbineLegPoints(body,state,i,()=>0).points.at(-1),a=Math.atan2(foot[0],foot[2]),nominal=state.heading+i*Math.PI*2/3,delta=Math.atan2(Math.sin(a-nominal),Math.cos(a-nominal));
+      assert.ok(Math.abs(delta)<=.820001);assert.ok(Math.hypot(foot[0],foot[2])>=11.99);
+    }
+  }
+});
+test('both giants telegraph a body drop under their center; escaping avoids the impact',()=>{
+  for(const kind of ['turbine','power']){
+    const body={x:0,y:kind==='turbine'?32:-4.8,z:0},state={state:'running',heading:0,awake:8,crouch:0,lastKnown:[1,0],memoryAge:0,feet:[0,1,2].map(i=>({position:[Math.sin(i*2.1)*40,0,Math.cos(i*2.1)*40],progress:1}))};
+    let impacts=0;const stay=actor('stay',1),escape=actor('escape',1);let hits=[];
+    const hit=(point,radius)=>{impacts++;hits=[stay,escape].filter(p=>stompHits(p,point,radius,()=>0,clear)).map(p=>p.id);};
+    tickStomp(state,body,kind,.05,()=>0,clear,hit);assert.equal(state.attack.kind,'bodyDrop');const initial=body.y;
+    for(let i=0;i<8;i++)tickStomp(state,body,kind,.05,()=>0,clear,hit);assert.equal(impacts,0);assert.ok(body.y<initial);
+    escape.x=12;for(let i=0;i<9;i++)tickStomp(state,body,kind,.05,()=>0,clear,hit);
+    assert.equal(impacts,1);assert.deepEqual(hits,['stay']);
+    for(let i=0;i<25;i++)tickStomp(state,body,kind,.05,()=>0,clear,hit);assert.equal(state.attack,null);assert.ok(state.attackCooldown>1);
+  }
+});
