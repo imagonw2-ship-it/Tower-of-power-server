@@ -38,7 +38,7 @@ function heldEquipmentMatrix(tool=equipmentMotion.shown){
   const dip=ease(equipmentMotion.lower),sway=Math.sin(bob.phase)*bob.blend*.008;
   const drinking=tool==='soda'&&game.drinking>0?Math.sin((1-game.drinking/1.1)*Math.PI):0;
   const x=tool==='flashlight'?.27:tool==='soda'?.22:.22;
-  const y=tool==='flashlight'?.24:tool==='soda'?.35:.20,z=tool==='flashlight'?.51:tool==='soda'?.41:.42;
+  const y=tool==='flashlight'?.11:tool==='soda'?.25:.20,z=tool==='flashlight'?.59:tool==='soda'?.46:.42;
   const p=cameraPosition.map((v,i)=>v+right[i]*(x+sway+dip*.055)-up[i]*(y+dip*.46+(game.sprinting?.045:0)-drinking*.24)+forward[i]*(z-dip*.1));
   const basis=new Float32Array([right[0],right[1],right[2],0,up[0],up[1],up[2],0,-forward[0],-forward[1],-forward[2],0,...p,1]);
   const tilt=multiply(rotateX(dip*.62+drinking*.8),rotateZ(-dip*.17));

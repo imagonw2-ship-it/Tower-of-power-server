@@ -97,7 +97,7 @@
       <button id="settingsOpen">SETTINGS</button>
       <button id="controlsOpen">CONTROLS</button>
     </nav>
-    <p class="menuFoot"><strong id="releaseLabel">VERSION 11.3 · ARMS & SHARED LIGHT UPDATE</strong><br>HEADPHONES RECOMMENDED</p>
+    <p class="menuFoot"><strong id="releaseLabel">VERSION 11.4 · ARMS & SHARED LIGHT UPDATE</strong><br>HEADPHONES RECOMMENDED</p>
   </main>
   <section id="settingsPanel" class="panel settings" hidden aria-label="Settings">
     <h2>SETTINGS</h2>
@@ -380,8 +380,8 @@
   const viewProjection = new Float32Array(16);
   const TAN_HALF_FOV=Math.tan(65*Math.PI/360);
   let cameraTan=TAN_HALF_FOV;
-  const lightVP=new Float32Array(16);
-  let shadowTarget=null,torchShadowTarget=null;
+  const lightVP=new Float32Array(16),nearLightVP=new Float32Array(16);
+  let shadowTarget=null,nearShadowTarget=null,torchShadowTarget=null;
   const torchVP=new Float32Array(16),torchPosition=new Float32Array(3),torchDirection=new Float32Array(3);
   const objectDraws=[];
 
@@ -470,6 +470,9 @@
     uniform vec3 u_turbine;
     uniform vec3 u_anchor;
     uniform highp sampler2D u_shadowMap;
+    uniform highp sampler2DShadow u_nearShadowMap;
+    uniform mat4 u_nearLightVP;
+    uniform vec2 u_nearShadowTexel;
     uniform mat4 u_lightVP;
     uniform vec2 u_shadowTexel;
     uniform float u_shadowStrength,u_flash,u_torch,u_shedEnabled;
@@ -485,37 +488,71 @@
     }
     float shedTransmission(vec3 origin,vec3 target){
       if(u_shedEnabled<.5)return 1.;
-      vec3 a=origin-u_shed,b=target-u_shed;
-      if(rayBox(a,b,vec3(-3.35,0.,-2.95),vec3(3.35,4.15,2.95))<.5)return 1.;
-      const vec4 walls[5]=vec4[5](vec4(-3.1,-2.85,-2.8,2.8),vec4(2.85,3.1,-2.8,2.8),vec4(-3.1,3.1,-2.8,-2.52),vec4(-3.1,-.9,2.52,2.8),vec4(.9,3.1,2.52,2.8));
-      for(int i=0;i<5;i++)if(rayBox(a,b,vec3(walls[i].x,0.,walls[i].z),vec3(walls[i].y,3.2,walls[i].w))>.5)return 0.;
-      // Match the pitched roof so its outside surface does not shadow itself.
+      vec3 a=origin-u_shed,b=target-u_shed,d=b-a;
+      if(rayBox(a,b,vec3(-3.45,0.,-3.05),vec3(3.45,4.25,3.10))<.5)return 1.;
+      // Trace the board centre planes, not oversized collision boxes. A wall's
+      // visible face must receive light before the wall blocks anything behind it.
+      float margin=.075/max(length(d),.001);
+      for(int axis=0;axis<2;axis++)for(int side=-1;side<=1;side+=2){
+        float den=axis==0?d.x:d.z;if(abs(den)<.00001)continue;
+        float plane=float(side)*(axis==0?2.99:2.66);
+        float t=(plane-(axis==0?a.x:a.z))/den;
+        if(t<=margin||t>=1.-margin)continue;
+        vec3 q=a+d*t;float along=axis==0?q.z:q.x;
+        if(abs(along)>(axis==0?2.83:3.02)||q.y<.15||q.y>4.17-abs(q.x)*.318)continue;
+        if(axis==1&&side==1&&abs(q.x)<.92&&q.y<3.05)continue;
+        if(axis==0&&side==-1&&q.z>-.66&&q.z<1.0&&q.y>1.24&&q.y<2.74)continue;
+        return 0.;
+      }
       for(int side=-1;side<=1;side+=2){
-        vec3 n=vec3(float(side)*.32,1.,0.);float den=dot(b-a,n);
+        vec3 n=vec3(float(side)*.318,1.,0.);float den=dot(d,n);
         if(abs(den)<.00001)continue;
-        float t=(4.2-dot(a,n))/den;vec3 q=mix(a,b,t);
-        if(t>.002&&t<.996&&q.x*float(side)>=0.&&q.x*float(side)<=3.35&&abs(q.z)<2.95)return 0.;
+        float t=(4.18-dot(a,n))/den;vec3 q=a+d*t;
+        if(t>margin&&t<1.-margin&&q.x*float(side)>=0.&&q.x*float(side)<=3.4&&q.z> -2.98&&q.z<3.10){
+          int sheet=int(floor((q.z+2.98)/.55));
+          if((side==-1&&sheet==8)||(side==1&&sheet==2))continue;
+          return 0.;
+        }
       }
       return 1.;
     }
     vec3 interiorAmbient(vec3 p){
       vec3 q=p-u_shed;
       float inside=(1.-smoothstep(2.65,3.05,abs(q.x)))*(1.-smoothstep(2.3,2.8,abs(q.z)))*(1.-smoothstep(3.05,3.4,q.y))*u_shedEnabled;
-      float door=exp(-length(vec2(q.x,q.z-2.7))*.7);
-      return u_ambient*mix(1.,.16+.30*door,inside);
+      float door=exp(-length(vec2(q.x,q.z-2.7))*.5);
+      float windowLight=exp(-length(q-vec3(-2.99,1.95,.16))*.55);
+      // Low-cost diffuse bounce keeps the weathered boards readable in daylight.
+      float bounce=mix(.30,.48,u_day)+.22*door+.20*windowLight;
+      return u_ambient*mix(1.,min(.88,bounce),inside);
+    }
+    float distantShadow(vec3 p){
+      vec4 projected=u_lightVP*vec4(p,1.);
+      vec3 uv=projected.xyz/projected.w*.5+.5;
+      if(any(lessThan(uv,vec3(0.)))||any(greaterThan(uv,vec3(1.))))return 1.;
+      float lit=0.;
+      for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++) {
+        float depth=texture(u_shadowMap,uv.xy+vec2(float(x),float(y))*u_shadowTexel).r;
+        lit+=uv.z-.00016<=depth?1.:0.;
+      }
+      return lit/9.;
     }
     float fieldShadow(vec3 p) {
       float building=shedTransmission(p+SUN*.035,p+SUN*85.);
-      if(u_shadowStrength<.01)return building;
-      vec4 projected=u_lightVP*vec4(p,1.);
-      vec3 uv=projected.xyz/projected.w*.5+.5;
-      if(any(lessThan(uv,vec3(0.)))||any(greaterThan(uv,vec3(1.))))return building;
-      float visibility=0.;
-      for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++) {
-        float depth=texture(u_shadowMap,uv.xy+vec2(float(x),float(y))*u_shadowTexel).r;
-        visibility+=uv.z-.00016<=depth?1.:0.;
+      if(u_shadowStrength<.01||building<.01)return building;
+      vec4 clip=u_nearLightVP*vec4(p,1.);vec3 q=clip.xyz/max(clip.w,.00001)*.5+.5;
+      float blend=1.-smoothstep(.80,.97,max(abs(q.x*2.-1.),abs(q.y*2.-1.)));
+      if(q.z<=0.||q.z>=1.)blend=0.;
+      float lit=0.;
+      if(blend>0.){
+        q.z-=.000085;
+        lit=texture(u_nearShadowMap,q)*.28;
+        lit+=texture(u_nearShadowMap,vec3(q.xy+u_nearShadowTexel*vec2(-.8,-.6),q.z))*.18;
+        lit+=texture(u_nearShadowMap,vec3(q.xy+u_nearShadowTexel*vec2(.6,-.8),q.z))*.18;
+        lit+=texture(u_nearShadowMap,vec3(q.xy+u_nearShadowTexel*vec2(.8,.6),q.z))*.18;
+        lit+=texture(u_nearShadowMap,vec3(q.xy+u_nearShadowTexel*vec2(-.6,.8),q.z))*.18;
       }
-      return building*mix(1.,.40+.60*visibility/9.,u_shadowStrength);
+      if(blend<1.)lit=mix(distantShadow(p),lit,blend);
+      return building*mix(1.,.40+.60*lit,u_shadowStrength);
     }
     float torchVisibility(vec3 p){
       if(u_torchShadowStrength<.5)return 1.;
@@ -1017,19 +1054,23 @@
     }
   };
 
-  function createShadowTarget(){
-    const size=settings.shadows==='high'?2048:settings.shadows==='off'?1:1024;
-    if(shadowTarget&&shadowTarget.size===size)return;
-    if(shadowTarget){gl.deleteTexture(shadowTarget.texture);gl.deleteFramebuffer(shadowTarget.framebuffer);}
+  function makeShadowTarget(previous,size,compare=false){
+    if(previous&&previous.size===size)return previous;
+    if(previous){gl.deleteTexture(previous.texture);gl.deleteFramebuffer(previous.framebuffer);}
     const texture=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,texture);
     gl.texImage2D(gl.TEXTURE_2D,0,gl.DEPTH_COMPONENT24,size,size,0,gl.DEPTH_COMPONENT,gl.UNSIGNED_INT,null);
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,compare?gl.LINEAR:gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,compare?gl.LINEAR:gl.NEAREST);
+    if(compare){gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_COMPARE_MODE,gl.COMPARE_REF_TO_TEXTURE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_COMPARE_FUNC,gl.LEQUAL);}
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
     const framebuffer=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,framebuffer);
     gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.TEXTURE_2D,texture,0);gl.drawBuffers([gl.NONE]);gl.readBuffer(gl.NONE);
     if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE)throw new Error('Shadow framebuffer unavailable');
-    gl.depthMask(true);gl.clear(gl.DEPTH_BUFFER_BIT);
-    shadowTarget={texture,framebuffer,size};gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.bindTexture(gl.TEXTURE_2D,null);
+    gl.depthMask(true);gl.clear(gl.DEPTH_BUFFER_BIT);gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.bindTexture(gl.TEXTURE_2D,null);
+    return{texture,framebuffer,size};
+  }
+  function createShadowTarget(){
+    shadowTarget=makeShadowTarget(shadowTarget,settings.shadows==='off'?1:settings.shadows==='high'?2048:1024);
+    nearShadowTarget=makeShadowTarget(nearShadowTarget,settings.shadows==='off'?1:settings.shadows==='high'?2048:settings.quality==='low'?768:1024,true);
   }
   function applyQuality(){
     resolutionScale=Math.min(devicePixelRatio||1,settings.quality==='high'?1.35:settings.quality==='low'?.72:1);
@@ -1045,6 +1086,12 @@
     const eye=center.map((x,i)=>x+sun[i]*350),f=norm(center.map((x,i)=>x-eye[i])),r=norm(cross(f,[0,1,0])),u=cross(r,f);
     const v=new Float32Array([r[0],u[0],-f[0],0,r[1],u[1],-f[1],0,r[2],u[2],-f[2],0,-dot(r,eye),-dot(u,eye),dot(f,eye),1]);
     const p=identity();p[0]=1/230;p[5]=1/230;p[10]=-2/760;p[14]=-1;lightVP.set(multiply(p,v));
+    // A 48 m player-centred cascade gives ~5 cm texels at medium quality,
+    // versus ~45 cm in the world map. Snap to its texels to reduce shimmer.
+    const focus=[cameraPosition[0],cameraPosition[1],cameraPosition[2]];
+    const nearEye=focus.map((x,i)=>x+sun[i]*350),nv=new Float32Array(v),texel=48/nearShadowTarget.size;
+    nv[12]=-Math.round(dot(r,nearEye)/texel)*texel;nv[13]=-Math.round(dot(u,nearEye)/texel)*texel;nv[14]=dot(f,nearEye);
+    p[0]=p[5]=1/24;nearLightVP.set(multiply(p,nv));
   }
   function resizeTarget(width,height) {
     if(sceneTarget&&sceneTarget.width===width&&sceneTarget.height===height)return;
@@ -1811,7 +1858,7 @@
   function closeFieldPanel(){setMode('paused');sound.start();captureMouse();}
   function grassCover(x,z){
     if(Math.abs(roadOffset(x,z))<4.8||serviceTrackDistance(x,z)<5.1||Math.max(Math.abs(x-POWER_ZONE.x),Math.abs(z-POWER_ZONE.z))<39)return false;
-    if(Math.hypot(x-enemy.anchor[0],z-enemy.anchor[2])<11.3)return false;
+    if(Math.hypot(x-enemy.anchor[0],z-enemy.anchor[2])<11.4)return false;
     if(Math.abs(x-shed.x)<4.1&&Math.abs(z-shed.z)<4.0)return false;
     return true;
   }
@@ -1879,6 +1926,7 @@
     gl.uniform3f(u.u_turbine??null,turbine.x,turbine.y,turbine.z);gl.uniform3fv(u.u_anchor??null,enemy.anchor);
     gl.uniform1f(u.u_time??null,reducedMotion?0:time);
     gl.uniformMatrix4fv(u.u_lightVP??null,false,lightVP);gl.uniform2f(u.u_shadowTexel??null,1/shadowTarget.size,1/shadowTarget.size);
+    gl.uniformMatrix4fv(u.u_nearLightVP??null,false,nearLightVP);gl.uniform2f(u.u_nearShadowTexel??null,1/nearShadowTarget.size,1/nearShadowTarget.size);gl.uniform1i(u.u_nearShadowMap??null,8);
     gl.uniform1f(u.u_shadowStrength??null,settings.shadows==='off'?0:1);gl.uniform1i(u.u_shadowMap??null,1);
     gl.uniform1f(u.u_flash??null,game.flash);gl.uniform3fv(u.u_flashForward??null,forward);
     gl.uniform1f(u.u_torch??null,torchStrength());
@@ -1920,10 +1968,13 @@
   function frame(now){
     if(!running)return;const elapsed=previousTime?(now-previousTime)/1000:0;const dt=document.hidden?0:Math.min(elapsed,.05);previousTime=now;time+=dt;
     updateGame(dt);updateEnvironment(dt);updateSurvival(dt);updateCamera(dt);updateEnemy(dt);updatePowerCreature(dt);updateEnemyCombat(dt);updateEquipment(dt);updateFieldKit(dt);buildObjects();updateLight();updateTorchLight();sound.update();
+    gl.activeTexture(gl.TEXTURE0+8);gl.bindTexture(gl.TEXTURE_2D,null);
     gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,null);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,null);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,null);
     if(settings.shadows!=='off'){
       gl.bindFramebuffer(gl.FRAMEBUFFER,shadowTarget.framebuffer);gl.viewport(0,0,shadowTarget.size,shadowTarget.size);
       gl.enable(gl.DEPTH_TEST);gl.depthMask(true);gl.clear(gl.DEPTH_BUFFER_BIT);drawObjects(shadowProgram,true);
+      gl.bindFramebuffer(gl.FRAMEBUFFER,nearShadowTarget.framebuffer);gl.viewport(0,0,nearShadowTarget.size,nearShadowTarget.size);
+      gl.clear(gl.DEPTH_BUFFER_BIT);drawObjects(shadowProgram,true,nearLightVP);
     }
     if(torchStrength()>.01&&settings.shadows!=='off'){
       gl.bindFramebuffer(gl.FRAMEBUFFER,torchShadowTarget.framebuffer);gl.viewport(0,0,torchShadowTarget.size,torchShadowTarget.size);
@@ -1933,6 +1984,7 @@
     gl.depthMask(true);gl.clear(gl.DEPTH_BUFFER_BIT);gl.disable(gl.DEPTH_TEST);gl.depthMask(false);
     let u=skyProgram.uniforms;gl.useProgram(skyProgram.p);bindEnvironment(u);gl.bindVertexArray(skyVAO);
     gl.uniform3fv(u.u_forward,forward);gl.uniform3fv(u.u_right,right);gl.uniform3fv(u.u_up,up);gl.uniform2f(u.u_screen,cameraTan*canvas.width/canvas.height,cameraTan);gl.uniform1f(u.u_time,reducedMotion?0:time);gl.drawArrays(gl.TRIANGLES,0,3);
+    gl.activeTexture(gl.TEXTURE0+8);gl.bindTexture(gl.TEXTURE_2D,nearShadowTarget.texture);
     gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,torchShadowTarget.texture);
     gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,shadowTarget.texture);
     gl.depthMask(true);gl.enable(gl.DEPTH_TEST);
@@ -2056,7 +2108,7 @@
     try { initialize(); }
     catch(error) {
       running=false; console.error(error);
-      showError('Graphics startup failed (11.3): '+String(error?.message||error).slice(0,240));
+      showError('Graphics startup failed (11.4): '+String(error?.message||error).slice(0,240));
     }
   }
   </script>
