@@ -1,3 +1,12 @@
+## Version 11.4: complete glove, shed lighting and smoother shadows
+
+- Fixed the missing hand: first-person extraction now includes the uploaded hazmat gear mesh containing the rubber glove, as well as the suit sleeve. The flashlight and soda sit higher so the gripping hand remains visible.
+- Shed light rays now intersect the actual board planes and respect the doorway, broken window and roof gaps. Removed oversized blockers that made visible walls black; added restrained daylight bounce inside.
+- Added a player-centred 48 metre sun-shadow cascade with filtered comparison sampling, blended into the existing world shadows. Medium quality uses about 5 cm texels nearby instead of 45 cm; the map snaps to texels to reduce shimmer.
+- Preserves item-anchored pickup buttons, equipment switching, distance-scaled face censorship, local/remote flashlights, mobile controls and authoritative multiplayer. This is filtered shadow mapping and limited analytic shed ray tests, not full hardware ray tracing.
+- Android 11.4 / versionCode 17 uses the same app package and signing identity. Compatible with the existing protocol-1 server; no server restart, database change or account migration is required.
+- All 51 automated checks passed, including accounts, separate devices, reconnects, rooms, enemy synchronization and singleplayer. Native GLES shader/pixel tests cover wall self-occlusion, doorway/window transmission and smooth shadow edges. Physical Android appearance and performance remain unverified.
+
 ## Version 11.3: first-person arms and shared lighting
 
 - The flat censor covers the face and upper hood edge without gaps, follows VHS displacement and still shrinks with distance. Fully hidden players stay occluded.
