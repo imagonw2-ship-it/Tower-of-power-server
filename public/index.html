@@ -204,7 +204,7 @@ body.touch.playing #hint,body.touch.playing.equipped #hint{bottom:98px;width:40%
       <button id="settingsOpen">SETTINGS</button>
       <button id="controlsOpen">CONTROLS</button>
     </nav>
-    <p class="menuFoot">HEADPHONES RECOMMENDED</p>
+    <p class="menuFoot"><strong id="releaseLabel">VERSION 10.2 · STARTUP FIX</strong><br>HEADPHONES RECOMMENDED</p>
   </main>
   <section id="settingsPanel" class="panel settings" hidden aria-label="Settings">
     <h2>SETTINGS</h2>
@@ -1118,7 +1118,7 @@ function appendInfrastructure() {
     }
   `;
 
-  function makeProgram(vertexSource, fragmentSource) {
+  function makeProgram(label, vertexSource, fragmentSource) {
     function shader(type, source) {
       const s = gl.createShader(type);
       gl.shaderSource(s, '#version 300 es\n' + source);
@@ -1126,7 +1126,7 @@ function appendInfrastructure() {
       if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
         const message = gl.getShaderInfoLog(s);
         gl.deleteShader(s);
-        throw new Error(message);
+        throw new Error(label+' '+(type===gl.VERTEX_SHADER?'vertex':'fragment')+' shader: '+message);
       }
       return s;
     }
@@ -1135,7 +1135,7 @@ function appendInfrastructure() {
     const fs = shader(gl.FRAGMENT_SHADER, fragmentSource);
     gl.attachShader(p, vs); gl.attachShader(p, fs); gl.linkProgram(p);
     gl.deleteShader(vs); gl.deleteShader(fs);
-    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(label+' shader link: '+gl.getProgramInfoLog(p));
     const uniforms = {};
     for (let i = 0; i < gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); i++) {
       const name = gl.getActiveUniform(p, i).name;
@@ -1605,7 +1605,7 @@ function appendInfrastructure() {
 
   function initialize() {
     hdr=!!gl.getExtension('EXT_color_buffer_float');
-    skyProgram = makeProgram(`
+    skyProgram = makeProgram('Sky', `
       precision highp float;
       out vec2 v_uv;
       void main() {
@@ -1652,7 +1652,7 @@ function appendInfrastructure() {
       }
     `);
 
-    groundProgram = makeProgram(commonGLSL + `
+    groundProgram = makeProgram('Ground', commonGLSL + `
       layout(location=0) in vec2 a_position;
       uniform mat4 u_vp;
       uniform vec3 u_camera;
@@ -1696,10 +1696,10 @@ function appendInfrastructure() {
         float pad=(1.-smoothstep(32.5,32.75,abs(yard.x)))*(1.-smoothstep(30.5,30.75,abs(yard.y)));
         vec2 joint=abs(mod(yard+vec2(4.5,7.5),vec2(9.,15.))-vec2(4.5,7.5));
         float seam=1.-smoothstep(.014,.04,min(joint.x,joint.y));
-        float fine=noise(v_world.xz*22.),weather=noise(v_world.xz*.085),patch=noise(v_world.xz*.48);
+        float fine=noise(v_world.xz*22.),weather=noise(v_world.xz*.085),surfaceVariation=noise(v_world.xz*.48);
         vec3 concrete=vec3(.455,.465,.448)*(.94+.065*fine+.085*weather);
-        concrete*=1.-seam*.25;concrete*=.94+.06*patch;
-        float tire=(1.-smoothstep(.14,.38,abs(abs(yard.x-23.)-1.05)))*.08*(.4+.6*patch);
+        concrete*=1.-seam*.25;concrete*=.94+.06*surfaceVariation;
+        float tire=(1.-smoothstep(.14,.38,abs(abs(yard.x-23.)-1.05)))*.08*(.4+.6*surfaceVariation);
         concrete*=1.-tire;
         float margin=smoothstep(26.,31.,abs(yard.y))*smoothstep(.6,.9,weather);
         concrete=mix(concrete,vec3(.34,.365,.32),margin*.3);
@@ -1712,7 +1712,7 @@ function appendInfrastructure() {
       }
     `);
 
-    grassProgram = makeProgram(commonGLSL + `
+    grassProgram = makeProgram('Grass', commonGLSL + `
       layout(location=0) in vec2 a_blade;
       uniform mat4 u_vp;
       uniform vec3 u_camera;
@@ -1779,7 +1779,7 @@ function appendInfrastructure() {
       }
     `);
 
-    turbineProgram=makeProgram(commonGLSL+rigGLSL+`
+    turbineProgram=makeProgram('Objects', commonGLSL+rigGLSL+`
       layout(location=0) in vec3 a_position;
       layout(location=1) in vec3 a_normal;
       layout(location=2) in vec3 a_color;
@@ -1856,7 +1856,7 @@ function appendInfrastructure() {
         color=linearOutput(applyFog(c,v_world,u_camera));
       }
     `);
-    postProgram=makeProgram(`
+    postProgram=makeProgram('Camera effects', `
       precision highp float;
       out vec2 v_uv;
       void main(){vec2 p=vec2(float((gl_VertexID<<1)&2),float(gl_VertexID&2));v_uv=p;gl_Position=vec4(p*2.-1.,0.,1.);}
@@ -1918,7 +1918,7 @@ function appendInfrastructure() {
         color=vec4(clamp(c,0.,1.),1.);
       }
     `);
-    shadowProgram=makeProgram(`precision highp float;`+rigGLSL+`
+    shadowProgram=makeProgram('Shadows', `precision highp float;`+rigGLSL+`
       precision highp float;
       layout(location=0) in vec3 a_position;
       uniform mat4 u_vp,u_model;
@@ -3505,7 +3505,7 @@ addEventListener('tower-back',()=>{if(game.mode==='inventory')closeFieldKit();el
     try { initialize(); }
     catch(error) {
       running=false; console.error(error);
-      showError('The field could not start. Try opening this file in a current Chrome, Edge, or Firefox browser.');
+      showError('Graphics startup failed (10.2): '+String(error?.message||error).slice(0,240));
     }
   }
   </script>
