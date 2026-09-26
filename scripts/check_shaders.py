@@ -120,6 +120,13 @@ for pair in range(len(sources)//2):
         location=gl('glGetUniformLocation',I,[U,c.c_char_p])
         uf=gl('glUniform1f',None,[I,c.c_float]);ui=gl('glUniform1i',None,[I,I])
         v3=gl('glUniform3f',None,[I,c.c_float,c.c_float,c.c_float])
+        # Comparison samplers must have a separate texture unit and compare mode.
+        near_tex=U();active_texture(0x84C8);gen_texture(1,c.byref(near_tex));bind_texture(0x0DE1,near_tex)
+        for key in [0x2800,0x2801]:tex_parameter(0x0DE1,key,0x2601)
+        for key in [0x2802,0x2803]:tex_parameter(0x0DE1,key,0x812F)
+        tex_parameter(0x0DE1,0x884C,0x884E);tex_parameter(0x0DE1,0x884D,0x0203)
+        tex_image(0x0DE1,0,0x81A6,2,2,0,0x1902,0x1405,(U*4)(0,0xffffffff,0,0xffffffff))
+        ui(location(program,b'u_nearShadowMap'),8);ui(location(program,b'u_shadowMap'),1)
         v3(location(program,b'u_torchPosition'),0,0,0);v3(location(program,b'u_torchDirection'),0,0,-1)
         uf(location(program,b'u_receiveTorch'),1);ui(location(program,b'u_torchShadowMap'),1)
         gl('glUniform2f',None,[I,c.c_float,c.c_float])(location(program,b'u_torchTexel'),1,1)
@@ -152,9 +159,29 @@ for pair in range(len(sources)//2):
         ui(location(program,b'u_remoteTorchCount'),0)
         assert sample(2,12)<dark+.01 and sample(0,12)>dark+.17, 'Local flashlight shed occlusion is wrong'
         uf(location(program,b'u_probeMode'),1);v3(location(program,b'u_ambient'),1,1,1)
-        assert sample(0,12,on=0)<.3 and sample(8,12,on=0)>.95, 'Shed interior needs ambient shading'
+        uf(location(program,b'u_day'),1)
+        assert .45<sample(0,12,on=0)<.85 and sample(8,12,on=0)>.95, 'Daylight bounce must keep interior boards readable'
         uf(location(program,b'u_probeMode'),2);v3(location(program,b'u_lightDirection'),0,1,0)
         assert sample(0,12,on=0)<.01 and sample(8,12,on=0)>.99, 'Shed roof must cast a shadow'
+        # The rendered board faces sit inside the former collision boxes. They
+        # must receive flashlight energy while still blocking rays behind them.
+        uf(location(program,b'u_probeMode'),3);v3(location(program,b'u_shed'),0,0,0)
+        def transmission(origin,target):
+            v3(location(program,b'u_rayFrom'),*origin);v3(location(program,b'u_rayTo'),*target)
+            return sample(0,0,on=0)
+        for wall in [(0,1.8,-2.568),(2.898,1.8,0),(-2.898,1.8,-1.4),(1.5,1.8,2.573)]:
+            assert transmission((0,1.6,0),wall)>.99, f'Wall incorrectly shadows its own front surface: {wall}'
+        assert transmission((0,1.6,0),(0,1.8,-3.5))<.01, 'Rear wall leaks light'
+        assert transmission((0,1.6,0),(-4,1.8,.16))>.99, 'Open window blocks light'
+        assert transmission((0,1.6,0),(-4,1.8,-1.4))<.01, 'Solid side wall leaks light'
+        assert transmission((0,1.6,0),(0,1.8,4))>.99, 'Doorway blocks light'
+        # Adjacent lit/occluded texels must interpolate, without square hard edges.
+        uf(location(program,b'u_probeMode'),2);uf(location(program,b'u_shedEnabled'),0);uf(location(program,b'u_shadowStrength'),1)
+        m=(c.c_float*16)(1/24,0,0,0,0,1/24,0,0,0,0,1/380,0,0,1.35/24,0,1)
+        gl('glUniformMatrix4fv',None,[I,I,U,c.POINTER(c.c_float)])(location(program,b'u_nearLightVP'),1,0,m)
+        gl('glUniform2f',None,[I,c.c_float,c.c_float])(location(program,b'u_nearShadowTexel'),1/1024,1/1024)
+        vals=[sample(x,0,on=0) for x in [-8,-4,0,4,8]]
+        assert all(a+.02<b for a,b in zip(vals,vals[1:])), f'Close shadow filtering is not smooth: {vals}'
         assert gl('glGetError',U,[])()==0,'Graphics error in flashlight probe'
     failures.extend(errors)
     programs.append({'name':name, 'linked':not errors})
