@@ -97,7 +97,7 @@
       <button id="settingsOpen">SETTINGS</button>
       <button id="controlsOpen">CONTROLS</button>
     </nav>
-    <p class="menuFoot"><strong id="releaseLabel">VERSION 11.0 · FIELD EQUIPMENT</strong><br>HEADPHONES RECOMMENDED</p>
+    <p class="menuFoot"><strong id="releaseLabel">VERSION 11.1 · CAMERA & GRIP UPDATE</strong><br>HEADPHONES RECOMMENDED</p>
   </main>
   <section id="settingsPanel" class="panel settings" hidden aria-label="Settings">
     <h2>SETTINGS</h2>
@@ -1008,7 +1008,7 @@
   function resizeTarget(width,height) {
     if(sceneTarget&&sceneTarget.width===width&&sceneTarget.height===height)return;
     if(sceneTarget) {
-      gl.deleteTexture(sceneTarget.texture);gl.deleteRenderbuffer(sceneTarget.depth);
+      gl.deleteTexture(sceneTarget.texture);gl.deleteTexture(sceneTarget.depth);
       gl.deleteFramebuffer(sceneTarget.framebuffer);
     }
     const texture=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,texture);
@@ -1017,11 +1017,13 @@
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
     gl.texImage2D(gl.TEXTURE_2D,0,hdr?gl.RGBA16F:gl.RGBA8,width,height,0,gl.RGBA,hdr?gl.HALF_FLOAT:gl.UNSIGNED_BYTE,null);
-    const depth=gl.createRenderbuffer();gl.bindRenderbuffer(gl.RENDERBUFFER,depth);
-    gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT24,width,height);
+    const depth=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,depth);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.DEPTH_COMPONENT24,width,height,0,gl.DEPTH_COMPONENT,gl.UNSIGNED_INT,null);
     const framebuffer=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,framebuffer);
     gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,texture,0);
-    gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,depth);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.TEXTURE_2D,depth,0);
     const complete=gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE;
     sceneTarget={texture,depth,framebuffer,width,height};
     gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.bindTexture(gl.TEXTURE_2D,null);
@@ -1235,12 +1237,11 @@
         if(!gl_FrontFacing)geometric=-geometric;
         if(u_material>4.5){
           vec3 albedo=v_color,n=geometric;
-          if(u_assetKind>5.5){color=vec4(0.,0.,0.,1.);return;}
-          bool avatar=u_assetKind>4.5,steel=u_assetKind>2.5&&u_assetKind<3.5,torch=u_assetKind<1.5;
-          if(avatar)albedo=texture(u_assetTexture,v_uv).rgb;else if(u_assetKind>3.5)albedo=texture(u_signTexture,v_uv).rgb;else if(steel)albedo*=texture(u_assetTexture,v_uv).rgb*1.16;
+          bool cameraProp=u_assetKind>5.5,avatar=u_assetKind>4.5&&u_assetKind<5.5,steel=u_assetKind>2.5&&u_assetKind<3.5,torch=u_assetKind<1.5;
+          if(avatar||cameraProp)albedo=texture(u_assetTexture,v_uv).rgb;else if(u_assetKind>3.5)albedo=texture(u_signTexture,v_uv).rgb;else if(steel)albedo*=texture(u_assetTexture,v_uv).rgb*1.16;
           if(torch)n=mappedNormal(v_world,n,v_uv,texture(u_assetNormal,v_uv).rgb,.055);
           if(u_assetKind>1.5&&u_assetKind<2.5){float gray=dot(albedo,vec3(.2126,.7152,.0722));albedo=vec3(.44+gray*.4);}
-          float roughness=avatar?.9:steel?.62:torch?.38:.28,metalness=avatar?0.:steel?.7:torch?.3:.8;
+          float roughness=cameraProp?.45:avatar?.9:steel?.62:torch?.38:.28,metalness=avatar?0.:steel?.7:torch?.3:.8;
           vec3 eye=normalize(u_camera-v_world);float vis=fieldShadow(v_world+geometric*.04);
           vec3 c=albedo*(u_ambient+u_direct*max(dot(n,SUN),0.)*vis);
           c+=u_direct*pow(max(dot(n,normalize(SUN+eye)),0.),mix(120.,16.,roughness))*.24*vis;
@@ -1294,7 +1295,10 @@
     `,`
       precision highp float;
       in vec2 v_uv;
-      uniform sampler2D u_scene;
+      uniform sampler2D u_scene,u_sceneDepth;
+      uniform int u_censorCount;
+      uniform vec4 u_censorRects[8];
+      uniform float u_censorDepths[8];
       uniform vec2 u_texel;
       uniform float u_time,u_vhs,u_intro,u_flash,u_bloom,u_fade,u_lost,u_threat;
       out vec4 color;
@@ -1346,6 +1350,13 @@
         c=mix(c,vec3(.95,.97,1.),clamp(u_flash*.70,0.,.84));
         c=mix(c,vec3(grain*.10+.014),u_lost*.90);
         c*=1.-u_fade;
+        // Bodycam redaction is a final, flat screen-space rectangle. Depth keeps
+        // it behind closer scenery/players; it is also present in captured photos.
+        for(int i=0;i<8;i++){
+          if(i>=u_censorCount)break;
+          vec4 r=u_censorRects[i];
+          if(v_uv.x>=r.x&&v_uv.y>=r.y&&v_uv.x<=r.z&&v_uv.y<=r.w&&texture(u_sceneDepth,uv).r>=u_censorDepths[i])c=vec3(0.);
+        }
         color=vec4(clamp(c,0.,1.),1.);
       }
     `);
@@ -1652,7 +1663,7 @@
   }
 
   function buildObjects(){
-    objectDraws.length=0;appendPowerObjects();
+    headCensorCount=0;objectDraws.length=0;appendPowerObjects();
     const deployment=enemy.state==='dormant'?0:ease(clamp(enemy.awake/7.8,0,1));
     const tilt=enemy.state==='dormant'?0:(Math.sin(enemy.gait*1.8)*.008+enemy.bank)*deployment;
     const orientation=multiply(rotateY(enemy.heading),multiply(rotateX(enemy.lean),rotateZ(tilt)));
@@ -1673,7 +1684,7 @@
         const held=new Float32Array([right[0],right[1],right[2],0,up[0],up[1],up[2],0,-forward[0],-forward[1],-forward[2],0,...p,1]);
         objectDraws.push({mesh:flashlightMesh,model:multiply(held,transform(0,0,0,1.3,1.3,1.3)),material:5,assetKind:1,castShadow:false,receiveTorch:false});
       }
-      if(equippedTool==='camera'&&game.mode==='playing'&&game.zoom<2.5){const p=cameraPosition.map((v,i)=>v+right[i]*.22-up[i]*.24+forward[i]*.45);const held=new Float32Array([right[0],right[1],right[2],0,up[0],up[1],up[2],0,-forward[0],-forward[1],-forward[2],0,...p,1]);objectDraws.push({mesh:cameraItemMesh,model:held,castShadow:false});}
+      if(equippedTool==='camera'&&game.mode==='playing'&&game.zoom<2.5){const p=cameraPosition.map((v,i)=>v+right[i]*.22-up[i]*.20+forward[i]*.42);const held=new Float32Array([right[0],right[1],right[2],0,up[0],up[1],up[2],0,-forward[0],-forward[1],-forward[2],0,...p,1]);objectDraws.push({mesh:cameraItemMesh,model:held,material:5,assetKind:6,texture:cameraItemTexture,castShadow:false,receiveTorch:false});}
       if((game.drinking>0||equippedTool==='soda')&&game.mode==='playing'&&game.zoom<2.5){
         const t=game.drinking>0?1-game.drinking/1.1:0,lift=Math.sin(t*Math.PI),p=cameraPosition.map((v,i)=>v-right[i]*.19-up[i]*(.4-lift*.30)+forward[i]*.37);
         const hand=new Float32Array([right[0],right[1],right[2],0,up[0],up[1],up[2],0,-forward[0],-forward[1],-forward[2],0,...p,1]);
@@ -1866,7 +1877,9 @@
   function drawPost(flash){
     gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,canvas.width,canvas.height);gl.disable(gl.DEPTH_TEST);gl.depthMask(false);
     gl.useProgram(postProgram.p);gl.bindVertexArray(skyVAO);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,sceneTarget.texture);
-    const u=postProgram.uniforms;gl.uniform1i(u.u_scene,0);gl.uniform2f(u.u_texel,1/canvas.width,1/canvas.height);
+    const u=postProgram.uniforms;gl.uniform1i(u.u_scene,0);
+    gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,sceneTarget.depth);gl.uniform1i(u.u_sceneDepth,1);
+    gl.uniform1i(u.u_censorCount,headCensorCount);gl.uniform4fv(u['u_censorRects[0]']??null,headCensorRects);gl.uniform1fv(u['u_censorDepths[0]']??null,headCensorDepths);gl.uniform2f(u.u_texel,1/canvas.width,1/canvas.height);
     gl.uniform1f(u.u_time,time);gl.uniform1f(u.u_vhs,settings.vhs);gl.uniform1f(u.u_intro,game.intro);gl.uniform1f(u.u_flash,flash);
     gl.uniform1f(u.u_bloom,settings.bloom?1:0);gl.uniform1f(u.u_lost,game.mode==='lost'?1:0);gl.uniform1f(u.u_fade,game.mode==='loading'?1:game.fadeIn);
     gl.uniform1f(u.u_threat,enemy.state==='dormant'&&powerCreature.state==='dormant'?0:1);gl.drawArrays(gl.TRIANGLES,0,3);
@@ -2011,7 +2024,7 @@
     try { initialize(); }
     catch(error) {
       running=false; console.error(error);
-      showError('Graphics startup failed (11.0): '+String(error?.message||error).slice(0,240));
+      showError('Graphics startup failed (11.1): '+String(error?.message||error).slice(0,240));
     }
   }
   </script>

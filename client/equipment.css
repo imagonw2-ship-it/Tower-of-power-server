@@ -11,7 +11,7 @@
 #touchPickup{left:50%;bottom:35px;transform:translateX(-50%);width:60px!important;height:55px!important;border-radius:18px}
 #touchPause{right:max(25px,env(safe-area-inset-right));top:max(18px,env(safe-area-inset-top));width:44px;height:40px;min-width:0;border-radius:12px;display:grid;place-items:center;padding:0!important}
 #touchPause svg{width:20px;height:20px}#touchWorld{left:max(26px,env(safe-area-inset-left));top:66px;width:42px;height:38px;border-radius:12px}#touchWorld svg{width:22px;height:22px}
-#touchSprint{left:max(66px,calc(env(safe-area-inset-left) + 36px));bottom:max(169px,calc(env(safe-area-inset-bottom) + 139px));width:52px;height:49px;border-radius:15px}
+#touchSprint{left:auto;right:max(36px,calc(env(safe-area-inset-right) + 10px));bottom:max(191px,calc(env(safe-area-inset-bottom) + 166px));width:52px;height:49px;border-radius:15px}
 #joyBase{left:max(30px,env(safe-area-inset-left));bottom:max(30px,env(safe-area-inset-bottom));width:118px;height:118px;border:1px solid #ffffff60;background:#ffffff03;box-shadow:inset 0 0 0 16px #ffffff04;backdrop-filter:blur(3px)}
 #joyKnob{width:43px;height:43px;left:36.5px;top:36.5px;border:1px solid #fff7;background:#ffffff28;box-shadow:0 3px 9px #0003}
 #touchLesson,body.touch #onboarding,body.touch #torchControls,body.touch #sodaControls,body.touch #equipment,body.touch .kitKeyTip{display:none!important}
