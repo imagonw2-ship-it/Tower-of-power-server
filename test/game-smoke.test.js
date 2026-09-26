@@ -42,15 +42,15 @@ test('offline pylon wakes and uses a foot attack while the complete frame pipeli
   run('for(let i=92;i<135;i++)frame(1000+i*50);');assert.equal(run('game.mode'),'lost');assert.deepEqual(errors,[]);
 });
 
-test('hazmat clips, censored faces and held items render through the full object pipeline',()=>{
+test('hazmat clips and textured held items render through the full object pipeline',()=>{
   const {run,errors}=launch();
   run("resetWorld(true);setMode('playing');locked=true;const avatarTestPlayer={id:'qa-avatar',x:player.x+3,z:player.z,yaw:0,pitch:0,vx:0,vz:0,heldItem:'camera'};");
   for(const [crouching,sprinting,speed,item] of [[false,false,0,'camera'],[false,false,3,'flashlight'],[false,true,8,'soda'],[true,false,2,'none'],[true,false,0,'flashlight']]){
     run(`objectDraws.length=0;Object.assign(avatarTestPlayer,{crouching:${crouching},sprinting:${sprinting},vx:${speed},heldItem:'${item}'});appendHazmat(avatarTestPlayer,${1+speed});drawObjects(turbineProgram);`);
     assert.ok(run("avatarCache.get('qa-avatar').bones.every(Number.isFinite)"));
-    assert.equal(run('objectDraws.filter(o=>o.assetKind===6).length'),1);
+    assert.equal(run('objectDraws.filter(o=>o.assetKind===6).length'),item==='camera'?1:0);
     assert.equal(run('objectDraws.filter(o=>o.assetKind===5).length'),3);
-    assert.equal(run('objectDraws.length'),item==='none'?4:5);
+    assert.equal(run('objectDraws.length'),item==='none'?3:4);
   }
   assert.equal(run("document.getElementById('gameLogo')"),null);assert.equal(run("document.querySelectorAll('#handSlot').length"),1);assert.deepEqual(errors,[]);
 });
