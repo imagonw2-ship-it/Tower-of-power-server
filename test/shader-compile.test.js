@@ -9,8 +9,9 @@ test('native GLES compiles the game and verifies flashlight visibility, falloff 
 }, () => {
   const {shaders,run} = launch();
   shaders.push('#version 300 es\nvoid main(){vec2 p=vec2(float((gl_VertexID<<1)&2),float(gl_VertexID&2));gl_Position=vec4(p*2.-1.,0.,1.);}',
-    '#version 300 es\n'+run('commonGLSL')+`\nuniform vec2 u_probe;out vec4 color;
+    '#version 300 es\n'+run('commonGLSL')+`\nuniform vec2 u_probe;uniform float u_probeMode;out vec4 color;
     void main(){vec3 p=vec3(u_probe.x,-1.35,-u_probe.y);
+      if(u_probeMode>.5){color=vec4(u_probeMode>1.5?vec3(fieldShadow(p)):interiorAmbient(p),1.);return;}
       vec3 c=flashLight(vec3(.035),vec3(.3,.37,.22),p,vec3(0.),vec3(0.,1.,0.),0.);
       vec3 x=pow(c,vec3(2.2));x=clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);
       color=vec4(pow(x,vec3(1./2.2)),1.);}`);

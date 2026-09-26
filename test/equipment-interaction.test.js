@@ -58,3 +58,28 @@ test('remote players lower their hand when changing equipment and keep the item 
   run('for(let i=1;i<=30;i++){objectDraws.length=0;appendHazmat(p,1.1+i*.02);}');assert.equal(run('objectDraws.at(-1).assetKind'),1);
   assert.ok(run("avatarCache.get(p.id).bones.every(Number.isFinite)"));
 });
+
+test('first-person glove stays on each grip while switching and drinking',()=>{
+  const {run}=launch();
+  run("resetWorld(true);setMode('playing');locked=true;game.hasFlashlight=true;game.sodas=2;updateCamera(0);const point=(m,p)=>[0,1,2].map(k=>m[k]*p[0]+m[4+k]*p[1]+m[8+k]*p[2]+m[12+k]);");
+  for(const tool of ['camera','flashlight','soda'])for(const dip of [0,.5,1]){
+    run(`equipmentMotion.shown='${tool}';equipmentMotion.lower=${dip};objectDraws.length=0;appendHeldEquipment();`);
+    assert.equal(run('objectDraws.filter(o=>o.povArm).length'),1);
+    assert.ok(run('povArmBones.every(Number.isFinite)'));
+    assert.ok(run(`Math.hypot(...point(heldEquipmentMatrix(),itemGripAnchors['${tool}']).map((v,k)=>v-point(povHandMatrix,itemPalm)[k]))<.0001`),'palm and item grip must coincide');
+  }
+  run("equipmentMotion.lower=0;equipmentMotion.shown='soda';equippedTool='soda';appendHeldEquipment();const rest=povHandMatrix[13];drinkSoda();game.drinking=.55;appendHeldEquipment();");
+  assert.ok(run('povHandMatrix[13]>rest+.13'),'drinking raises the glove and can together');
+  assert.equal(run('game.sodas'),1);assert.equal(run('game.boostTime'),15);
+});
+
+test('remote flashlight follows the held lens and nearest visible players share its light',()=>{
+  const {run}=launch();
+  run("resetWorld(true);setMode('playing');updateCamera(0);const torchPlayer={id:'torch-peer',x:player.x,z:player.z-4,yaw:Math.PI,pitch:0,torch:true,heldItem:'flashlight'};remoteTorchCount=0;appendHazmat(torchPlayer,1);const grip=objectDraws.at(-1).model;");
+  assert.equal(run('remoteTorchCount'),1);
+  assert.ok(run('Math.hypot(...[0,1,2].map(k=>remoteTorchPositions[k]-(grip[12+k]-grip[8+k]*.085)))<.0001'));
+  assert.ok(run('Math.abs(Math.hypot(...remoteTorchDirections.slice(0,3))-1)<.0001'));
+  run('for(const d of [30,20,2,50])appendRemoteTorch(identity(),1,d);');
+  assert.equal(run('remoteTorchCount'),3);assert.deepEqual(Array.from(run('remoteTorchDistances')).sort((a,b)=>a-b),[2,4,20]);
+  run('remoteTorchCount=0;torchPlayer.torch=false;appendHazmat(torchPlayer,1.1);');assert.equal(run('remoteTorchCount'),0);
+});

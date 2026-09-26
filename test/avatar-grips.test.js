@@ -19,7 +19,7 @@ test('item contact stays in the palm during idle, locomotion, crouch, turning an
   }
 });
 
-test('face censor covers the visible face while leaving the hood visible',()=>{
+test('face censor fully covers the visible face and its upper hood edge',()=>{
   const {run}=launch();
   run("resetWorld(true);setMode('playing');locked=true;world.turbineStopped=true;world.powerStopped=true;settings.vhs=0;player.yaw=0;player.pitch=0;const p={id:'head-test',x:player.x,z:player.z-5,yaw:0,pitch:0,vx:0,vz:0,heldItem:'none'};");
   const data=run('AVATAR_ASSET');
@@ -48,7 +48,7 @@ test('face censor covers the visible face while leaving the hood visible',()=>{
     assert.ok(visible>100);
     const hi=data.bones.indexOf('head'),hood=point(vp,point(root,point(bones.slice(hi*16,hi*16+16),[0,1.872,0])));
     const hx=hood[0]/hood[3]*.5+.5,hy=hood[1]/hood[3]*.5+.5;
-    assert.ok(hx<rect[0]||hx>rect[2]||hy<rect[1]||hy>rect[3],'hood top should remain visible');
+    assert.ok(hx>=rect[0]&&hx<=rect[2]&&hy>=rect[1]&&hy<=rect[3],'upper hood edge must not show through the censor');
   }
   run('p.yaw=0;headCensorCount=0;appendHazmat(p,3);');assert.equal(run('headCensorCount'),0,'no floating mask on the back of the hood');
   run('p.z=player.z+8;headCensorCount=0;appendHazmat(p,3);');assert.equal(run('headCensorCount'),0);
