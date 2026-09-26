@@ -1,3 +1,9 @@
+## Version 10.2 startup fix
+
+Renamed a reserved GLSL word in the concrete shader that prevented version 10 from starting on real graphics drivers. Startup errors now report the shader stage. The game preserves the Field Kit, power corridor fixes, leg collisions and multiplayer targeting.
+
+A new native ANGLE GLES test compiles and links all six shipped shader programs. To run this gate, set `ANGLE_LIB_DIR` to an ANGLE/SwiftShader directory containing `libEGL.so`, `libGLESv2.so`, `libvk_swiftshader.so` and `vk_swiftshader_icd.json`, then run `npm test`. Without the directory, the graphics test is explicitly skipped; the game integration and networking tests still run. This compiler test does not replace physical-phone rendering tests.
+
 # TOWER OF POWER Server
 
 The existing TOWER OF POWER browser game and its authoritative multiplayer
