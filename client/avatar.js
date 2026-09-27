@@ -19,7 +19,7 @@ function appendRemoteTorch(grip,strength,distance){
 }
 // All props share the same palm frame. Each origin is adjusted to its actual grip,
 // rather than putting the asset's center at the wrist.
-const itemGripAnchors={camera:[.059,-.003,.008],flashlight:[-.008,-.145,.005],soda:[0,.095,0]};
+const itemGripAnchors={camera:[.059,-.003,.008],flashlight:[-.008,-.145,.005],soda:[0,.095,0],flare:[0,-.07,.065]};
 const itemPalm=[-.078,-.030,.002];
 function itemGripMatrix(kind){
   const a=itemGripAnchors[kind]||itemGripAnchors.camera;
@@ -138,8 +138,8 @@ function appendHazmat(p,clock){
   appendHeadCensor(root,a.bones.subarray(head*16,head*16+16));
   if(held!=='none'&&distance<60){
     const h=a.matrices[AVATAR_ASSET.bones.indexOf('hand_r')],grip=multiply(root,multiply(h,itemGripMatrix(held)));
-    const mesh=held==='flashlight'?flashlightMesh:held==='soda'?sodaMesh:cameraItemMesh;
-    objectDraws.push({mesh,model:grip,material:5,texture:held==='camera'?cameraItemTexture:undefined,assetKind:held==='camera'?6:held==='flashlight'?1:2,castShadow:shadow});
+    const mesh=held==='flashlight'?flashlightMesh:held==='soda'?sodaMesh:held==='flare'?flareGunMesh:cameraItemMesh;
+    objectDraws.push({mesh,model:grip,material:5,texture:held==='camera'?cameraItemTexture:undefined,assetKind:held==='camera'?6:held==='flashlight'?1:held==='flare'?7:2,castShadow:shadow});
     if(p.torch&&held==='flashlight'&&distance<60)appendRemoteTorch(grip,1-ease(a.motion.lower),distance);
   }
 }

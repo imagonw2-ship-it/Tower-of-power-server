@@ -104,6 +104,6 @@ function appendInfrastructure() {
     );
   }
   for (const foot of powerCreature.feet) objectDraws.push({
-    mesh: ankleSteel, model: transform(...foot.position), material: 2,
+    mesh: ankleSteel, model: transform(foot.position[0],foot.position[1]-.12,foot.position[2]), material: 2,
   });
 }

@@ -32,6 +32,10 @@ function buildPowerCorridor(){
   }
   socketMesh=mesh3D(sockets);
   const g=infraGeometry();
+  for(const tower of corridorTowers){const shoes=infraGeometry();for(const local of POWER_RIG.feet){
+    const at=pylonPoint(tower,local),floor=terrainHeight(at[0],at[2]);
+    corridorBeam(shoes,[at[0],floor-.12,at[2]],[at[0],Math.max(floor+.35,at[1]+1.5*tower.scale),at[2]],.19*tower.scale,[.28,.31,.29],6);
+  }tower.shoes=mesh3D(shoes);}
   // A narrow drainage channel, maintenance cabinets, and low edge kerbs.
   for(const side of [-1,1]){
     const x=POWER_ZONE.x+side*31.5;
@@ -64,7 +68,7 @@ function appendPowerObjects(){
   }
   for(const tower of corridorTowers)if(Math.hypot(player.x-tower.x,player.z-tower.z)<650){
     const model=multiply(transform(tower.x,tower.y,tower.z,tower.scale,tower.scale,tower.scale),rotateY(tower.heading));
-    objectDraws.push({mesh:pylonLODMesh,model,material:5,assetKind:3},{mesh:socketMesh,model,material:2});
+    objectDraws.push({mesh:tower.shoes,model:identity(),material:2},{mesh:pylonLODMesh,model,material:5,assetKind:3},{mesh:socketMesh,model,material:2});
   }
   for(let i=0;i<corridorSpans.length;i++){
     const span=corridorSpans[i],midX=(span.a.x+span.b.x)/2,midZ=(span.a.z+span.b.z)/2;

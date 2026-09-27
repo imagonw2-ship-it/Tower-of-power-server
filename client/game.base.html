@@ -97,7 +97,7 @@
       <button id="settingsOpen">SETTINGS</button>
       <button id="controlsOpen">CONTROLS</button>
     </nav>
-    <p class="menuFoot"><strong id="releaseLabel">VERSION 11.4 · ARMS & SHARED LIGHT UPDATE</strong><br>HEADPHONES RECOMMENDED</p>
+    <p class="menuFoot"><strong id="releaseLabel">VERSION 11.5 · SIGNAL & STAMINA UPDATE</strong><br>HEADPHONES RECOMMENDED</p>
   </main>
   <section id="settingsPanel" class="panel settings" hidden aria-label="Settings">
     <h2>SETTINGS</h2>
@@ -200,7 +200,7 @@
     pylonMesh=unpackModel(IMPORTED_MODELS.pylon);pylonLODMesh=unpackModel(IMPORTED_MODELS.pylonLOD);
     pylonTexture=importedTexture(IMPORTED_TEXTURES.pylon,5);importNormalTexture=importedTexture(IMPORTED_TEXTURES.flashlight,6,true);
     for(let i=0;i<9;i++)pylonBones.set(identity(),i*16);
-    buildPowerCorridor();buildInfrastructure();buildAvatars();
+    buildPowerCorridor();buildInfrastructure();buildAvatars();buildFlareModels();
   }
   const rigGLSL=`
     layout(location=4) in vec4 a_skin;
@@ -215,7 +215,7 @@
   function resetPowerCreature(){
     const y=terrainHeight(POWER_ZONE.x,POWER_ZONE.z);
     Object.assign(powerCreature,{x:POWER_ZONE.x,z:POWER_ZONE.z,y,heading:PYLON_HEADING,attack:null,attackCooldown:0,targetId:null,heardVelocity:[0,0],sample:null,sampleTime:-99,state:'dormant',clock:0,wake:0,rigBlend:0,bodyDrop:0,bodyBob:0,vx:0,vz:0,noise:null,lastKnown:[POWER_ZONE.x,POWER_ZONE.z],memoryAge:99,navAge:0,navTarget:null,stepIndex:0,impact:0,stepRest:0,discovered:false});
-    powerCreature.feet=POWER_RIG.feet.map(p=>{const at=[POWER_ZONE.x+p[2],terrainHeight(POWER_ZONE.x+p[2],POWER_ZONE.z-p[0])+.06,POWER_ZONE.z-p[0]];return{position:at.slice(),start:at.slice(),target:at.slice(),progress:1,duration:.62,lift:5};});
+    powerCreature.feet=POWER_RIG.feet.map(p=>{const at=[POWER_ZONE.x+p[2],terrainHeight(POWER_ZONE.x+p[2],POWER_ZONE.z-p[0])-.06,POWER_ZONE.z-p[0]];return{position:at.slice(),start:at.slice(),target:at.slice(),progress:1,duration:.62,lift:5};});
     for(let i=0;i<9;i++)pylonBones.set(identity(),i*16);
   }
   function enterPowerState(state){powerCreature.state=state;powerCreature.clock=0;powerCreature.navAge=0;}
@@ -264,6 +264,7 @@
     const fast=p.state==='running';liftPowerFoot(selected,powerFootTarget(selected),fast?.40:.78,fast?7.0:3.8);p.stepIndex=(order.indexOf(selected)+1)%4;
   }
   function updatePowerCreature(dt){
+    if(!net.active&&game.mode==='playing'&&!world.powerStopped)applyFlareLure(powerCreature,powerCreature,localFlares,dt,true);
     if(game.mode!=='playing'||isMenuScene()||world.powerStopped)return;
     const p=powerCreature,distance=Math.hypot(player.x-p.x,player.z-p.z);p.memoryAge+=dt;
     if(!p.discovered&&Math.hypot(player.x-POWER_ZONE.x,player.z-POWER_ZONE.z)<95){p.discovered=true;game.notice='POWER CORRIDOR / KEEP QUIET';game.noticeTime=4;}
@@ -290,7 +291,7 @@
     if(p.navAge<=0||!p.navTarget){p.navTarget=routeAroundShed(goal,[p.x,p.z]);p.navAge=.18;}
     const dx=p.navTarget[0]-p.x,dz=p.navTarget[1]-p.z,navDistance=Math.hypot(dx,dz),desired=Math.atan2(dx,dz),turn=Math.atan2(Math.sin(desired-p.heading),Math.cos(desired-p.heading));
     const fast=p.state==='running';if(!p.attack)p.heading+=clamp(turn,-dt*(fast?.74:.42),dt*(fast?.74:.42));
-    const speed=(fast?10.7:p.state==='searching'?3.4:2.5)*Math.max(.10,Math.cos(turn))*clamp((navDistance-(fast&&p.memoryAge<2?21:0))/7,0,1)*(p.attack?0:1),accel=1-Math.exp(-(fast?7:4)*dt);
+    const speed=(fast?10.7*(p.anger>0?1.25:1):p.state==='searching'?3.4:2.5)*Math.max(.10,Math.cos(turn))*clamp((navDistance-(fast&&p.memoryAge<2?21:0))/7,0,1)*(p.attack?0:1),accel=1-Math.exp(-(fast?7:4)*dt);
     p.vx+=(Math.sin(p.heading)*speed-p.vx)*accel;p.vz+=(Math.cos(p.heading)*speed-p.vz)*accel;p.x+=p.vx*dt;p.z+=p.vz*dt;
     // Respect the shed and the other giant, without knowing a silent player's position.
     for(const obstacle of [[shed.x,shed.z,15],[turbine.x,turbine.z,enemy.state==='dormant'?13:25]]){
@@ -325,8 +326,8 @@
         sound.caught();setMode('lost');if(document.pointerLockElement===canvas)document.exitPointerLock();
       }
     };
-    if(!world.turbineStopped)tickStomp(enemy,turbine,'turbine',dt,terrainHeight,shedBlocksSight,impact('turbine'));
-    if(!world.powerStopped)tickStomp(powerCreature,powerCreature,'power',dt,terrainHeight,shedBlocksSight,impact('power'));
+    if(!world.turbineStopped&&!enemy.lureId)tickStomp(enemy,turbine,'turbine',dt,terrainHeight,shedBlocksSight,impact('turbine'));
+    if(!world.powerStopped&&!powerCreature.lureId)tickStomp(powerCreature,powerCreature,'power',dt,terrainHeight,shedBlocksSight,impact('power'));
     updatePylonRig();resolvePowerCollision();
   }
   function serviceTrackDistance(x,z){
@@ -356,7 +357,7 @@
   for(const k of ['vhs','shake','master','ambience','effects'])settings[k]=Math.max(0,Math.min(1,settings[k]));
   if(!['low','medium','high'].includes(settings.quality))settings.quality='medium';
   if(!['off','medium','high'].includes(settings.shadows))settings.shadows='medium';
-  const game={mode:'menu',returnTo:'menu',clock:0,photos:0,flash:0,photoCooldown:0,photoPending:false,photoAge:99,shake:0,sprinting:false,intro:0,hintAge:0,fadeIn:0,hasFlashlight:false,torchOn:false,zoom:1,zoomTarget:1,noticeTime:0,notice:''};
+  const game={mode:'menu',returnTo:'menu',clock:0,stamina:100,staminaDelay:0,exhausted:false,hasFlare:false,flareTaken:false,flares:0,flareCooldown:0,photos:0,flash:0,photoCooldown:0,photoPending:false,photoAge:99,shake:0,sprinting:false,intro:0,hintAge:0,fadeIn:0,hasFlashlight:false,torchOn:false,zoom:1,zoomTarget:1,noticeTime:0,notice:''};
   const world={phase:.43,cycle:true,turbineStopped:false,day:1,sun:[0,1,0],light:[0,1,0],direct:[1,.95,.84],ambient:[.4,.44,.47]};
   const enemy={state:'dormant',attack:null,attackCooldown:0,targetId:null,heardVelocity:[0,0],sample:null,sampleTime:-99,angle:.22,awake:0,lift:0,vx:0,vz:0,heading:0,gait:0,lastStep:-1,feet:[],clock:0,cooldown:3,crouch:0,lean:0,anchor:[turbine.x,turbine.y,turbine.z]};
   const keys = new Set();
@@ -466,6 +467,7 @@
     uniform mat4 u_torchVP;
     uniform vec2 u_torchTexel;
     uniform vec3 u_torchPosition,u_torchDirection;
+    uniform vec4 u_flareLights[2];
     uniform float u_torchShadowStrength,u_receiveTorch;
     uniform vec3 u_turbine;
     uniform vec3 u_anchor;
@@ -589,6 +591,13 @@
         float strength=u_remoteTorchPositions[i].w*beam*72./(1.+dist*.15+dist*dist*.055)*(1.-smoothstep(42.,60.,dist));
         strength*=shedTransmission(u_remoteTorchPositions[i].xyz,p+normal*.025);
         energy+=vec3(1.,.965,.89)*strength*pow(max(albedo,vec3(0.)),vec3(2.2))*max(dot(normal,-r),.06);
+      }
+      for(int i=0;i<2;i++){
+        vec4 f=u_flareLights[i];if(f.w<=0.)continue;
+        vec3 d=f.xyz-p;float dist=length(d);if(dist>24.)continue;
+        float light=f.w*32./(1.+dist*dist*.24)*(1.-smoothstep(16.,24.,dist));
+        light*=max(.1,dot(normal,d/max(dist,.001)))*shedTransmission(f.xyz,p+normal*.025);
+        energy+=vec3(1.,.14,.025)*light*pow(max(albedo,vec3(0.)),vec3(2.2));
       }
       vec3 result=pow(pow(max(c,vec3(0.)),vec3(2.2))+energy,vec3(1./2.2));
       vec3 photoDelta=p-camera;float photoD=length(photoDelta);
@@ -923,6 +932,8 @@
     for(const x of [1.39,2.60])for(let i=0;i<5;i++)box(wood,[x,.59,-2.24+i*.205],[.085,.93,.195],weather(199+i));
     for(const z of [-2.44,-1.28])for(const y of [.29,.93])box(wood,[2.0,y,z],[1.30,.115,.06],[.35,.33,.24]);
     for(let i=0;i<3;i++)beam(wood,[1.80-i*.10,.21,.85+i*.26],[2.93,2.25+i*.13,.85+i*.26],.19,.075,weather(i+220));
+    for(let i=0;i<5;i++)box(wood,[2.0,1.00,-1.04+i*.20],[1.10,.12,.19],weather(250+i));
+    for(const x of [1.52,2.48])for(const z of [-1.02,-.22])box(metal,[x,.60,z],[.055,.8,.055],[.27,.29,.27]);
     // Layered eaves and corner flashing make the roof sheets visibly solid at the edges.
     for(const side of [-1,1]){
       box(wood,[side*3.15,3.01,0],[.12,.22,5.9],[.29,.28,.21]);
@@ -942,11 +953,11 @@
   }
 
   function shedFloor(x,z){return !isMenuScene()&&Math.abs(x-shed.x)<3.05&&Math.abs(z-shed.z)<2.8?Math.max(terrainHeight(x,z),shed.y+.20):terrainHeight(x,z);}
-  function flashlightPosition(){return[shed.x-1.62,shed.y+BENCH_TOP+.325,shed.z+.27];}
+  function flashlightPosition(){return[shed.x-1.62,shed.y+BENCH_TOP+.0542,shed.z+.27];}
   function resolveShedCollision(){
     if(isMenuScene())return;
     const r=.29;
-    for(const bounds of [[-3.08,-2.85,-2.8,2.8],[2.85,3.08,-2.8,2.8],[-3.08,3.08,-2.8,-2.52],[-3.08,-.90,2.52,2.8],[.90,3.08,2.52,2.8],[-2.5,-.44,-.19,.79],[1.36,2.6,-2.45,-1.32],[1.13,1.92,3.06,4.25]]){
+    for(const bounds of [[-3.08,-2.85,-2.8,2.8],[2.85,3.08,-2.8,2.8],[-3.08,3.08,-2.8,-2.52],[-3.08,-.90,2.52,2.8],[.90,3.08,2.52,2.8],[-2.5,-.44,-.19,.79],[1.36,2.6,-2.45,-1.32],[1.13,1.92,3.06,4.25],[1.45,2.55,-1.135,-.135]]){
       const b=[bounds[0]+shed.x,bounds[1]+shed.x,bounds[2]+shed.z,bounds[3]+shed.z];
       const nx=clamp(player.x,b[0],b[1]),nz=clamp(player.z,b[2],b[3]),dx=player.x-nx,dz=player.z-nz,d=Math.hypot(dx,dz);
       if(d>=r)continue;
@@ -1325,8 +1336,8 @@
         if(!gl_FrontFacing)geometric=-geometric;
         if(u_material>4.5){
           vec3 albedo=v_color,n=geometric;
-          bool cameraProp=u_assetKind>5.5,avatar=u_assetKind>4.5&&u_assetKind<5.5,steel=u_assetKind>2.5&&u_assetKind<3.5,torch=u_assetKind<1.5;
-          if(avatar||cameraProp)albedo=texture(u_assetTexture,v_uv).rgb;else if(u_assetKind>3.5)albedo=texture(u_signTexture,v_uv).rgb;else if(steel)albedo*=texture(u_assetTexture,v_uv).rgb*1.16;
+          bool cameraProp=u_assetKind>5.5&&u_assetKind<6.5,avatar=u_assetKind>4.5&&u_assetKind<5.5,steel=u_assetKind>2.5&&u_assetKind<3.5,torch=u_assetKind<1.5;
+          if(avatar||cameraProp)albedo=texture(u_assetTexture,v_uv).rgb;else if(u_assetKind>3.5&&u_assetKind<4.5)albedo=texture(u_signTexture,v_uv).rgb;else if(steel)albedo*=texture(u_assetTexture,v_uv).rgb*1.16;
           if(torch)n=mappedNormal(v_world,n,v_uv,texture(u_assetNormal,v_uv).rgb,.055);
           if(u_assetKind>1.5&&u_assetKind<2.5){float gray=dot(albedo,vec3(.2126,.7152,.0722));albedo=vec3(.44+gray*.4);}
           float roughness=cameraProp?.45:avatar?.9:steel?.62:torch?.38:.28,metalness=avatar?0.:steel?.7:torch?.3:.8;
@@ -1372,7 +1383,7 @@
         c+=u_direct*specular*(1.-roughness*.72)*mix(vec3(.26),albedo,metalness)*visibility;
         c+=u_ambient*fresnel*(1.-roughness)*(.4+metalness);
         c=flashLight(c,albedo,v_world,u_camera,n,metalness);
-        if(u_material>2.5&&u_material<3.5&&max(v_color.r,max(v_color.g,v_color.b))>1.)c=v_color*(.15+u_torch*.68);
+        if(u_material>2.5&&u_material<3.5&&max(v_color.r,max(v_color.g,v_color.b))>1.)c=v_color;
         color=linearOutput(applyFog(c,v_world,u_camera));
       }
     `);
@@ -1515,14 +1526,14 @@
   }
   function setMode(mode){game.mode=mode;game.clock=0;keys.clear();game.sprinting=false;syncUI();}
   function resetWorld(playable){
-    avatarCache.clear();
+    avatarCache.clear();localFlares=[];flareSerial=0;cameraDynamics={lean:0,pitch:0,speed:0,breath:0};
     equippedTool='camera';kitPreviousFlashlight=false;resetEquipmentMotion();
     turbine.x=playable?95:-35;turbine.z=playable?-250:-250;turbine.y=terrainHeight(turbine.x,turbine.z);
     resetEnemy();resetPowerCreature();Object.assign(world,{phase:.43,cycle:true,turbineStopped:false,powerStopped:false});updateEnvironment(0);
     Object.assign(player,playable?{x:128,z:-34,yaw:-.015,pitch:-.025}:{x:0,z:6,yaw:0,pitch:-.01});
     player.y=shedFloor(player.x,player.z)+EYE_HEIGHT;
     Object.assign(bob,{phase:0,blend:0,strafe:0,vertical:0,lateral:0,roll:0});
-    Object.assign(game,{photos:0,flash:0,photoCooldown:0,photoPending:false,photoAge:99,shake:0,sprinting:false,intro:0,hintAge:0,fadeIn:0,hasFlashlight:false,torchOn:false,zoom:1,zoomTarget:1,noticeTime:0,notice:'',vx:0,vz:0,crouching:false,eyeHeight:EYE_HEIGHT,hidden:false,exposed:0,noisePulse:0,lastNoiseRadius:0,wasMoving:false,sodaTaken:false,sodas:0,boostTime:0,drinking:0});
+    Object.assign(game,{stamina:100,staminaDelay:0,exhausted:false,hasFlare:false,flareTaken:false,flares:0,flareCooldown:0,photos:0,flash:0,photoCooldown:0,photoPending:false,photoAge:99,shake:0,sprinting:false,intro:0,hintAge:0,fadeIn:0,hasFlashlight:false,torchOn:false,zoom:1,zoomTarget:1,noticeTime:0,notice:'',vx:0,vz:0,crouching:false,eyeHeight:EYE_HEIGHT,hidden:false,exposed:0,noisePulse:0,lastNoiseRadius:0,wasMoving:false,sodaTaken:false,sodas:0,boostTime:0,drinking:0});
     ui.onboarding.classList.remove('visible');ui.torchControls.hidden=true;
     ui.frameCount.textContent='FRAME 000';ui.photoPreview.classList.remove('visible');keys.clear();cameraTan=TAN_HALF_FOV;
   }
@@ -1697,6 +1708,7 @@
     foot.duration=enemy.state==='running'?.43:.76;foot.height=enemy.state==='running'?12:7;foot.progress=0;enemy.stepIndex=(selected+1)%3;
   }
   function updateEnemy(dt){
+    if(!net.active&&game.mode==='playing'&&!world.turbineStopped)applyFlareLure(enemy,turbine,localFlares,dt,false);
     if(world.turbineStopped)return;
     if(isMenuScene()){enemy.angle+=dt*.24;return;}
     if(game.mode!=='playing')return;
@@ -1739,7 +1751,7 @@
     const turn=Math.atan2(Math.sin(desired-enemy.heading),Math.cos(desired-enemy.heading));
     const rotation=clamp(turn,-(runningNow?.95:.48)*dt,(runningNow?.95:.48)*dt);if(!enemy.attack)enemy.heading+=rotation;
     const navDistance=Math.hypot(enemy.navTarget[0]-turbine.x,enemy.navTarget[1]-turbine.z);
-    const speed=runningNow?11.4:enemy.state==='searching'?3.6:2.4;
+    const speed=runningNow?11.4*(enemy.anger>0?1.25:1):enemy.state==='searching'?3.6:2.4;
     const alignment=Math.max(.08,Math.cos(turn)),stop=clamp((navDistance-(runningNow&&enemy.memoryAge<2?48:0))/(runningNow?6:4),0,1)*(enemy.attack?0:1),acceleration=runningNow?9:4.5;
     enemy.vx+=(Math.sin(enemy.heading)*speed*alignment*stop-enemy.vx)*(1-Math.exp(-acceleration*dt));
     enemy.vz+=(Math.cos(enemy.heading)*speed*alignment*stop-enemy.vz)*(1-Math.exp(-acceleration*dt));
@@ -1756,7 +1768,7 @@
   }
 
   function buildObjects(){
-    headCensorCount=0;remoteTorchCount=0;objectDraws.length=0;appendPowerObjects();
+    headCensorCount=0;remoteTorchCount=0;objectDraws.length=0;appendPowerObjects();appendFlareObjects();
     const deployment=enemy.state==='dormant'?0:ease(clamp(enemy.awake/7.8,0,1));
     const tilt=enemy.state==='dormant'?0:(Math.sin(enemy.gait*1.8)*.008+enemy.bank)*deployment;
     const orientation=multiply(rotateY(enemy.heading),multiply(rotateX(enemy.lean),rotateZ(tilt)));
@@ -1771,7 +1783,7 @@
       const model=transform(shed.x,shed.y,shed.z);
       objectDraws.push({mesh:shedWoodMesh,model,material:1},{mesh:shedMetalMesh,model,material:2},{mesh:shedDetailMesh,model});
       if(!game.sodaTaken)objectDraws.push({mesh:sodaMesh,model:transform(...sodaPosition()),material:5,assetKind:2});
-      if(!game.hasFlashlight){const p=flashlightPosition();objectDraws.push({mesh:flashlightMesh,model:multiply(transform(...p),rotateY(-.35)),material:5,assetKind:1});}
+      if(!game.hasFlashlight){const p=flashlightPosition();objectDraws.push({mesh:flashlightMesh,model:restingFlashlightMatrix(p),material:5,assetKind:1});}
       appendHeldEquipment();
     }
   }
@@ -1779,6 +1791,7 @@
   function updateCamera(dt){
     const oldX=player.x,oldZ=player.z;let sideways=0;
     game.sprinting=false;
+    let staminaTicked=false;
     if(isMenuScene()){
       player.x=Math.sin(time*.035)*1.8;player.z=6;player.yaw=Math.sin(time*.024)*.014;player.pitch=-.01;
     }else if(locked&&game.mode==='playing'){
@@ -1786,7 +1799,7 @@
       let z=(keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-mobileInput.y;
       const length=Math.hypot(x,z);
       if(length){
-        if(length>1){x/=length;z/=length;}sideways=x;game.sprinting=!game.crouching&&(keys.has('ShiftLeft')||keys.has('ShiftRight')||mobileInput.sprint);
+        if(length>1){x/=length;z/=length;}sideways=x;game.sprinting=spendStamina(game,!game.crouching&&(keys.has('ShiftLeft')||keys.has('ShiftRight')||mobileInput.sprint),dt);staminaTicked=true;
         const speed=(game.crouching?CROUCH_SPEED:game.sprinting?SPRINT_SPEED:WALK_SPEED)*(game.boostTime>0?1.4:1);
         player.x+=(x*Math.cos(player.yaw)-z*Math.sin(player.yaw))*speed*dt;
         player.z+=(-x*Math.sin(player.yaw)-z*Math.cos(player.yaw))*speed*dt;
@@ -1796,6 +1809,7 @@
         }
       }
     }
+    if(game.mode==='playing'&&!staminaTicked)spendStamina(game,false,dt);
     if(game.mode==='playing'){resolveShedCollision();resolvePowerCollision();}
     const distance=game.mode==='playing'?Math.hypot(player.x-oldX,player.z-oldZ):0,moving=distance>.00001;
     const previousStep=Math.floor(bob.phase/Math.PI);
@@ -1815,17 +1829,24 @@
     bob.roll=(Math.sin(bob.phase)*.005-bob.strafe*.004)*bob.blend*amplitude;
     const shake=reducedMotion?0:clamp(game.shake,0,1.3)*settings.shake;
     const jitter=(Math.sin(time*43.7)+Math.sin(time*79.1)*.35)*shake;
-    const yaw=player.yaw+jitter*.009,pitch=player.pitch+Math.sin(bob.phase*2)*.0018*bob.blend+Math.sin(time*51.3)*shake*.013;
-    const roll=bob.roll+Math.sin(time*39.2)*shake*.013;
+    const response=1-Math.exp(-7*dt),velocity=distance/Math.max(.001,dt);
+    cameraDynamics.speed+=(velocity-cameraDynamics.speed)*response;
+    const accel=clamp((velocity-cameraDynamics.speed)*.009,-.025,.025);
+    cameraDynamics.pitch+=(accel-cameraDynamics.pitch)*response;
+    cameraDynamics.lean+=((moving?-sideways*.012:0)-cameraDynamics.lean)*response;
+    cameraDynamics.breath+=dt*(game.stamina<25?2.5:1.25);
+    if(reducedMotion){cameraDynamics.pitch=0;cameraDynamics.lean=0;}
+    const yaw=player.yaw+jitter*.009,pitch=player.pitch+cameraDynamics.pitch+Math.sin(bob.phase*2)*.0018*bob.blend+Math.sin(time*51.3)*shake*.013;
+    const roll=bob.roll+cameraDynamics.lean+Math.sin(time*39.2)*shake*.013;
     player.y=shedFloor(player.x,player.z)+game.eyeHeight;
     const sy=Math.sin(yaw),cy=Math.cos(yaw),sp=Math.sin(pitch),cp=Math.cos(pitch),cr=Math.cos(roll),sr=Math.sin(roll);
     const baseRight=[cy,0,-sy],baseUp=[sy*sp,cp,cy*sp];
     for(let i=0;i<3;i++){right[i]=baseRight[i]*cr+baseUp[i]*sr;up[i]=baseUp[i]*cr-baseRight[i]*sr;}
     forward.set([-sy*cp,sp,-cy*cp]);
-    cameraPosition.set([player.x+cy*bob.lateral+jitter*.028,player.y+bob.vertical+Math.sin(time*61)*shake*.045,player.z-sy*bob.lateral]);
+    cameraPosition.set([player.x+cy*bob.lateral+jitter*.028,player.y+bob.vertical+(reducedMotion?0:Math.sin(cameraDynamics.breath)*.004*(1-bob.blend))+Math.sin(time*61)*shake*.045,player.z-sy*bob.lateral]);
     const x=cameraPosition[0],y=cameraPosition[1],z=cameraPosition[2];
     view.set([right[0],up[0],-forward[0],0,right[1],up[1],-forward[1],0,right[2],up[2],-forward[2],0,-(right[0]*x+right[1]*y+right[2]*z),-(up[0]*x+up[1]*y+up[2]*z),forward[0]*x+forward[1]*y+forward[2]*z,1]);
-    const targetTan=Math.tan((game.sprinting?72:65)*Math.PI/360)/game.zoom;cameraTan+=(targetTan-cameraTan)*(1-Math.exp(-5*dt));
+    const targetTan=Math.tan((65+Math.min(1,cameraDynamics.speed/6.6)*7)*Math.PI/360)/game.zoom;cameraTan+=(targetTan-cameraTan)*(1-Math.exp(-5*dt));
     projection[0]=1/(cameraTan*canvas.width/canvas.height);projection[5]=1/cameraTan;
     viewProjection.set(multiply(projection,view));
   }
@@ -1872,6 +1893,7 @@
     const candidates=pickupCandidates(),item=typeof itemId==='string'?candidates.find(i=>i.id===itemId):candidates[0];if(!item)return;
     if(net.active){if(net.connected)net.action('pickup',{itemId:item.id});return;}
     if(item.kind==='flashlight'){pickupFlashlight();return;}
+    if(item.kind==='flare'){game.hasFlare=true;game.flareTaken=true;game.flares=3;equipTool('flare');game.notice='FLARE GUN / 3 SIGNALS';game.noticeTime=3;return;}
     game.sodaTaken=true;game.sodas++;game.notice='SODA ACQUIRED';game.noticeTime=3;
     sound.noise(.09,.20,1500);syncUI();
   }
@@ -1882,6 +1904,7 @@
     sound.tone(180,120,.17,.055,'sine',.32);sound.tone(165,100,.18,.045,'sine',.64);emitNoise(18);
   }
   function updateSurvival(dt){
+    updateFlareSystem(dt);
     if(game.mode!=='playing')return;
     game.noisePulse=Math.max(0,game.noisePulse-dt*1.6);
     game.boostTime=Math.max(0,game.boostTime-dt);game.drinking=Math.max(0,game.drinking-dt);game.exposed=Math.max(0,game.exposed-dt);
@@ -1930,6 +1953,7 @@
     gl.uniform1f(u.u_shadowStrength??null,settings.shadows==='off'?0:1);gl.uniform1i(u.u_shadowMap??null,1);
     gl.uniform1f(u.u_flash??null,game.flash);gl.uniform3fv(u.u_flashForward??null,forward);
     gl.uniform1f(u.u_torch??null,torchStrength());
+    gl.uniform4fv(u['u_flareLights[0]']??u.u_flareLights??null,flareLights);
     gl.uniform1f(u.u_receiveTorch??null,1);
     gl.uniform1i(u.u_remoteTorchCount??null,remoteTorchCount);gl.uniform4fv(u['u_remoteTorchPositions[0]']??null,remoteTorchPositions);gl.uniform4fv(u['u_remoteTorchDirections[0]']??null,remoteTorchDirections);
     gl.activeTexture(gl.TEXTURE0+3);gl.bindTexture(gl.TEXTURE_2D_ARRAY,materialColorTexture);gl.uniform1i(u.u_colorMaps??null,3);
@@ -2108,7 +2132,7 @@
     try { initialize(); }
     catch(error) {
       running=false; console.error(error);
-      showError('Graphics startup failed (11.4): '+String(error?.message||error).slice(0,240));
+      showError('Graphics startup failed (11.5): '+String(error?.message||error).slice(0,240));
     }
   }
   </script>

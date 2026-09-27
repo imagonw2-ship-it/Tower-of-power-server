@@ -68,10 +68,11 @@ const net = new TowerNetwork({
       return;
     }
     if (m.action === "photo") takePhoto(true);
+    if(m.action === "flare"){flareShotSound();game.flareCooldown=1.2;}
     if (m.action === "pickup") {
       const i = net.items.find((i) => i.id === request?.itemId);
       game.notice =
-        i?.kind === "flashlight" ? "FLASHLIGHT ACQUIRED" : "SODA ACQUIRED";
+        i?.kind === "flashlight" ? "FLASHLIGHT ACQUIRED" : i?.kind === "flare" ? "FLARE GUN ACQUIRED" : "SODA ACQUIRED";
       game.noticeTime = 3;
       sound.noise(0.08, 0.3, 1400);
     }
@@ -95,6 +96,7 @@ const net = new TowerNetwork({
         }
         continue;
       }
+      if(e.kind === "flare"){if(e.id!==net.player?.id&&d<70)sound.noise(.15,.16/(1+d*.05),800);continue;}
       if (d > 250) continue;
       if (e.kind === "powerStep") sound.powerStep(d);
       if (e.kind === "enemyStep") sound.enemyStep(d * 0.42);
@@ -410,6 +412,8 @@ function updateNetworkFrame(dt) {
   }
   game.hasFlashlight = p.inventory.flashlight;
   game.sodas = p.inventory.sodas;
+  game.hasFlare=!!p.inventory.flare;game.flares=p.inventory.flares||0;game.flareTaken=true;
+  game.stamina=p.stamina??100;game.exhausted=!!p.exhausted;
   game.boostTime = p.boost;
   game.torchOn = p.torch;
   if(p.heldItem&&p.actionSeq>=net.actionSeq)equippedTool=p.heldItem;
@@ -448,13 +452,13 @@ function appendNetworkObjects() {
   for (const i of net.items)
     if (!i.holder)
       objectDraws.push({
-        mesh: i.kind === "flashlight" ? flashlightMesh : sodaMesh,
+        mesh: i.kind === "flashlight" ? flashlightMesh : i.kind === "flare" ? flareGunMesh : sodaMesh,
         model:
           i.kind === "flashlight"
-            ? multiply(transform(i.x, i.y, i.z), rotateY(-0.35))
-            : transform(i.x, i.y, i.z),
+            ? restingFlashlightMatrix([i.x,i.y,i.z])
+            : i.kind === "flare" ? multiply(transform(i.x,i.y,i.z),rotateZ(Math.PI/2)) : transform(i.x, i.y, i.z),
         material: 5,
-        assetKind: i.kind === "flashlight" ? 1 : 2,
+        assetKind: i.kind === "flashlight" ? 1 : i.kind === "flare" ? 7 : 2,
       });
   const q = snapshotPair();
   if (!q) return;
