@@ -97,7 +97,7 @@
       <button id="settingsOpen">SETTINGS</button>
       <button id="controlsOpen">CONTROLS</button>
     </nav>
-    <p class="menuFoot"><strong id="releaseLabel">VERSION 11.5 · SIGNAL & STAMINA UPDATE</strong><br>HEADPHONES RECOMMENDED</p>
+    <p class="menuFoot"><strong id="releaseLabel">VERSION 11.6 · FIELD EQUIPMENT UPDATE</strong><br>HEADPHONES RECOMMENDED</p>
   </main>
   <section id="settingsPanel" class="panel settings" hidden aria-label="Settings">
     <h2>SETTINGS</h2>
@@ -968,12 +968,12 @@
   function pickupFlashlight(){
     if(game.mode!=='playing'||!locked||game.hasFlashlight)return;
     if(!canPickupFlashlight())return;
-    game.hasFlashlight=true;game.torchOn=true;game.notice='FLASHLIGHT ACQUIRED';game.noticeTime=3.5;syncUI();
+    game.hasFlashlight=true;game.flashlightTaken=true;game.torchOn=true;game.notice='FLASHLIGHT ACQUIRED';game.noticeTime=3.5;syncUI();
     sound.noise(.08,.3,1400);sound.tone(520,260,.10,.035,'triangle');
   }
   function changeZoom(amount){if(game.mode!=='playing'||!locked)return;game.zoomTarget=clamp(game.zoomTarget*amount,1,6);}
   function canPickupFlashlight(){
-    const p=flashlightPosition();return !game.hasFlashlight&&Math.hypot(player.x-p[0],player.z-p[2])<2.35&&!shedBlocksSight([player.x,player.y,player.z],p);
+    const p=flashlightPosition();return !game.flashlightTaken&&!game.hasFlashlight&&Math.hypot(player.x-p[0],player.z-p[2])<2.35&&!shedBlocksSight([player.x,player.y,player.z],p);
   }
   function updateEquipment(dt){
     if(game.mode==='playing')game.noticeTime=Math.max(0,game.noticeTime-dt);
@@ -1336,7 +1336,7 @@
         if(!gl_FrontFacing)geometric=-geometric;
         if(u_material>4.5){
           vec3 albedo=v_color,n=geometric;
-          bool cameraProp=u_assetKind>5.5&&u_assetKind<6.5,avatar=u_assetKind>4.5&&u_assetKind<5.5,steel=u_assetKind>2.5&&u_assetKind<3.5,torch=u_assetKind<1.5;
+          bool cameraProp=u_assetKind>5.5,avatar=u_assetKind>4.5&&u_assetKind<5.5,steel=u_assetKind>2.5&&u_assetKind<3.5,torch=u_assetKind<1.5;
           if(avatar||cameraProp)albedo=texture(u_assetTexture,v_uv).rgb;else if(u_assetKind>3.5&&u_assetKind<4.5)albedo=texture(u_signTexture,v_uv).rgb;else if(steel)albedo*=texture(u_assetTexture,v_uv).rgb*1.16;
           if(torch)n=mappedNormal(v_world,n,v_uv,texture(u_assetNormal,v_uv).rgb,.055);
           if(u_assetKind>1.5&&u_assetKind<2.5){float gray=dot(albedo,vec3(.2126,.7152,.0722));albedo=vec3(.44+gray*.4);}
@@ -1526,14 +1526,14 @@
   }
   function setMode(mode){game.mode=mode;game.clock=0;keys.clear();game.sprinting=false;syncUI();}
   function resetWorld(playable){
-    avatarCache.clear();localFlares=[];flareSerial=0;cameraDynamics={lean:0,pitch:0,speed:0,breath:0};
+    avatarCache.clear();localDroppedItems=[];localDropSerial=0;pendingDrop=null;localFlares=[];flareSerial=0;cameraDynamics={lean:0,pitch:0,speed:0,breath:0};
     equippedTool='camera';kitPreviousFlashlight=false;resetEquipmentMotion();
     turbine.x=playable?95:-35;turbine.z=playable?-250:-250;turbine.y=terrainHeight(turbine.x,turbine.z);
     resetEnemy();resetPowerCreature();Object.assign(world,{phase:.43,cycle:true,turbineStopped:false,powerStopped:false});updateEnvironment(0);
     Object.assign(player,playable?{x:128,z:-34,yaw:-.015,pitch:-.025}:{x:0,z:6,yaw:0,pitch:-.01});
     player.y=shedFloor(player.x,player.z)+EYE_HEIGHT;
     Object.assign(bob,{phase:0,blend:0,strafe:0,vertical:0,lateral:0,roll:0});
-    Object.assign(game,{stamina:100,staminaDelay:0,exhausted:false,hasFlare:false,flareTaken:false,flares:0,flareCooldown:0,photos:0,flash:0,photoCooldown:0,photoPending:false,photoAge:99,shake:0,sprinting:false,intro:0,hintAge:0,fadeIn:0,hasFlashlight:false,torchOn:false,zoom:1,zoomTarget:1,noticeTime:0,notice:'',vx:0,vz:0,crouching:false,eyeHeight:EYE_HEIGHT,hidden:false,exposed:0,noisePulse:0,lastNoiseRadius:0,wasMoving:false,sodaTaken:false,sodas:0,boostTime:0,drinking:0});
+    Object.assign(game,{stamina:100,staminaDelay:0,exhausted:false,hasCamera:true,flashlightTaken:false,hasFlare:false,flareTaken:false,flares:0,flareCooldown:0,photos:0,flash:0,photoCooldown:0,photoPending:false,photoAge:99,shake:0,sprinting:false,intro:0,hintAge:0,fadeIn:0,hasFlashlight:false,torchOn:false,zoom:1,zoomTarget:1,noticeTime:0,notice:'',vx:0,vz:0,crouching:false,eyeHeight:EYE_HEIGHT,hidden:false,exposed:0,noisePulse:0,lastNoiseRadius:0,wasMoving:false,sodaTaken:false,sodas:0,boostTime:0,drinking:0});
     ui.onboarding.classList.remove('visible');ui.torchControls.hidden=true;
     ui.frameCount.textContent='FRAME 000';ui.photoPreview.classList.remove('visible');keys.clear();cameraTan=TAN_HALF_FOV;
   }
@@ -1543,7 +1543,7 @@
   function mainMenu(){setMode('menu');if(document.pointerLockElement===canvas)document.exitPointerLock();resetWorld(false);hint.classList.remove('error');syncUI();}
   function openSettings(from){sound.start();game.returnTo=from;setMode('settings');}
   function takePhoto(){
-    if(game.mode!=='playing'||!locked||game.photoCooldown>0)return;
+    if(game.mode!=='playing'||!locked||game.hasCamera===false||game.photoCooldown>0)return;
     game.flash=1;game.exposed=2.4;game.photoCooldown=.9;game.photoPending=true;game.photoAge=0;game.photos++;
     ui.frameCount.textContent='FRAME '+String(game.photos).padStart(3,'0');sound.photograph();emitNoise(100);
   }
@@ -1768,7 +1768,7 @@
   }
 
   function buildObjects(){
-    headCensorCount=0;remoteTorchCount=0;objectDraws.length=0;appendPowerObjects();appendFlareObjects();
+    headCensorCount=0;remoteTorchCount=0;objectDraws.length=0;appendPowerObjects();appendFlareObjects();if(!net.active&&!isMenuScene())for(const i of localDroppedItems)appendWorldItem(i,time);
     const deployment=enemy.state==='dormant'?0:ease(clamp(enemy.awake/7.8,0,1));
     const tilt=enemy.state==='dormant'?0:(Math.sin(enemy.gait*1.8)*.008+enemy.bank)*deployment;
     const orientation=multiply(rotateY(enemy.heading),multiply(rotateX(enemy.lean),rotateZ(tilt)));
@@ -1783,7 +1783,7 @@
       const model=transform(shed.x,shed.y,shed.z);
       objectDraws.push({mesh:shedWoodMesh,model,material:1},{mesh:shedMetalMesh,model,material:2},{mesh:shedDetailMesh,model});
       if(!game.sodaTaken)objectDraws.push({mesh:sodaMesh,model:transform(...sodaPosition()),material:5,assetKind:2});
-      if(!game.hasFlashlight){const p=flashlightPosition();objectDraws.push({mesh:flashlightMesh,model:restingFlashlightMatrix(p),material:5,assetKind:1});}
+      if(!game.flashlightTaken){const p=flashlightPosition();objectDraws.push({mesh:flashlightMesh,model:restingFlashlightMatrix(p),material:5,assetKind:1});}
       appendHeldEquipment();
     }
   }
@@ -1892,6 +1892,7 @@
     if(game.mode!=='playing'||!locked)return;
     const candidates=pickupCandidates(),item=typeof itemId==='string'?candidates.find(i=>i.id===itemId):candidates[0];if(!item)return;
     if(net.active){if(net.connected)net.action('pickup',{itemId:item.id});return;}
+    if(item.dropped){takeLocalDroppedItem(item);return;}
     if(item.kind==='flashlight'){pickupFlashlight();return;}
     if(item.kind==='flare'){game.hasFlare=true;game.flareTaken=true;game.flares=3;equipTool('flare');game.notice='FLARE GUN / 3 SIGNALS';game.noticeTime=3;return;}
     game.sodaTaken=true;game.sodas++;game.notice='SODA ACQUIRED';game.noticeTime=3;
@@ -2132,7 +2133,7 @@
     try { initialize(); }
     catch(error) {
       running=false; console.error(error);
-      showError('Graphics startup failed (11.5): '+String(error?.message||error).slice(0,240));
+      showError('Graphics startup failed (11.6): '+String(error?.message||error).slice(0,240));
     }
   }
   </script>
