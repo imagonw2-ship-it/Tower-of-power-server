@@ -1,3 +1,4 @@
+import { spawnFlare } from '../shared/survival.js';
 import { WebSocketServer, WebSocket } from "ws";
 import { acceptInput } from "./players.js";
 import { takeItem } from "./items.js";
@@ -155,7 +156,13 @@ export function attachNetworking(
           }
         }
         if (room.phase === "playing" && p.alive) {
-          if(m.action==='equip'&&(['none','camera'].includes(m.item)||(m.item==='flashlight'&&p.inventory.flashlight)||(m.item==='soda'&&p.inventory.sodas>0))){p.heldItem=m.item;if(m.item!=='flashlight')p.torch=false;ok=true;}
+          if(m.action==='equip'&&(['none','camera'].includes(m.item)||(m.item==='flashlight'&&p.inventory.flashlight)||(m.item==='soda'&&p.inventory.sodas>0)||(m.item==='flare'&&p.inventory.flare))){p.heldItem=m.item;if(m.item!=='flashlight')p.torch=false;ok=true;}
+          if(m.action==='flare'&&p.heldItem==='flare'&&p.inventory.flare&&p.inventory.flares>0&&!(p.flareCooldown>0)&&w.flares.length<16){
+            p.inventory.flares--;p.flareCooldown=1.2;
+            const launcher=w.items.find(i=>i.kind==='flare'&&i.holder===p.id);if(launcher)launcher.ammo=p.inventory.flares;
+            w.flares.push(spawnFlare(p,'flare-'+(++w.flareSerial)));
+            w.sim.events.push({kind:'flare',id:p.id,x:p.x,z:p.z});ok=true;
+          }
           if (m.action === "pickup") ok = takeItem(w, p, m.itemId);
           if (m.action === "torch" && p.inventory.flashlight) {
             p.torch = !!m.on;if(p.torch)p.heldItem="flashlight";

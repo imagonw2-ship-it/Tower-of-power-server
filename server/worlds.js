@@ -1,3 +1,5 @@
+import { advanceFlares } from '../shared/survival.js';
+import { floorHeight,blocked } from '../shared/physics.js';
 import { randomUUID } from "node:crypto";
 import { createEnemySimulation } from "./enemies.js";
 import { scaleItems } from "./items.js";
@@ -12,7 +14,7 @@ export function makeWorld(rules) {
     turbineStopped: false,
     powerStopped: false,
     elapsed: 0,
-    items: [],
+    items: [], flares: [], flareSerial:0,
     itemRevision: 0,
     objectives: { powerCorridor: false },
     rules,
@@ -29,6 +31,7 @@ export function tickWorld(w, players, dt, now) {
   w.elapsed += dt;
   if (w.cycle) w.phase = (w.phase + dt / 720) % 1;
   for (const p of players) tickPlayer(p, dt, w, now);
+  w.flares=advanceFlares(w.flares,dt,floorHeight,blocked);
   w.sim.step(dt, players);
   if (
     players.some(
@@ -47,7 +50,7 @@ export function serializeWorld(w) {
     turbineStopped: w.turbineStopped,
     powerStopped: w.powerStopped,
     elapsed: w.elapsed,
-    items: w.items,
+    items: w.items, flares:w.flares,
     objectives: w.objectives,
     enemies: {
       turbine: w.sim.turbine,

@@ -7,6 +7,7 @@ export const config = {
   emptyRoomMs: 30 * 60000,
   starterItems: {
     flashlight: { base: 0, perPlayer: 1, minimum: 1 },
+    flare: { base: 0, perPlayer: 1, minimum: 1 },
     soda: { base: 0, perPlayer: 1, minimum: 1 },
   },
   protocol: 1,

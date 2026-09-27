@@ -1,4 +1,5 @@
 // Reuses the current game's awakening, pathfinding, hearing, and foot planting.
+import { applyFlareLure } from '../shared/survival.js';
 import { SoundTargets, legColliders, resolveLegCollision, tickStomp, stompHits, pylonLegPoints } from "../shared/enemy-combat.js";
 import { PYLON_HEADING, PYLON_RIG, STATIC_PYLONS, groundedPylon } from "../shared/power-layout.js";
 import { terrainHeight, shed, clamp } from "../shared/physics.js";
@@ -257,7 +258,7 @@ export function createEnemySimulation(world) {
       dt * (fast ? 0.74 : 0.42),
     );
     const speed =
-        (fast ? 10.7 : p.state === "searching" ? 3.4 : 2.5) *
+        (fast ? 10.7*(p.anger>0?1.25:1) : p.state === "searching" ? 3.4 : 2.5) *
         Math.max(0.1, Math.cos(turn)) *
         clamp((navDistance - (fast && p.memoryAge < 2 ? 21 : 0)) / 7, 0, 1) * (p.attack ? 0 : 1),
       accel = 1 - Math.exp(-(fast ? 7 : 4) * dt);
@@ -642,7 +643,7 @@ export function createEnemySimulation(world) {
       enemy.navTarget[0] - turbine.x,
       enemy.navTarget[1] - turbine.z,
     );
-    const speed = runningNow ? 11.4 : enemy.state === "searching" ? 3.6 : 2.4;
+    const speed = runningNow ? 11.4*(enemy.anger>0?1.25:1) : enemy.state === "searching" ? 3.6 : 2.4;
     const alignment = Math.max(0.08, Math.cos(turn)),
       stop = clamp((navDistance - (runningNow && enemy.memoryAge < 2 ? 48 : 0)) / (runningNow ? 6 : 4), 0, 1) * (enemy.attack ? 0 : 1),
       acceleration = runningNow ? 9 : 4.5;
@@ -700,6 +701,9 @@ export function createEnemySimulation(world) {
     step(dt, players) {
       const alive=players.filter(p=>p.alive);
       const applyTarget=(tracker,body,state,power)=>{
+        const previousLure=state.lureId;
+        if(applyFlareLure(state,body,world.flares||[],dt,power)){tracker.step(dt,alive,body);Object.assign(player,{x:9999,y:0,z:9999});return;}
+        if(previousLure)tracker.reset();
         const target=tracker.step(dt,alive,body,t=>Math.hypot(t.x-shed.x,t.z-shed.z)>=8),old=state.targetId;
         state.targetId=target.id;state.heardVelocity=target.velocity;
         if(target.fresh){state.noise=power?target.position:{position:target.position,life:.3};}
@@ -718,8 +722,8 @@ export function createEnemySimulation(world) {
           events.push({kind:'caught',id:p.id,x:p.x,z:p.z});
         }
       };
-      if(!world.turbineStopped)tickStomp(enemy,turbine,'turbine',dt,terrainHeight,shedBlocksSight,impact('turbine'));
-      if(!world.powerStopped)tickStomp(powerCreature,powerCreature,'power',dt,terrainHeight,shedBlocksSight,impact('power'));
+      if(!world.turbineStopped&&!enemy.lureId)tickStomp(enemy,turbine,'turbine',dt,terrainHeight,shedBlocksSight,impact('turbine'));
+      if(!world.powerStopped&&!powerCreature.lureId)tickStomp(powerCreature,powerCreature,'power',dt,terrainHeight,shedBlocksSight,impact('power'));
       collisionSegments=legColliders(turbine,enemy,powerCreature,POWER_RIG,terrainHeight).concat(staticLegs);
       for(const p of alive)if(p.alive)resolveLegCollision(p,collisionSegments,terrainHeight(p.x,p.z));
     },
@@ -739,7 +743,7 @@ export function createEnemySimulation(world) {
             "crouch",
             "lean",
             "bank",
-            "targetId", "attack",
+            "targetId", "attack", "anger", "lureId",
             "anchor",
             "vx",
             "vz",
@@ -761,7 +765,7 @@ export function createEnemySimulation(world) {
             "rigBlend",
             "bodyDrop",
             "bodyBob",
-            "targetId", "attack",
+            "targetId", "attack", "anger", "lureId",
             "vx",
             "vz",
           ]),

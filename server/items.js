@@ -11,13 +11,13 @@ export function scaleItems(world, count, rules) {
       const x = shed.x - 2.28 + (i % 4) * 0.43,
         z =
           shed.z + 0.02 + Math.floor(i / 4) * 0.3 + (kind === "soda" ? 0.1 : 0),
-        y = shed.y + 1.06 + (kind === "flashlight" ? 0.325 : 0);
+        y = shed.y + 1.06 + (kind === "flashlight" ? 0.0542 : kind === "flare" ? .055 : 0);
       world.items.push({
         id: `starter-${kind}-${i}`,
         kind,
-        x: kind === "soda" ? x + 0.17 : x,
+        x: kind === "flare" ? shed.x+1.8+(i%2)*.38 : kind === "soda" ? x + 0.17 : x,
         y,
-        z,
+        z: kind === "flare" ? shed.z-.85+Math.floor(i/2)*.2 : z,
         holder: null,
       });
     }
@@ -26,7 +26,7 @@ export function scaleItems(world, count, rules) {
 export function takeItem(world, p, id) {
   if (!p.alive) return false;
   const item = world.items.find((i) => i.id === id && !i.holder);
-  if (!item || (item.kind === "flashlight" && p.inventory.flashlight))
+  if (!item || ((item.kind === "flashlight" && p.inventory.flashlight)||(item.kind === "flare"&&p.inventory.flare)))
     return false;
   const eye = [p.x, p.y, p.z],
     target = [item.x, item.y + (item.kind === "soda" ? 0.1 : 0), item.z],
@@ -49,7 +49,7 @@ export function takeItem(world, p, id) {
   if (item.kind === "flashlight") {
     p.inventory.flashlight = true;
     p.torch = true;
-  } else p.inventory.sodas++;
+  } else if(item.kind === "flare"){p.inventory.flare=true;p.inventory.flares=item.ammo??3;} else p.inventory.sodas++;
   world.itemRevision++;
   return true;
 }
@@ -59,5 +59,5 @@ export function releaseItems(world, p) {
       i.holder = null;
       world.itemRevision++;
     }
-  p.inventory = { flashlight: false, sodas: 0 };
+  p.inventory = { flashlight: false, sodas: 0, flare: false, flares: 0 };
 }

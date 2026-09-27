@@ -1,3 +1,4 @@
+import { spendStamina } from '../shared/survival.js';
 import { movePlayer, floorHeight, footstepRadius } from "../shared/physics.js";
 export function makePlayer(account, index) {
   const x = 128 + (index % 4) * 0.75,
@@ -13,9 +14,10 @@ export function makePlayer(account, index) {
     vz: 0,
     crouching: false,
     sprinting: false,
+    stamina: 100, staminaDelay: 0, exhausted: false,
     alive: true,
     health: 1,
-    inventory: { flashlight: false, sodas: 0 },
+    inventory: { flashlight: false, sodas: 0, flare: false, flares: 0 },
     torch: false,
     heldItem: "camera",
     boost: 0,
@@ -60,10 +62,12 @@ export function tickPlayer(p, dt, world, now) {
   if(p.heldItem==="soda"&&p.inventory.sodas===0&&p.drinking===0)p.heldItem="none";
   p.photo = Math.max(0, p.photo - dt);
   p.cooldown = Math.max(0, p.cooldown - dt);
+  p.flareCooldown=Math.max(0,(p.flareCooldown||0)-dt);
   if (!p.alive || !p.connected || now - p.lastInput > 350) {
     p.input.x = p.input.z = 0;
     p.sprinting = false;
     p.vx = p.vz = 0;
+    spendStamina(p,false,dt);
     return;
   }
   const obstacles = [];
@@ -90,6 +94,7 @@ export function wirePlayer(p) {
     vz: p.vz,
     crouching: p.crouching,
     sprinting: p.sprinting,
+    stamina:p.stamina, exhausted:p.exhausted,
     alive: p.alive,
     connected: p.connected,
     inventory: p.inventory,

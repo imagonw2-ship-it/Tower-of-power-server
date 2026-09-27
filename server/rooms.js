@@ -126,6 +126,7 @@ export class Rooms {
         turbineStopped: w.turbineStopped,
         powerStopped: w.powerStopped,
         elapsed: w.elapsed,
+        flares:w.flares,
         objectives: w.objectives,
         itemRevision: w.itemRevision,
         ...(includeItems ? { items: w.items } : {}),
