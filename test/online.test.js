@@ -184,7 +184,8 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
       assert.equal(room.phase, "lobby");
       host.send({ type: "start" });
       await until(() => room.phase === "playing");
-      assert.equal(room.world.items.length, 8);
+      assert.equal(room.world.items.length, 12);
+      assert.equal(room.world.items.filter(i=>i.kind==='flare').length,4);
     },
   );
   await t.test(
@@ -268,6 +269,20 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
       assert.equal((await action(host, "soda")).ok, false);
     },
   );
+  await t.test('flare pickup and firing are authoritative and synchronized to another device',async()=>{
+    assert.equal((await action(phone,'flare',{ammo:999})).ok,false);
+    const item=room.world.items.find(i=>i.kind==='flare');
+    Object.assign(hostPlayer,{x:item.x,y:item.y+1,z:item.z+.9});aimAt(hostPlayer,item);
+    assert.equal((await action(host,'pickup',{itemId:item.id})).ok,true);
+    assert.equal((await action(host,'equip',{item:'flare'})).ok,true);
+    assert.equal((await action(host,'flare',{x:9999,z:9999})).ok,true);
+    assert.equal(hostPlayer.inventory.flares,2);
+    assert.equal((await action(host,'flare')).ok,false);
+    await until(()=>phone.snapshot?.world.flares?.length>0);
+    assert.ok(Math.abs(phone.snapshot.world.flares[0].x-hostPlayer.x)<30);
+    assert.equal(item.ammo,2);
+    room.world.flares=[];
+  });
   await t.test('equipped items are validated and replicated between devices', async()=>{
     assert.equal((await action(phone,'equip',{item:'flashlight'})).ok,false);
     assert.equal((await action(host,'equip',{item:'unlimited-items'})).ok,false);
