@@ -8,6 +8,13 @@ const remoteTorchPositions=new Float32Array(12),remoteTorchDirections=new Float3
 let remoteTorchCount=0,povArmMesh,povArmTexture;
 const povArmBones=new Float32Array(32*16);
 let povHandMatrix=identity();
+const gripMeshes={},povGripMeshes={};
+function posedGripRecord(base,patch){
+  const bytes=Uint8Array.from(atob(base.vertices),c=>c.charCodeAt(0)),view=new DataView(bytes.buffer);
+  const ids=new Uint16Array(Uint8Array.from(atob(patch.indices),c=>c.charCodeAt(0)).buffer),values=new Float32Array(Uint8Array.from(atob(patch.values),c=>c.charCodeAt(0)).buffer);
+  for(let i=0;i<ids.length;i++)for(let k=0;k<3;k++){view.setFloat32(ids[i]*32+k*4,values[i*6+k],true);view.setInt16(ids[i]*32+12+k*2,Math.round(clamp(values[i*6+3+k],-1,1)*32767),true);}
+  let text='';for(let i=0;i<bytes.length;i+=16384)text+=String.fromCharCode(...bytes.subarray(i,i+16384));return{...base,vertices:btoa(text)};
+}
 function appendRemoteTorch(grip,strength,distance){
   if(strength<=.01)return;
   let slot=remoteTorchCount;
@@ -19,7 +26,7 @@ function appendRemoteTorch(grip,strength,distance){
 }
 // All props share the same palm frame. Each origin is adjusted to its actual grip,
 // rather than putting the asset's center at the wrist.
-const itemGripAnchors={camera:[.059,-.003,.008],flashlight:[-.008,-.145,.005],soda:[0,.095,0],flare:[0,-.07,.065]};
+const itemGripAnchors={camera:[.059,-.003,.008],flashlight:[-.008,-.145,.005],soda:[0,.095,0],flare:[0,-.083,.014]};
 const itemPalm=[-.078,-.030,.002];
 function itemGripMatrix(kind){
   const a=itemGripAnchors[kind]||itemGripAnchors.camera;
@@ -27,8 +34,10 @@ function itemGripMatrix(kind){
 }
 function buildAvatars(){
   const textures={};for(const [k,v] of Object.entries(AVATAR_ASSET.textures))textures[k]=importedTexture(v,5);
-  avatarParts=AVATAR_ASSET.meshes.map(m=>({mesh:unpackModel(m),texture:textures[m.texture]}));
+  avatarParts=AVATAR_ASSET.meshes.map(m=>({mesh:unpackModel(m),name:m.name,texture:textures[m.texture]}));
   povArmMesh=unpackModel(POV_ARM_ASSET);povArmTexture=textures.suit;
+  const gear=AVATAR_ASSET.meshes.find(m=>m.name==='ClassASuitGear_low');
+  for(const [kind,patch] of Object.entries(GRIP_ASSET.poses)){gripMeshes[kind]=unpackModel(posedGripRecord(gear,patch.gear));povGripMeshes[kind]=unpackModel(posedGripRecord(POV_ARM_ASSET,patch.arm));}
   for(const [name,clip] of Object.entries(AVATAR_ASSET.clips))avatarClips[name]={...clip,values:new Float32Array(Uint8Array.from(atob(clip.data),c=>c.charCodeAt(0)).buffer)};
   cameraItemMesh=unpackModel(CAMERA_ASSET);cameraItemTexture=importedTexture(CAMERA_ASSET.texture,5);
 }
@@ -60,7 +69,7 @@ function appendPovArm(item,kind){
     if(i<2)for(let k=0;k<3;k++)pose[12+k]=joints[i][k];
     povArmBones.set(multiply(pose,AVATAR_ASSET.inverseBind[ids[i]]),i*16);
   }
-  objectDraws.push({mesh:povArmMesh,model:identity(),bones:povArmBones,texture:povArmTexture,material:5,assetKind:5,castShadow:false,receiveTorch:false,povArm:true});
+  objectDraws.push({mesh:povGripMeshes[kind]||povArmMesh,model:identity(),bones:povArmBones,texture:povArmTexture,material:5,assetKind:5,castShadow:false,receiveTorch:false,povArm:true});
 }
 function avatarMatrix(p,q){
   const n=Math.hypot(...q)||1,x=q[0]/n,y=q[1]/n,z=q[2]/n,w=q[3]/n;
@@ -133,13 +142,13 @@ function appendHazmat(p,clock){
     a.last=clock;a.held=held;
   }
   const root=multiply(transform(p.x,shedFloor(p.x,p.z),p.z),rotateY(p.yaw+Math.PI)),shadow=distance<32;
-  for(const part of avatarParts)objectDraws.push({mesh:part.mesh,model:root,bones:a.bones,texture:part.texture,material:5,assetKind:5,castShadow:shadow});
+  for(const part of avatarParts)objectDraws.push({mesh:part.name==='ClassASuitGear_low'&&gripMeshes[held]?gripMeshes[held]:part.mesh,model:root,bones:a.bones,texture:part.texture,material:5,assetKind:5,castShadow:shadow});
   const head=AVATAR_ASSET.bones.indexOf('head');
   appendHeadCensor(root,a.bones.subarray(head*16,head*16+16));
   if(held!=='none'&&distance<60){
     const h=a.matrices[AVATAR_ASSET.bones.indexOf('hand_r')],grip=multiply(root,multiply(h,itemGripMatrix(held)));
     const mesh=held==='flashlight'?flashlightMesh:held==='soda'?sodaMesh:held==='flare'?flareGunMesh:cameraItemMesh;
-    objectDraws.push({mesh,model:grip,material:5,texture:held==='camera'?cameraItemTexture:undefined,assetKind:held==='camera'?6:held==='flashlight'?1:held==='flare'?7:2,castShadow:shadow});
+    objectDraws.push({mesh,model:grip,material:5,texture:held==='camera'?cameraItemTexture:held==='flare'?flareGunTexture:undefined,assetKind:held==='camera'?6:held==='flashlight'?1:held==='flare'?7:2,castShadow:shadow});
     if(p.torch&&held==='flashlight'&&distance<60)appendRemoteTorch(grip,1-ease(a.motion.lower),distance);
   }
 }

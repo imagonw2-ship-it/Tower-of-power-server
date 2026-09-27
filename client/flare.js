@@ -1,18 +1,11 @@
 // Temporary original low-poly signal prop; replace via the licensed model pipeline.
-let flareGunMesh,flareGlowMesh,localFlares=[],flareSerial=0,flareAudioClock=0;
+let flareGunTexture,flareGunMesh,flareGlowMesh,localFlares=[],flareSerial=0,flareAudioClock=0;
 let cameraDynamics={lean:0,pitch:0,speed:0,breath:0};
 const flareLights=new Float32Array(8);
-function flarePosition(){return[shed.x+1.8,shed.y+BENCH_TOP+.055,shed.z-.85];}
+function flarePosition(){return[shed.x+1.8,shed.y+BENCH_TOP+.031,shed.z-.85];}
 function restingFlashlightMatrix(p){return multiply(transform(...p),rotateZ(Math.PI/2));}
 function buildFlareModels(){
-  const g=infraGeometry();
-  infraBox(0,.03,-.055,.095,.095,.26,[.8,.30,.075],g);
-  infraBox(0,-.07,.065,.074,.19,.085,[.12,.13,.13],g);
-  infraBox(0,.09,-.08,.025,.026,.20,[.23,.25,.24],g);
-  for(const x of [-.051,.051])for(let j=0;j<5;j++)infraBox(x,.03,-.01-j*.028,.008,.065,.009,[.35,.18,.09],g);
-  corridorBeam(g,[0,.03,-.19],[0,.03,-.215],.047,[.19,.20,.18],12);
-  corridorBeam(g,[0,.03,-.216],[0,.03,-.217],.031,[.045,.05,.05],12);
-  flareGunMesh=mesh3D(g);
+  flareGunMesh=unpackModel(FLARE_ASSET);flareGunTexture=importedTexture(FLARE_ASSET.texture,5);
   const glow=infraGeometry();infraBox(0,0,0,.13,.13,.13,[5,1.1,.14],glow);flareGlowMesh=mesh3D(glow);
 }
 function fireFlare(){
@@ -33,7 +26,7 @@ function updateFlareSystem(dt){
 }
 function appendFlareObjects(){
   flareLights.fill(0);if(isMenuScene())return;
-  if(!net.active&&!game.flareTaken)objectDraws.push({mesh:flareGunMesh,model:multiply(transform(...flarePosition()),rotateZ(Math.PI/2)),material:5,assetKind:7});
+  if(!net.active&&!game.flareTaken)objectDraws.push({mesh:flareGunMesh,model:multiply(transform(...flarePosition()),rotateZ(Math.PI/2)),material:5,assetKind:7,texture:flareGunTexture});
   const flares=activeFlares().slice().sort((a,b)=>Math.hypot(a.x-player.x,a.z-player.z)-Math.hypot(b.x-player.x,b.z-player.z));
   for(let i=0;i<flares.length;i++){
     const f=flares[i],fade=Math.min(1,f.life/1.2),pulse=.87+.13*Math.sin(time*23+i);
