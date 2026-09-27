@@ -14,7 +14,7 @@ export function makeWorld(rules) {
     turbineStopped: false,
     powerStopped: false,
     elapsed: 0,
-    items: [], flares: [], flareSerial:0,
+    items: [], flares: [], flareSerial:0, itemSerial:0,
     itemRevision: 0,
     objectives: { powerCorridor: false },
     rules,

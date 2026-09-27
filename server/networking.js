@@ -1,7 +1,7 @@
 import { spawnFlare } from '../shared/survival.js';
 import { WebSocketServer, WebSocket } from "ws";
 import { acceptInput } from "./players.js";
-import { takeItem } from "./items.js";
+import { takeItem, dropItem } from "./items.js";
 export function attachNetworking(
   server,
   { auth, rooms, originAllowed, secureUpgrade },
@@ -156,7 +156,8 @@ export function attachNetworking(
           }
         }
         if (room.phase === "playing" && p.alive) {
-          if(m.action==='equip'&&(['none','camera'].includes(m.item)||(m.item==='flashlight'&&p.inventory.flashlight)||(m.item==='soda'&&p.inventory.sodas>0)||(m.item==='flare'&&p.inventory.flare))){p.heldItem=m.item;if(m.item!=='flashlight')p.torch=false;ok=true;}
+          if(m.action==='equip'&&(m.item==='none'||(m.item==='camera'&&p.inventory.camera!==false)||(m.item==='flashlight'&&p.inventory.flashlight)||(m.item==='soda'&&p.inventory.sodas>0)||(m.item==='flare'&&p.inventory.flare))){p.heldItem=m.item;if(m.item!=='flashlight')p.torch=false;ok=true;}
+          if(m.action==='drop')ok=dropItem(w,p,m.item);
           if(m.action==='flare'&&p.heldItem==='flare'&&p.inventory.flare&&p.inventory.flares>0&&!(p.flareCooldown>0)&&w.flares.length<16){
             p.inventory.flares--;p.flareCooldown=1.2;
             const launcher=w.items.find(i=>i.kind==='flare'&&i.holder===p.id);if(launcher)launcher.ammo=p.inventory.flares;
@@ -168,7 +169,7 @@ export function attachNetworking(
             p.torch = !!m.on;if(p.torch)p.heldItem="flashlight";
             ok = true;
           }
-          if (m.action === "photo" && p.cooldown <= 0) {
+          if (m.action === "photo" && p.inventory.camera!==false && p.cooldown <= 0) {
             p.cooldown = 0.9;
             p.photo = 0.22;p.heldItem="camera";p.torch=false;
             w.sim.noise(p, 100);

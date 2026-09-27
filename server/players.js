@@ -17,7 +17,7 @@ export function makePlayer(account, index) {
     stamina: 100, staminaDelay: 0, exhausted: false,
     alive: true,
     health: 1,
-    inventory: { flashlight: false, sodas: 0, flare: false, flares: 0 },
+    inventory: { camera: true, flashlight: false, sodas: 0, flare: false, flares: 0 },
     torch: false,
     heldItem: "camera",
     boost: 0,

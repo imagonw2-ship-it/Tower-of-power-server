@@ -1,4 +1,5 @@
-import { shed, blocked } from "../shared/physics.js";
+import { shed, blocked, floorHeight } from "../shared/physics.js";
+import { droppedItemPose } from '../shared/dropped-items.js';
 export const starterCount = (rule, count) =>
   Math.max(
     rule.minimum || 0,
@@ -11,7 +12,7 @@ export function scaleItems(world, count, rules) {
       const x = shed.x - 2.28 + (i % 4) * 0.43,
         z =
           shed.z + 0.02 + Math.floor(i / 4) * 0.3 + (kind === "soda" ? 0.1 : 0),
-        y = shed.y + 1.06 + (kind === "flashlight" ? 0.0542 : kind === "flare" ? .055 : 0);
+        y = shed.y + 1.06 + (kind === "flashlight" ? 0.0542 : kind === "flare" ? .031 : 0);
       world.items.push({
         id: `starter-${kind}-${i}`,
         kind,
@@ -26,7 +27,7 @@ export function scaleItems(world, count, rules) {
 export function takeItem(world, p, id) {
   if (!p.alive) return false;
   const item = world.items.find((i) => i.id === id && !i.holder);
-  if (!item || ((item.kind === "flashlight" && p.inventory.flashlight)||(item.kind === "flare"&&p.inventory.flare)))
+  if (!item || item.consumed || ((item.kind === "camera" && p.inventory.camera!==false)||(item.kind === "flashlight" && p.inventory.flashlight)||(item.kind === "flare"&&p.inventory.flare)))
     return false;
   const eye = [p.x, p.y, p.z],
     target = [item.x, item.y + (item.kind === "soda" ? 0.1 : 0), item.z],
@@ -46,12 +47,22 @@ export function takeItem(world, p, id) {
   )
     return false;
   item.holder = p.id;
-  if (item.kind === "flashlight") {
+  if(item.kind==='camera')p.inventory.camera=true;
+  else if (item.kind === "flashlight") {
     p.inventory.flashlight = true;
     p.torch = true;
   } else if(item.kind === "flare"){p.inventory.flare=true;p.inventory.flares=item.ammo??3;} else p.inventory.sodas++;
   world.itemRevision++;
   return true;
+}
+export function dropItem(world,p,kind){
+  if(!p.alive||p.drinking>0||kind!==p.heldItem||!['camera','flashlight','soda','flare'].includes(kind))return false;
+  const owns=kind==='camera'?p.inventory.camera!==false:kind==='soda'?p.inventory.sodas>0:p.inventory[kind];if(!owns)return false;
+  let item=world.items.find(i=>i.kind===kind&&i.holder===p.id&&!i.consumed);
+  if(!item&&kind==='camera'){if(world.items.length>=512)return false;world.itemSerial=(world.itemSerial||0)+1;item={id:'camera-'+world.itemSerial,kind,holder:p.id};world.items.push(item);}
+  if(!item)return false;
+  if(kind==='flare'){item.ammo=p.inventory.flares;p.inventory.flares=0;}if(kind==='soda')p.inventory.sodas--;else p.inventory[kind]=false;
+  Object.assign(item,droppedItemPose(p,kind,world.elapsed,floorHeight,blocked,shed),{holder:null});p.heldItem='none';p.torch=false;world.itemRevision++;return true;
 }
 export function releaseItems(world, p) {
   for (const i of world.items)
@@ -59,5 +70,5 @@ export function releaseItems(world, p) {
       i.holder = null;
       world.itemRevision++;
     }
-  p.inventory = { flashlight: false, sodas: 0, flare: false, flares: 0 };
+  p.inventory = { camera:false, flashlight: false, sodas: 0, flare: false, flares: 0 };
 }
