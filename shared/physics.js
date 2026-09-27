@@ -1,3 +1,4 @@
+import { spendStamina } from './survival.js';
 // Rendering-independent world rules, copied from the current game.
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const rawHeight = (x, z) =>
@@ -30,6 +31,7 @@ export const walls = [
   [-2.5, -0.44, -0.19, 0.79],
   [1.36, 2.6, -2.45, -1.32],
   [1.13, 1.92, 3.06, 4.25],
+  [1.45, 2.55, -1.135, -.135],
 ];
 export function collideShed(p) {
   const r = 0.29;
@@ -95,7 +97,7 @@ export function movePlayer(p, input, dt, obstacles = [], collideLegs = () => {})
     z /= l;
   }
   p.crouching = !!input.crouch;
-  p.sprinting = !!input.sprint && !p.crouching && l > 0.05;
+  p.sprinting = spendStamina(p,!!input.sprint && !p.crouching && l > 0.05,dt);
   p.yaw = input.yaw;
   p.pitch = input.pitch;
   const speed =
