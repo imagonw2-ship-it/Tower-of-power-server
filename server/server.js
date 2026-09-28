@@ -72,7 +72,7 @@ export function createApp(options = {}) {
         return;
       }
       if (req.url === "/health") {
-        reply(200, { ok: true, protocol: 1, release: "11.6", rooms: rooms.rooms.size });
+        reply(200, { ok: true, protocol: 1, release: "11.7", features: ["shared-drops", "proximity-voice", "scaled-pylons", "silent-search"], rooms: rooms.rooms.size });
         return;
       }
       if (

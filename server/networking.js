@@ -2,6 +2,7 @@ import { spawnFlare } from '../shared/survival.js';
 import { WebSocketServer, WebSocket } from "ws";
 import { acceptInput } from "./players.js";
 import { takeItem, dropItem } from "./items.js";
+import { relayVoice } from './voice.js';
 export function attachNetworking(
   server,
   { auth, rooms, originAllowed, secureUpgrade },
@@ -60,8 +61,9 @@ export function attachNetworking(
       if (!account) ws.close(1008, "Authenticate first");
     }, 5000);
     ws.on("error", () => {});
-    ws.on("message", (bytes) => {
+    ws.on("message", (bytes, isBinary) => {
       const now = Date.now();
+      if(isBinary){relayVoice(ws,bytes,sockets,now);return;}
       ws.bucket = Math.min(60, ws.bucket + (now - ws.bucketAt) * 0.04);
       ws.bucketAt = now;
       if (--ws.bucket < 0) {
@@ -117,6 +119,11 @@ export function attachNetworking(
           return;
         }
         if (!room || !p) throw Error("Join a world first.");
+        if(m.type==='voice'){
+          ws.voiceEnabled=m.enabled===true&&p.alive;
+          if(!ws.voiceEnabled)p.speakingUntil=0;
+          return;
+        }
         if (m.type === "leave") {
           rooms.leave(p.id);
           if (sockets.get(p.id) === ws) sockets.delete(p.id);
@@ -124,6 +131,7 @@ export function attachNetworking(
           p = null;
           ws.room = null;
           ws.player = null;
+          ws.voiceEnabled=false;
           send(ws, { type: "left" });
           return;
         }

@@ -97,6 +97,8 @@ export function wirePlayer(p) {
     stamina:p.stamina, exhausted:p.exhausted,
     alive: p.alive,
     connected: p.connected,
+    speaking: (p.speakingUntil||0)>Date.now(),
+    voiceSlot: p.voiceSlot,
     inventory: p.inventory,
     torch: p.torch,
     heldItem: p.heldItem,
