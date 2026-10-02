@@ -14,6 +14,7 @@ export class SoundTargets {
     rememberSoundMotion(track,[player.x,player.z],this.time);
     this.tracks.set(player.id, { id: player.id, x: player.x, z: player.z,
       velocity:track.heardVelocity, heard: this.time, ignoreUntil: old?.ignoreUntil || 0, revision: (old?.revision || 0) + 1 });
+    return true;
   }
   step(dt, players, body, canReach = () => true) {
     this.time += dt;
@@ -143,6 +144,7 @@ export function resolveLegCollision(player, segments, ground, crouching = player
 
 // Commit to one attack and one target. The downswing cannot home after the player.
 export function tickStomp(state, body, kind, dt, heightAt, blocked, impact) {
+  if(state.searchOnly){state.attack=null;return;}
   state.attackCooldown=Math.max(0,(state.attackCooldown||0)-dt);
   if(kind==='turbine')constrainTurbineFeet(body,state);
   if(state.attack){
