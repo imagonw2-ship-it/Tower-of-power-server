@@ -9,10 +9,17 @@ let remoteTorchCount=0,povArmMesh,povArmTexture;
 const povArmBones=new Float32Array(32*16);
 let povHandMatrix=identity();
 const gripMeshes={},povGripMeshes={};
-function posedGripRecord(base,patch){
+function posedGripRecord(base,patch,kind,scale=1){
   const bytes=Uint8Array.from(atob(base.vertices),c=>c.charCodeAt(0)),view=new DataView(bytes.buffer);
   const ids=new Uint16Array(Uint8Array.from(atob(patch.indices),c=>c.charCodeAt(0)).buffer),values=new Float32Array(Uint8Array.from(atob(patch.values),c=>c.charCodeAt(0)).buffer);
-  for(let i=0;i<ids.length;i++)for(let k=0;k<3;k++){view.setFloat32(ids[i]*32+k*4,values[i*6+k],true);view.setInt16(ids[i]*32+12+k*2,Math.round(clamp(values[i*6+3+k],-1,1)*32767),true);}
+  const hand=AVATAR_ASSET.bones.indexOf('hand_r'),bind=AVATAR_ASSET.bind[hand],inv=AVATAR_ASSET.inverseBind[hand];
+  const point=(m,p)=>[0,1,2].map(k=>m[k]*p[0]+m[4+k]*p[1]+m[8+k]*p[2]+m[12+k]);
+  for(let i=0;i<ids.length;i++){
+    let p=Array.from(values.subarray(i*6,i*6+3)),h=point(inv,p);
+    const fitted=fitGripSurface(h,kind,scale);
+    p=point(bind,fitted);
+    for(let k=0;k<3;k++){view.setFloat32(ids[i]*32+k*4,p[k],true);view.setInt16(ids[i]*32+12+k*2,Math.round(clamp(values[i*6+3+k],-1,1)*32767),true);}
+  }
   let text='';for(let i=0;i<bytes.length;i+=16384)text+=String.fromCharCode(...bytes.subarray(i,i+16384));return{...base,vertices:btoa(text)};
 }
 function appendRemoteTorch(grip,strength,distance){
@@ -26,8 +33,27 @@ function appendRemoteTorch(grip,strength,distance){
 }
 // All props share the same palm frame. Each origin is adjusted to its actual grip,
 // rather than putting the asset's center at the wrist.
-const itemGripAnchors={camera:[.059,-.003,.008],flashlight:[-.008,-.145,.005],soda:[0,.095,0],flare:[0,-.083,.014]};
+const itemGripAnchors={camera:[.059,-.003,.008],flashlight:[-.0005,-.17,.001],soda:[0,.095,0],flare:[0,-.111,.041]};
 const itemPalm=[-.078,-.030,.002];
+// Fit the already curled glove to the actual handle cross-section. The larger
+// first-person torch needs its own clearance; the wrist and sleeve stay fixed.
+function fitGripSurface(hand,kind,scale=1){
+  if(hand[0]>-.035)return hand;
+  const a=itemGripAnchors[kind],p=[(hand[1]-itemPalm[1])/scale+a[0],(hand[2]-itemPalm[2])/scale+a[1],(hand[0]-itemPalm[0])/scale+a[2]];
+  let cx=0,cz=0,rx=.0357,rz=.0357,lo=.018,hi=.172;
+  if(kind==='flashlight'){cx=-.0005;cz=.001;rx=rz=.0305;lo=-.29;hi=-.06;}
+  else if(kind==='flare'){cz=.041+(-.111-p[1])*.36;rx=.0165;rz=.031;lo=-.158;hi=-.061;}
+  else if(kind==='camera'){cx=.060;cz=.001;rx=.015;rz=.019;lo=-.032;hi=.034;}
+  if(p[1]<lo||p[1]>hi)return hand;
+  let dx=p[0]-cx,dz=p[2]-cz,r=Math.hypot(dx/rx,dz/rz);
+  if(r<.001){dx=rx;dz=0;r=1;}
+  const target=kind==='camera'?Math.max(Math.abs(dx/rx),Math.abs(dz/rz)):r;
+  if(target<1.035){p[0]=cx+dx/target*1.035;p[2]=cz+dz/target*1.035;}
+  // Close distant fingertips around thin camera / launcher handles. Cap this
+  // correction to keep the original finger shapes and thumb opposition.
+  else if(hand[0]<-.086&&target>1.32){const f=Math.max(1.32/target,1-.012/Math.hypot(dx,dz));p[0]=cx+dx*f;p[2]=cz+dz*f;}
+  return[(p[2]-a[2])*scale+itemPalm[0],(p[0]-a[0])*scale+itemPalm[1],(p[1]-a[1])*scale+itemPalm[2]];
+}
 function itemGripMatrix(kind){
   const a=itemGripAnchors[kind]||itemGripAnchors.camera;
   return new Float32Array([0,1,0,0,0,0,1,0,1,0,0,0,itemPalm[0]-a[2],itemPalm[1]-a[0],itemPalm[2]-a[1],1]);
@@ -37,7 +63,7 @@ function buildAvatars(){
   avatarParts=AVATAR_ASSET.meshes.map(m=>({mesh:unpackModel(m),name:m.name,texture:textures[m.texture]}));
   povArmMesh=unpackModel(POV_ARM_ASSET);povArmTexture=textures.suit;
   const gear=AVATAR_ASSET.meshes.find(m=>m.name==='ClassASuitGear_low');
-  for(const [kind,patch] of Object.entries(GRIP_ASSET.poses)){gripMeshes[kind]=unpackModel(posedGripRecord(gear,patch.gear));povGripMeshes[kind]=unpackModel(posedGripRecord(POV_ARM_ASSET,patch.arm));}
+  for(const [kind,patch] of Object.entries(GRIP_ASSET.poses)){gripMeshes[kind]=unpackModel(posedGripRecord(gear,patch.gear,kind));povGripMeshes[kind]=unpackModel(posedGripRecord(POV_ARM_ASSET,patch.arm,kind,kind==='flashlight'?1.3:1));}
   for(const [name,clip] of Object.entries(AVATAR_ASSET.clips))avatarClips[name]={...clip,values:new Float32Array(Uint8Array.from(atob(clip.data),c=>c.charCodeAt(0)).buffer)};
   cameraItemMesh=unpackModel(CAMERA_ASSET);cameraItemTexture=importedTexture(CAMERA_ASSET.texture,5);
 }

@@ -56,3 +56,14 @@ body.playing #staminaBar{display:block}#staminaFill{display:block;width:100%;hei
 #staminaBar.exhausted #staminaFill{opacity:.45}
 #itemPickupOverlay #touchPickup{border-radius:5px;background:#00000012!important}
 #kitDrop{margin-top:12px;padding:9px 13px;border:1px solid #ffffff38;border-radius:12px;background:transparent;color:#f1f3ee;display:flex;align-items:center;gap:8px;justify-content:center;font:inherit;letter-spacing:.14em}#kitDrop svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.5}#kitDrop:disabled{opacity:.3}
+
+/* Consistent 24-unit pictograms, soft monochrome outlines, generous touch targets. */
+#touchControls svg,#fieldKit svg,#voiceHud svg{stroke-width:1.7;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 2px #0009)}
+#touchControls button,#voiceToggle{border-color:#ffffff2b!important;background:linear-gradient(145deg,#ffffff08,#ffffff01)!important;box-shadow:inset 0 1px 0 #ffffff0a,0 3px 12px #0002!important}
+#touchControls button.latched,#voiceToggle.latched{border-color:#ffffff66!important;background:#ffffff09!important}
+#voiceHud{position:fixed;left:max(25px,env(safe-area-inset-left));top:116px;z-index:46;display:flex;align-items:center;gap:8px;color:#fff;font:9px monospace;pointer-events:none}
+#voiceHud[hidden]{display:none}#voiceToggle{position:relative;display:grid;place-items:center;min-width:44px;width:44px;height:44px;padding:0;margin:0;border:1px solid #ffffff2b;border-radius:14px;pointer-events:auto;color:inherit;backdrop-filter:blur(4px)}
+#voiceToggle svg{width:24px;height:24px}#voiceToggle.speaking:after{content:'';position:absolute;bottom:5px;width:12px;height:2px;background:#fff;border-radius:2px}
+#voiceStatus{max-width:130px;text-shadow:0 1px 3px #000;letter-spacing:.6px}.voiceVolumeLabel{display:none;pointer-events:auto;align-items:center;gap:6px}.voiceVolumeLabel input{width:70px}
+body:not(.playing) .voiceVolumeLabel{display:flex}body:not(.playing) #voiceHud{top:auto;bottom:18px}
+@media(max-height:420px){#voiceHud{top:108px}#voiceStatus{max-width:95px;font-size:8px}}

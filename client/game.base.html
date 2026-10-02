@@ -97,7 +97,7 @@
       <button id="settingsOpen">SETTINGS</button>
       <button id="controlsOpen">CONTROLS</button>
     </nav>
-    <p class="menuFoot"><strong id="releaseLabel">VERSION 11.6 · FIELD EQUIPMENT UPDATE</strong><br>HEADPHONES RECOMMENDED</p>
+    <p class="menuFoot"><strong id="releaseLabel">VERSION 11.7 · PROXIMITY UPDATE</strong><br>HEADPHONES RECOMMENDED</p>
   </main>
   <section id="settingsPanel" class="panel settings" hidden aria-label="Settings">
     <h2>SETTINGS</h2>
@@ -214,13 +214,13 @@
   `;
   function resetPowerCreature(){
     const y=terrainHeight(POWER_ZONE.x,POWER_ZONE.z);
-    Object.assign(powerCreature,{x:POWER_ZONE.x,z:POWER_ZONE.z,y,heading:PYLON_HEADING,attack:null,attackCooldown:0,targetId:null,heardVelocity:[0,0],sample:null,sampleTime:-99,state:'dormant',clock:0,wake:0,rigBlend:0,bodyDrop:0,bodyBob:0,vx:0,vz:0,noise:null,lastKnown:[POWER_ZONE.x,POWER_ZONE.z],memoryAge:99,navAge:0,navTarget:null,stepIndex:0,impact:0,stepRest:0,discovered:false});
+    Object.assign(powerCreature,{x:POWER_ZONE.x,z:POWER_ZONE.z,y,heading:PYLON_HEADING,silence:0,searchOnly:false,searchHint:null,attack:null,attackCooldown:0,targetId:null,heardVelocity:[0,0],sample:null,sampleTime:-99,state:'dormant',clock:0,wake:0,rigBlend:0,bodyDrop:0,bodyBob:0,vx:0,vz:0,noise:null,lastKnown:[POWER_ZONE.x,POWER_ZONE.z],memoryAge:99,navAge:0,navTarget:null,stepIndex:0,impact:0,stepRest:0,discovered:false});
     powerCreature.feet=POWER_RIG.feet.map(p=>{const at=[POWER_ZONE.x+p[2],terrainHeight(POWER_ZONE.x+p[2],POWER_ZONE.z-p[0])-.06,POWER_ZONE.z-p[0]];return{position:at.slice(),start:at.slice(),target:at.slice(),progress:1,duration:.62,lift:5};});
     for(let i=0;i<9;i++)pylonBones.set(identity(),i*16);
   }
   function enterPowerState(state){powerCreature.state=state;powerCreature.clock=0;powerCreature.navAge=0;}
   function powerWorldPoint(local){const p=powerCreature,c=Math.cos(p.heading),s=Math.sin(p.heading);return[p.x+local[0]*c+local[2]*s,p.y+local[1],p.z-local[0]*s+local[2]*c];}
-  function powerLocalPoint(worldPoint){const p=powerCreature,c=Math.cos(p.heading),s=Math.sin(p.heading),x=worldPoint[0]-p.x,z=worldPoint[2]-p.z;return[x*c-z*s,worldPoint[1]-p.y,x*s+z*c];}
+  function powerLocalPoint(worldPoint,p=powerCreature){const c=Math.cos(p.heading),s=Math.sin(p.heading),x=worldPoint[0]-p.x,z=worldPoint[2]-p.z;return[x*c-z*s,worldPoint[1]-p.y,x*s+z*c];}
   function frameBasis(a,b){const y=norm(b.map((v,i)=>v-a[i])),x=norm(cross(y,Math.abs(y[2])>.92?[1,0,0]:[0,0,1])),z=cross(x,y);return[x,y,z];}
   function segmentPose(restA,restB,posedA,posedB){
     const from=frameBasis(restA,restB),to=frameBasis(posedA,posedB),m=identity();
@@ -229,16 +229,16 @@
     for(let row=0;row<3;row++)m[12+row]=posedA[row]-m[row]*restA[0]-m[4+row]*restA[1]-m[8+row]*restA[2];
     return m;
   }
-  function updatePylonRig(){
-    const p=powerCreature;pylonBones.set(identity(),0);
+  function updatePylonRig(p=powerCreature,bones=pylonBones){
+    bones.set(identity(),0);
     for(let i=0;i<4;i++){
-      const hip=POWER_RIG.hips[i],restKnee=POWER_RIG.knees[i],restFoot=POWER_RIG.feet[i],foot=powerLocalPoint(p.feet[i].position);
+      const hip=POWER_RIG.hips[i],restKnee=POWER_RIG.knees[i],restFoot=POWER_RIG.feet[i],foot=powerLocalPoint(p.feet[i].position,p);
       const delta=foot.map((v,k)=>v-hip[k]),distance=Math.max(.01,Math.hypot(...delta)),direction=norm(delta);
       const l1=Math.hypot(...restKnee.map((v,k)=>v-hip[k])),l2=Math.hypot(...restFoot.map((v,k)=>v-restKnee[k]));
       const reach=Math.min(distance,(l1+l2)*.998),along=(l1*l1-l2*l2+reach*reach)/(2*reach),out=Math.sqrt(Math.max(0,l1*l1-along*along));
       const bend=norm([restFoot[0],0,restFoot[2]]),project=dot(bend,direction),side=norm(bend.map((v,k)=>v-direction[k]*project));
       const knee=hip.map((v,k)=>v+direction[k]*along+side[k]*out);
-      pylonBones.set(segmentPose(hip,restKnee,hip,knee),(1+i)*16);pylonBones.set(segmentPose(restKnee,restFoot,knee,foot),(5+i)*16);
+      bones.set(segmentPose(hip,restKnee,hip,knee),(1+i)*16);bones.set(segmentPose(restKnee,restFoot,knee,foot),(5+i)*16);
     }
   }
   function powerFootTarget(i){
@@ -267,6 +267,7 @@
     if(!net.active&&game.mode==='playing'&&!world.powerStopped)applyFlareLure(powerCreature,powerCreature,localFlares,dt,true);
     if(game.mode!=='playing'||isMenuScene()||world.powerStopped)return;
     const p=powerCreature,distance=Math.hypot(player.x-p.x,player.z-p.z);p.memoryAge+=dt;
+    if(silentSearch(p,p,[{...player,alive:true}],dt)&&p.state==='dormant')p.noise=p.searchHint.slice();
     if(!p.discovered&&Math.hypot(player.x-POWER_ZONE.x,player.z-POWER_ZONE.z)<95){p.discovered=true;game.notice='POWER CORRIDOR / KEEP QUIET';game.noticeTime=4;}
     if(p.noise){
       p.lastKnown=p.noise.slice();p.noise=null;p.memoryAge=0;p.navAge=0;
@@ -285,7 +286,8 @@
     const oldX=p.x,oldZ=p.z,remaining=Math.hypot(p.x-p.lastKnown[0],p.z-p.lastKnown[1]);
     if(p.state==='running'&&p.memoryAge>.8&&(remaining<7||p.clock>15))enterPowerState('searching');
     if(p.state==='searching'&&p.clock>23)enterPowerState('patrolling');
-    let goal=p.lastKnown.slice();
+    if(p.searchOnly)p.state='investigating';
+    let goal=p.searchOnly?p.searchHint.slice():p.lastKnown.slice();
     if(p.state==='searching'){const n=Math.floor(p.clock/4.6),a=n*2.4+.7,r=12+n*5;goal=[p.lastKnown[0]+Math.sin(a)*r,p.lastKnown[1]+Math.cos(a)*r];}
     if(p.state==='patrolling'){const a=Math.floor(p.clock/16)*2.4;goal=[POWER_ZONE.x+Math.sin(a)*40,POWER_ZONE.z+Math.cos(a)*40];}
     if(p.navAge<=0||!p.navTarget){p.navTarget=routeAroundShed(goal,[p.x,p.z]);p.navAge=.18;}
@@ -314,7 +316,7 @@
   }
   function resolvePowerCollision(){
     if(isMenuScene())return;
-    resolveLegCollision(player,legColliders(turbine,enemy,powerCreature,POWER_RIG,terrainHeight).concat(corridorColliders),terrainHeight(player.x,player.z),game.crouching);
+    resolveLegCollision(player,legColliders(turbine,enemy,powerCreature,POWER_RIG,terrainHeight).concat(corridorColliders,net.active?networkPylons.flatMap(p=>legColliders(turbine,{state:'dormant'},p,POWER_RIG,terrainHeight)):[]),terrainHeight(player.x,player.z),game.crouching);
   }
   function updateEnemyCombat(dt){
     if(net.active||game.mode!=='playing')return;
@@ -359,7 +361,7 @@
   if(!['off','medium','high'].includes(settings.shadows))settings.shadows='medium';
   const game={mode:'menu',returnTo:'menu',clock:0,stamina:100,staminaDelay:0,exhausted:false,hasFlare:false,flareTaken:false,flares:0,flareCooldown:0,photos:0,flash:0,photoCooldown:0,photoPending:false,photoAge:99,shake:0,sprinting:false,intro:0,hintAge:0,fadeIn:0,hasFlashlight:false,torchOn:false,zoom:1,zoomTarget:1,noticeTime:0,notice:''};
   const world={phase:.43,cycle:true,turbineStopped:false,day:1,sun:[0,1,0],light:[0,1,0],direct:[1,.95,.84],ambient:[.4,.44,.47]};
-  const enemy={state:'dormant',attack:null,attackCooldown:0,targetId:null,heardVelocity:[0,0],sample:null,sampleTime:-99,angle:.22,awake:0,lift:0,vx:0,vz:0,heading:0,gait:0,lastStep:-1,feet:[],clock:0,cooldown:3,crouch:0,lean:0,anchor:[turbine.x,turbine.y,turbine.z]};
+  const enemy={state:'dormant',silence:0,searchOnly:false,searchHint:null,attack:null,attackCooldown:0,targetId:null,heardVelocity:[0,0],sample:null,sampleTime:-99,angle:.22,awake:0,lift:0,vx:0,vz:0,heading:0,gait:0,lastStep:-1,feet:[],clock:0,cooldown:3,crouch:0,lean:0,anchor:[turbine.x,turbine.y,turbine.z]};
   const keys = new Set();
   const moveKeys = new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight']);
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1334,6 +1336,12 @@
       void main(){
         vec3 geometric=normalize(v_normal),axis=abs(normalize(v_localNormal));
         if(!gl_FrontFacing)geometric=-geometric;
+        if(u_material>5.5){
+          float radius=length(v_uv*2.-1.);
+          if(radius>=1.)discard;
+          float halo=pow(1.-radius,2.),core=exp(-radius*radius*38.);
+          color=vec4(vec3(1.,.18,.025)*halo+vec3(1.,.88,.57)*core,clamp(halo+core,0.,1.));return;
+        }
         if(u_material>4.5){
           vec3 albedo=v_color,n=geometric;
           bool cameraProp=u_assetKind>5.5,avatar=u_assetKind>4.5&&u_assetKind<5.5,steel=u_assetKind>2.5&&u_assetKind<3.5,torch=u_assetKind<1.5;
@@ -1526,7 +1534,7 @@
   }
   function setMode(mode){game.mode=mode;game.clock=0;keys.clear();game.sprinting=false;syncUI();}
   function resetWorld(playable){
-    avatarCache.clear();localDroppedItems=[];localDropSerial=0;pendingDrop=null;localFlares=[];flareSerial=0;cameraDynamics={lean:0,pitch:0,speed:0,breath:0};
+    avatarCache.clear();networkPylons=[];localDroppedItems=[];localDropSerial=0;pendingDrop=null;localFlares=[];flareSerial=0;cameraDynamics={lean:0,pitch:0,speed:0,breath:0};
     equippedTool='camera';kitPreviousFlashlight=false;resetEquipmentMotion();
     turbine.x=playable?95:-35;turbine.z=playable?-250:-250;turbine.y=terrainHeight(turbine.x,turbine.z);
     resetEnemy();resetPowerCreature();Object.assign(world,{phase:.43,cycle:true,turbineStopped:false,powerStopped:false});updateEnvironment(0);
@@ -1602,7 +1610,7 @@
   }
 
   function resetEnemy(){
-    Object.assign(enemy,{state:'dormant',attack:null,attackCooldown:0,targetId:null,heardVelocity:[0,0],sample:null,sampleTime:-99,angle:.22,awake:0,emerged:[false,false,false],lift:0,vx:0,vz:0,heading:0,gait:0,feet:[],clock:0,crouch:0,lean:0,bank:0,
+    Object.assign(enemy,{state:'dormant',silence:0,searchOnly:false,searchHint:null,attack:null,attackCooldown:0,targetId:null,heardVelocity:[0,0],sample:null,sampleTime:-99,angle:.22,awake:0,emerged:[false,false,false],lift:0,vx:0,vz:0,heading:0,gait:0,feet:[],clock:0,crouch:0,lean:0,bank:0,
       anchor:[turbine.x,turbine.y,turbine.z],lastKnown:[turbine.x,turbine.z],memoryAge:99,noise:null,heardRecently:false,searchIndex:0,navAge:0,navTarget:null,stepRest:0,stepIndex:0,impact:0});
   }
   function enterEnemyState(state){enemy.state=state;enemy.clock=0;enemy.navAge=0;}
@@ -1630,14 +1638,14 @@
     game.noisePulse=1;game.lastNoiseRadius=radius;
     if(!world.powerStopped){
       const p=powerCreature,d=Math.hypot(player.x-p.x,player.z-p.z),blocked=shedBlocksSight([p.x,terrainHeight(p.x,p.z)+1.6,p.z],[player.x,player.y,player.z]);
-      if(d<radius*(blocked?.60:1)*(p.state==='dormant'?1.5:1)){p.noise=[player.x,player.z];rememberSoundMotion(p,p.noise,time);}
+      if(d<radius*(blocked?.60:1)*(p.state==='dormant'?1.5:1)){noteAudibleContact(p);p.noise=[player.x,player.z];rememberSoundMotion(p,p.noise,time);}
     }
     if(world.turbineStopped)return;
     const origin=[player.x,player.z],d=Math.hypot(origin[0]-turbine.x,origin[1]-turbine.z);
     // Walls soften sound. Light, camera direction and player visibility are never queried.
     const blocked=shedBlocksSight([turbine.x,terrainHeight(turbine.x,turbine.z)+1.6,turbine.z],[player.x,player.y,player.z]);
     const audibleRange=radius*(blocked?.60:1)*(enemy.state==='dormant'?1.8:1);
-    if(d<audibleRange){enemy.noise={position:origin,life:.3};rememberSoundMotion(enemy,origin,time);}
+    if(d<audibleRange){noteAudibleContact(enemy);enemy.noise={position:origin,life:.3};rememberSoundMotion(enemy,origin,time);}
   }
   function sensePlayer(dt){
     enemy.memoryAge+=dt;enemy.heardRecently=enemy.memoryAge<.9;
@@ -1713,6 +1721,7 @@
     if(isMenuScene()){enemy.angle+=dt*.24;return;}
     if(game.mode!=='playing')return;
     const distance=Math.hypot(player.x-turbine.x,player.z-turbine.z);
+    if(silentSearch(enemy,turbine,[{...player,alive:true}],dt)&&enemy.state==='dormant')enemy.noise={position:enemy.searchHint.slice(),life:.3};
     sensePlayer(dt);
     if(enemy.state==='dormant'){enemy.angle+=dt*.26;return;}
     if(enemy.state==='awakening'){
@@ -1735,7 +1744,8 @@
       enterEnemyState('searching');enemy.searchIndex=0;
     }
     if(enemy.state==='searching'&&enemy.clock>21)enterEnemyState('patrolling');
-    let goal=enemy.lastKnown.slice();
+    if(enemy.searchOnly)enemy.state='investigating';
+    let goal=enemy.searchOnly?enemy.searchHint.slice():enemy.lastKnown.slice();
     if(enemy.state==='searching'){
       const phase=Math.floor(enemy.clock/4.2),a=phase*2.399+1.2,r=9+phase*4;
       goal=[enemy.lastKnown[0]+Math.sin(a)*r,enemy.lastKnown[1]+Math.cos(a)*r];
@@ -1973,11 +1983,13 @@
     if(!shadow){gl.activeTexture(gl.TEXTURE0+7);gl.bindTexture(gl.TEXTURE_2D,signTexture);gl.uniform1i(u.u_signTexture??null,7);}
     for(const object of objectDraws){
       if(shadow&&object.castShadow===false)continue;
-      gl.bindVertexArray(object.mesh.vao);gl.uniformMatrix4fv(u.u_model,false,object.model);gl.uniform1f(u.u_rigBlend??null,object.bones?1:object.rig?powerCreature.rigBlend:0);
+      gl.bindVertexArray(object.mesh.vao);gl.uniformMatrix4fv(u.u_model,false,object.model);gl.uniform1f(u.u_rigBlend??null,object.rigBlend??(object.bones?1:object.rig?powerCreature.rigBlend:0));
       if(object.bones||object.rig)gl.uniformMatrix4fv(u['u_bones[0]']??null,false,object.bones||pylonBones);
       if(!shadow){gl.activeTexture(gl.TEXTURE0+5);gl.bindTexture(gl.TEXTURE_2D,object.texture||pylonTexture);}
       if(!shadow){gl.uniform1f(u.u_material??null,object.material||0);gl.uniform1f(u.u_receiveTorch??null,object.receiveTorch===false?0:1);gl.uniform1f(u.u_assetKind??null,object.assetKind||0);}
+      if(!shadow&&object.flareSprite){gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.depthMask(false);}
       gl.drawElements(gl.TRIANGLES,object.mesh.count,gl.UNSIGNED_INT,0);
+      if(!shadow&&object.flareSprite){gl.disable(gl.BLEND);gl.depthMask(true);}
     }
   }
   function drawPost(flash){
@@ -2133,7 +2145,7 @@
     try { initialize(); }
     catch(error) {
       running=false; console.error(error);
-      showError('Graphics startup failed (11.6): '+String(error?.message||error).slice(0,240));
+      showError('Graphics startup failed (11.7): '+String(error?.message||error).slice(0,240));
     }
   }
   </script>

@@ -1,5 +1,6 @@
 // Adapter into the current game. Offline mechanics remain in game.base.html.
 const netUI = {};
+let networkPylons=[];
 for (const id of [
   "multiplayerPanel",
   "serverAddress",
@@ -438,6 +439,7 @@ function updateNetworkFrame(dt) {
   Object.assign(turbine, { x: e.x, y: e.y, z: e.z });
   Object.assign(enemy, e);
   Object.assign(powerCreature, pw);
+  networkPylons=(q.b.enemies.powers||[]).slice(1).map((p,i)=>poseBetween(q.a.enemies.powers?.[i+1]||p,p,q.t));
   updatePylonRig();
   if (enemy.state === "running" || powerCreature.state === "running") {
     const d = Math.min(
