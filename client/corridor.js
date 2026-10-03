@@ -58,6 +58,7 @@ function buildPowerCorridor(){
   }
   corridorMesh=mesh3D(g);
 }
+const networkPylonPalettes=[];
 function appendPowerObjects(){
   if(isMenuScene())return;
   appendInfrastructure();
@@ -65,6 +66,13 @@ function appendPowerObjects(){
   if(distance<650){
     const model=multiply(transform(p.x,p.y,p.z),rotateY(p.heading));
     objectDraws.push({mesh:distance>200?pylonLODMesh:pylonMesh,model,material:5,assetKind:3,rig:true},{mesh:socketMesh,model,material:2});
+  }
+  if(net.active)for(const [slot,pylon] of networkPylons.entries()){
+    const d=Math.hypot(player.x-pylon.x,player.z-pylon.z);if(d>650)continue;
+    const bones=networkPylonPalettes[slot]||(networkPylonPalettes[slot]=new Float32Array(9*16));updatePylonRig(pylon,bones);
+    const model=multiply(transform(pylon.x,pylon.y,pylon.z),rotateY(pylon.heading));
+    objectDraws.push({mesh:d>200?pylonLODMesh:pylonMesh,model,material:5,assetKind:3,bones,rigBlend:pylon.rigBlend,castShadow:d<220},{mesh:socketMesh,model,material:2,castShadow:false});
+    for(const f of pylon.feet)objectDraws.push({mesh:ankleSteel,model:transform(f.position[0],f.position[1]-.12,f.position[2]),material:2,castShadow:d<80});
   }
   for(const tower of corridorTowers)if(Math.hypot(player.x-tower.x,player.z-tower.z)<650){
     const model=multiply(transform(tower.x,tower.y,tower.z,tower.scale,tower.scale,tower.scale),rotateY(tower.heading));

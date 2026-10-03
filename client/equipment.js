@@ -16,7 +16,7 @@ function advanceToolMotion(m,target,dt,inventory=false){
   }
 }
 function resetEquipmentMotion(){Object.assign(equipmentMotion,createToolMotion('camera'));torchPreferred=true;}
-function canEquip(tool){return tool==='none'||tool==='camera'||(tool==='flashlight'&&game.hasFlashlight)||(tool==='soda'&&(game.sodas>0||game.drinking>0))||(tool==='flare'&&game.hasFlare);}
+function canEquip(tool){return tool==='none'||(tool==='camera'&&game.hasCamera!==false)||(tool==='flashlight'&&game.hasFlashlight)||(tool==='soda'&&(game.sodas>0||game.drinking>0))||(tool==='flare'&&game.hasFlare);}
 function setTorch(on){if(net.active)net.action('torch',{on});else game.torchOn=on;}
 function equipTool(tool){
   if(!canEquip(tool))return false;
@@ -47,17 +47,17 @@ function heldEquipmentMatrix(tool=equipmentMotion.shown){
 function appendHeldEquipment(){
   const tool=equipmentMotion.shown;
   if(game.mode!=='playing'||game.zoom>=2.5||tool==='none')return;
-  if(tool==='flashlight'&&!game.hasFlashlight)return;
-  if(tool==='soda'&&game.sodas<=0&&game.drinking<=0)return;
+  if(!canEquip(tool))return;
   const model=heldEquipmentMatrix(tool);
   appendPovArm(model,tool);
   objectDraws.push({mesh:tool==='flashlight'?flashlightMesh:tool==='soda'?sodaMesh:tool==='flare'?flareGunMesh:cameraItemMesh,
     model,material:5,assetKind:tool==='flashlight'?1:tool==='soda'?2:tool==='flare'?7:6,
-    texture:tool==='camera'?cameraItemTexture:undefined,castShadow:false,receiveTorch:false});
+    texture:tool==='camera'?cameraItemTexture:tool==='flare'?flareGunTexture:undefined,castShadow:false,receiveTorch:false});
 }
 function torchStrength(){return game.hasFlashlight&&game.torchOn&&equippedTool==='flashlight'&&equipmentMotion.shown==='flashlight'?1-ease(equipmentMotion.lower):0;}
 function refreshFieldKit(){
-  if(!canEquip(equippedTool))equippedTool='camera';
+  if(!canEquip(equippedTool))equippedTool=canEquip('camera')?'camera':'none';
+  document.getElementById('kitDrop').disabled=equippedTool==='none'||game.drinking>0||!!pendingDrop;
   document.getElementById('kitSodas').textContent=game.sodas;document.getElementById('kitFlares').textContent=game.flares||0;
   for(const card of kitCards){
     const tool=card.dataset.tool,available=canEquip(tool),selected=tool===equippedTool;
@@ -100,6 +100,7 @@ function useEquipment(){
 function updateFieldKit(dt){
   fieldKit.hidden=game.mode!=='inventory';
   advanceToolMotion(equipmentMotion,equippedTool,dt,game.mode==='inventory');
+  if(pendingDrop&&performance.now()-pendingDrop.at>3500)pendingDrop=null;
   updatePickupPrompt();
   const stamina=Math.max(0,Math.min(100,game.stamina??100));
   document.getElementById('staminaFill').style.transform='scaleX('+stamina/100+')';
@@ -117,6 +118,7 @@ function updateFieldKit(dt){
 }
 for(const card of kitCards){card.addEventListener('click',()=>equipTool(card.dataset.tool));card.addEventListener('dragstart',e=>e.dataTransfer.setData('text/plain',card.dataset.tool));}
 const handSlot=document.getElementById('handSlot');handSlot.addEventListener('click',()=>equipTool('none'));handSlot.addEventListener('dragover',e=>e.preventDefault());handSlot.addEventListener('drop',e=>{e.preventDefault();equipTool(e.dataTransfer.getData('text/plain'));});
+document.getElementById('kitDrop').addEventListener('click',dropEquipment);
 document.getElementById('kitClose').addEventListener('click',closeFieldKit);
 document.getElementById('desktopKit').addEventListener('click',openFieldKit);
 document.getElementById('touchKit').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();openFieldKit();});
@@ -128,6 +130,7 @@ document.addEventListener('keydown',e=>{
     e.preventDefault();if(game.mode==='inventory')closeFieldKit();else openFieldKit();
   }else if(e.code==='Escape'&&game.mode==='inventory'){e.preventDefault();closeFieldKit();}
   else if(e.code==='KeyR'&&!e.repeat)useEquipment();
+  else if(e.code==='KeyG'&&!e.repeat)dropEquipment();
 });
 const kitMenuButton=document.createElement('button');kitMenuButton.textContent='INVENTORY';kitMenuButton.addEventListener('click',openFieldKit);ui.pausePanel.insertBefore(kitMenuButton,document.getElementById('pauseSettings'));
 const worldMenuButton=document.createElement('button');worldMenuButton.textContent='WORLD CONTROLS';worldMenuButton.addEventListener('click',openFieldPanel);ui.pausePanel.insertBefore(worldMenuButton,document.getElementById('returnMenu'));

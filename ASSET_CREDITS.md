@@ -17,3 +17,9 @@ Camera 01 by Rajil Jose Macatangay, CC0, downloaded from its original Poly Haven
 The mobile conversion omits the loose tabletop strap, packs the diffuse maps into one 1024px atlas, combines four materials into one draw call, and represents the lens with opaque dark glass. Geometry is embedded in `client/camera-assets.js`; regenerate with `scripts/prepare_camera.py` and the official 1K glTF download (including its binary buffer and diffuse textures). Equipped cameras are distance culled at 60m.
 
 Version 11.3 first-person sleeve/glove: extracted from the existing user-provided Class A NBC hazmat model; original suit texture and skin weights retained. No additional third-party asset.
+
+## Flare gun (11.6)
+
+The flare-gun model was supplied by the project owner and converted for the mobile build. Its original author and redistribution license were not provided; no third-party license or authorship is inferred. The separate Oxygen3D Sketchfab listing was not downloaded or bundled.
+
+Version 11.7 fits the existing glove vertices to each item grip and renders flare light with an original radial shader. The updated button icons are original SVG artwork, not Higgsfield-generated assets.

@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { createEnemySimulation } from "./enemies.js";
 import { scaleItems } from "./items.js";
 import { tickPlayer } from "./players.js";
+import { pylonCountForPlayers, EXTRA_PYLON_SPAWNS } from '../shared/silent-search.js';
 export function makeWorld(rules) {
   const w = {
     id: randomUUID(),
@@ -14,8 +15,9 @@ export function makeWorld(rules) {
     turbineStopped: false,
     powerStopped: false,
     elapsed: 0,
-    items: [], flares: [], flareSerial:0,
+    items: [], flares: [], flareSerial:0, itemSerial:0,
     itemRevision: 0,
+    extraPylons: [],
     objectives: { powerCorridor: false },
     rules,
   };
@@ -24,7 +26,12 @@ export function makeWorld(rules) {
 }
 export function startWorld(w, count) {
   scaleItems(w, count, w.rules.starterItems);
+  growPylons(w,count);
   w.started = true;
+}
+export function growPylons(w,count){
+  const wanted=Math.min(EXTRA_PYLON_SPAWNS.length,pylonCountForPlayers(count,w.rules.pylons)-1);
+  while(w.extraPylons.length<wanted)w.extraPylons.push(createEnemySimulation(w,{powerOnly:true,powerSpawn:EXTRA_PYLON_SPAWNS[w.extraPylons.length]}));
 }
 export function tickWorld(w, players, dt, now) {
   if (!w.started) return;
@@ -56,6 +63,7 @@ export function serializeWorld(w) {
       turbine: w.sim.turbine,
       enemy: w.sim.enemy,
       powerCreature: w.sim.powerCreature,
+      extraPylons: w.extraPylons.map(s=>s.powerCreature),
     },
   };
 }

@@ -3,10 +3,11 @@
 const pickupPrompt=document.getElementById('touchPickup');
 let pickupPromptTarget=null;
 function pickupCandidates(){
-  const items=net.active?net.items.filter(i=>!i.holder&&!(i.kind==='flashlight'&&game.hasFlashlight)&&!(i.kind==='flare'&&game.hasFlare)).map(i=>({...i,p:[i.x,i.y+(i.kind==='soda'?.1:0),i.z]})):[];
+  const items=net.active?net.items.filter(i=>!i.holder&&!i.consumed&&!(i.kind==='camera'&&game.hasCamera!==false)&&!(i.kind==='flashlight'&&game.hasFlashlight)&&!(i.kind==='flare'&&game.hasFlare)).map(i=>({...i,p:[i.x,i.y+(i.kind==='soda'?.1:0),i.z]})):[];
   if(!net.active){
-    if(!game.hasFlashlight)items.push({id:'local-flashlight',kind:'flashlight',p:flashlightPosition()});
+    if(!game.flashlightTaken&&!game.hasFlashlight)items.push({id:'local-flashlight',kind:'flashlight',p:flashlightPosition()});
     if(!game.flareTaken)items.push({id:'local-flare',kind:'flare',p:flarePosition()});
+    for(const i of localDroppedItems)if(!i.holder&&!i.consumed&&!((i.kind==='camera'&&game.hasCamera!==false)||(i.kind==='flashlight'&&game.hasFlashlight)||(i.kind==='flare'&&game.hasFlare)))items.push({...i,p:[i.x,i.y,i.z]});
     if(!game.sodaTaken)items.push({id:'local-soda',kind:'soda',p:sodaPosition().map((v,i)=>v+(i===1?.1:0))});
   }
   const eye=[player.x,player.y,player.z];
@@ -32,7 +33,7 @@ function updatePickupPrompt(){
   pickupPrompt.hidden=false;pickupPrompt.style.left=screen[0].toFixed(1)+'px';pickupPrompt.style.top=(screen[1]-26).toFixed(1)+'px';
   if(pickupPromptTarget!==item.id){
     pickupPromptTarget=item.id;
-    document.getElementById('pickupName').textContent=item.kind==='flashlight'?'FLASHLIGHT':item.kind==='flare'?'FLARE GUN':'SODA';
+    document.getElementById('pickupName').textContent=item.kind==='flashlight'?'FLASHLIGHT':item.kind==='flare'?'FLARE GUN':item.kind==='camera'?'CAMERA':'SODA';
     pickupPrompt.setAttribute('aria-label','Pick up '+item.kind);pickupPrompt.dataset.itemId=item.id;
   }
 }

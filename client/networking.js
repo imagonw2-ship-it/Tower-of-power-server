@@ -190,6 +190,7 @@ class TowerNetwork {
     this.manual = false;
     this.setStatus(retry ? "RECONNECTING..." : "CONNECTING...");
     const ws = new WebSocket(this.url.replace(/^http/, "ws") + "/ws");
+    ws.binaryType='arraybuffer';
     this.socket = ws;
     const timeout = setTimeout(() => ws.close(), 8000);
     ws.onopen = () =>
@@ -198,6 +199,7 @@ class TowerNetwork {
       );
     ws.onmessage = (e) => {
       if (this.socket !== ws) return;
+      if(e.data instanceof ArrayBuffer){this.hooks.voice?.(e.data);return;}
       this.lastReceive = performance.now();
       let m;
       try {

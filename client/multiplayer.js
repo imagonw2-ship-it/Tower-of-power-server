@@ -1,5 +1,6 @@
 // Adapter into the current game. Offline mechanics remain in game.base.html.
 const netUI = {};
+let networkPylons=[];
 for (const id of [
   "multiplayerPanel",
   "serverAddress",
@@ -63,16 +64,18 @@ const net = new TowerNetwork({
   },
   action: (m, request) => {
     if (!m.ok) {
+      if(m.action==='drop')pendingDrop=null;
       game.notice = "ACTION UNAVAILABLE";
       game.noticeTime = 1.4;
       return;
     }
+    if(m.action==='drop'){pendingDrop=null;equippedTool='none';game.torchOn=false;game.notice='ITEM DROPPED';game.noticeTime=1.5;advanceToolMotion(equipmentMotion,'none',0);}
     if (m.action === "photo") takePhoto(true);
     if(m.action === "flare"){flareShotSound();game.flareCooldown=1.2;}
     if (m.action === "pickup") {
       const i = net.items.find((i) => i.id === request?.itemId);
       game.notice =
-        i?.kind === "flashlight" ? "FLASHLIGHT ACQUIRED" : i?.kind === "flare" ? "FLARE GUN ACQUIRED" : "SODA ACQUIRED";
+        i?.kind === "flashlight" ? "FLASHLIGHT ACQUIRED" : i?.kind === "flare" ? "FLARE GUN ACQUIRED" : i?.kind === "camera" ? "CAMERA ACQUIRED" : "SODA ACQUIRED";
       game.noticeTime = 3;
       sound.noise(0.08, 0.3, 1400);
     }
@@ -410,6 +413,7 @@ function updateNetworkFrame(dt) {
     player.x = lerp(player.x, x, blend);
     player.z = lerp(player.z, z, blend);
   }
+  game.hasCamera=p.inventory.camera!==false;
   game.hasFlashlight = p.inventory.flashlight;
   game.sodas = p.inventory.sodas;
   game.hasFlare=!!p.inventory.flare;game.flares=p.inventory.flares||0;game.flareTaken=true;
@@ -435,6 +439,7 @@ function updateNetworkFrame(dt) {
   Object.assign(turbine, { x: e.x, y: e.y, z: e.z });
   Object.assign(enemy, e);
   Object.assign(powerCreature, pw);
+  networkPylons=(q.b.enemies.powers||[]).slice(1).map((p,i)=>poseBetween(q.a.enemies.powers?.[i+1]||p,p,q.t));
   updatePylonRig();
   if (enemy.state === "running" || powerCreature.state === "running") {
     const d = Math.min(
@@ -449,17 +454,7 @@ function updateNetworkFrame(dt) {
 }
 function appendNetworkObjects() {
   if (!net.active || isMenuScene()) return;
-  for (const i of net.items)
-    if (!i.holder)
-      objectDraws.push({
-        mesh: i.kind === "flashlight" ? flashlightMesh : i.kind === "flare" ? flareGunMesh : sodaMesh,
-        model:
-          i.kind === "flashlight"
-            ? restingFlashlightMatrix([i.x,i.y,i.z])
-            : i.kind === "flare" ? multiply(transform(i.x,i.y,i.z),rotateZ(Math.PI/2)) : transform(i.x, i.y, i.z),
-        material: 5,
-        assetKind: i.kind === "flashlight" ? 1 : i.kind === "flare" ? 7 : 2,
-      });
+  for(const i of net.items)if(!i.holder&&!i.consumed)appendWorldItem(i,net.snapshots.at(-1)?.world.elapsed||0);
   const q = snapshotPair();
   if (!q) return;
   const present=new Set(q.b.players.map(p=>p.id));for(const id of avatarCache.keys())if(!present.has(id))avatarCache.delete(id);

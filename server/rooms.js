@@ -2,7 +2,7 @@ import { randomInt } from "node:crypto";
 import { config } from "./config.js";
 import { HttpError } from "./auth.js";
 import { makePlayer, wirePlayer } from "./players.js";
-import { makeWorld, startWorld, tickWorld } from "./worlds.js";
+import { makeWorld, startWorld, tickWorld, growPylons } from "./worlds.js";
 import { scaleItems, releaseItems } from "./items.js";
 const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 export class Rooms {
@@ -27,6 +27,7 @@ export class Rooms {
       code,
       ownerId: account.id,
       players: new Map(),
+      voiceSerial: 0,
       phase: "lobby",
       world: makeWorld(this.config),
       lastOccupied: Date.now(),
@@ -56,10 +57,14 @@ export class Rooms {
       if (r.players.size >= this.config.maxPlayers)
         throw new HttpError(409, "World is full.");
       p = makePlayer(account, r.players.size);
+      const used=new Set([...r.players.values()].map(p=>p.voiceSlot));
+      do{r.voiceSerial=r.voiceSerial%65535+1;}while(used.has(r.voiceSerial));
+      p.voiceSlot=r.voiceSerial;
       r.players.set(p.id, p);
       this.membership.set(p.id, code);
       if (r.phase === "lobby")
         scaleItems(r.world, r.players.size, this.config.starterItems);
+      else growPylons(r.world,r.players.size);
     }
     p.connected = true;
     p.disconnectedAt = 0;
@@ -73,6 +78,7 @@ export class Rooms {
       p = r?.players.get(id);
     if (p) {
       p.connected = false;
+      p.speakingUntil=0;
       p.disconnectedAt = Date.now();
       p.input.x = p.input.z = 0;
       p.vx = p.vz = 0;

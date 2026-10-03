@@ -11,5 +11,6 @@ export const config = {
     soda: { base: 0, perPlayer: 1, minimum: 1 },
   },
   protocol: 1,
+  pylons: { playersPerPylon: 2, maximum: 4 },
   worldSchema: 1,
 };

@@ -3,10 +3,11 @@ import { applyFlareLure } from '../shared/survival.js';
 import { SoundTargets, legColliders, resolveLegCollision, tickStomp, stompHits, pylonLegPoints } from "../shared/enemy-combat.js";
 import { PYLON_HEADING, PYLON_RIG, STATIC_PYLONS, groundedPylon } from "../shared/power-layout.js";
 import { terrainHeight, shed, clamp } from "../shared/physics.js";
-export function createEnemySimulation(world) {
+import { silentSearch, noteAudibleContact } from '../shared/silent-search.js';
+export function createEnemySimulation(world, {powerOnly=false,powerSpawn={x:-185,z:-270}}={}) {
   const lerp = (a, b, t) => a + (b - a) * t,
     ease = (t) => t * t * (3 - 2 * t);
-  const POWER_ZONE = { x: -185, z: -270 },
+  const POWER_ZONE = powerSpawn,
     powerCreature = {},
     enemy = {},
     turbine = { x: 95, z: -250, y: terrainHeight(95, -250) };
@@ -44,7 +45,7 @@ export function createEnemySimulation(world) {
       state: "dormant",
       clock: 0,
       wake: 0,
-      rigBlend: 0,
+      rigBlend: powerOnly?1:0,
       bodyDrop: 0,
       bodyBob: 0,
       vx: 0,
@@ -198,7 +199,7 @@ export function createEnemySimulation(world) {
     if (p.state === "waking") {
       const previous = p.wake;
       p.wake += dt;
-      p.rigBlend = ease(clamp(p.wake / 1.2, 0, 1));
+      p.rigBlend = powerOnly?1:ease(clamp(p.wake / 1.2, 0, 1));
       p.bodyDrop = -4.2 * ease(clamp(p.wake / 1.6, 0, 1));
       const order = [0, 3, 1, 2];
       for (let n = 0; n < 4; n++) {
@@ -225,7 +226,8 @@ export function createEnemySimulation(world) {
     )
       enterPowerState("searching");
     if (p.state === "searching" && p.clock > 23) enterPowerState("patrolling");
-    let goal = p.lastKnown.slice();
+    if(p.searchOnly)p.state='investigating';
+    let goal = p.searchOnly?p.searchHint.slice():p.lastKnown.slice();
     if (p.state === "searching") {
       const n = Math.floor(p.clock / 4.6),
         a = n * 2.4 + 0.7,
@@ -597,7 +599,8 @@ export function createEnemySimulation(world) {
     }
     if (enemy.state === "searching" && enemy.clock > 21)
       enterEnemyState("patrolling");
-    let goal = enemy.lastKnown.slice();
+    if(enemy.searchOnly)enemy.state='investigating';
+    let goal = enemy.searchOnly?enemy.searchHint.slice():enemy.lastKnown.slice();
     if (enemy.state === "searching") {
       const phase = Math.floor(enemy.clock / 4.2),
         a = phase * 2.399 + 1.2,
@@ -692,11 +695,13 @@ export function createEnemySimulation(world) {
     events,
     collide(p) {
       resolveLegCollision(p, collisionSegments, terrainHeight(p.x,p.z));
+      if(!powerOnly)for(const sim of world.extraPylons||[])sim.collide(p);
     },
     noise(p, radius) {
       const occluded = body => shedBlocksSight([body.x,terrainHeight(body.x,body.z)+1.6,body.z],[p.x,p.y,p.z]);
-      if(!world.turbineStopped)turbineTargets.hear(p,radius,turbine,enemy.state==='dormant'?1.8:1,occluded(turbine));
-      if(!world.powerStopped)powerTargets.hear(p,radius,powerCreature,powerCreature.state==='dormant'?1.5:1,occluded(powerCreature));
+      if(!powerOnly&&!world.turbineStopped&&turbineTargets.hear(p,radius,turbine,enemy.state==='dormant'?1.8:1,occluded(turbine)))noteAudibleContact(enemy);
+      if(!world.powerStopped&&powerTargets.hear(p,radius,powerCreature,powerCreature.state==='dormant'?1.5:1,occluded(powerCreature)))noteAudibleContact(powerCreature);
+      if(!powerOnly)for(const sim of world.extraPylons||[])sim.noise(p,radius);
     },
     step(dt, players) {
       const alive=players.filter(p=>p.alive);
@@ -711,9 +716,13 @@ export function createEnemySimulation(world) {
         const chosen=alive.find(p=>p.id===target.id);
         Object.assign(player,chosen||{x:9999,y:0,z:9999});
       };
-      applyTarget(turbineTargets,turbine,enemy,false);
-      updateEnemy(dt);
+      if(!powerOnly){
+        applyTarget(turbineTargets,turbine,enemy,false);
+        if(!world.turbineStopped&&silentSearch(enemy,turbine,alive,dt)&&enemy.state==='dormant')enemy.noise={position:enemy.searchHint.slice(),life:.3};
+        updateEnemy(dt);
+      }
       applyTarget(powerTargets,powerCreature,powerCreature,true);
+      if(!world.powerStopped&&silentSearch(powerCreature,powerCreature,alive,dt)&&powerCreature.state==='dormant')powerCreature.noise=powerCreature.searchHint.slice();
       updatePowerCreature(dt);
       const impact=kind=>(point,radius)=>{
         events.push({kind:kind==='turbine'?'enemyStep':'powerStep',x:point[0],z:point[2],stomp:true});
@@ -722,15 +731,17 @@ export function createEnemySimulation(world) {
           events.push({kind:'caught',id:p.id,x:p.x,z:p.z});
         }
       };
-      if(!world.turbineStopped&&!enemy.lureId)tickStomp(enemy,turbine,'turbine',dt,terrainHeight,shedBlocksSight,impact('turbine'));
-      if(!world.powerStopped&&!powerCreature.lureId)tickStomp(powerCreature,powerCreature,'power',dt,terrainHeight,shedBlocksSight,impact('power'));
-      collisionSegments=legColliders(turbine,enemy,powerCreature,POWER_RIG,terrainHeight).concat(staticLegs);
+      if(!powerOnly&&!world.turbineStopped&&!enemy.lureId&&!enemy.searchOnly)tickStomp(enemy,turbine,'turbine',dt,terrainHeight,shedBlocksSight,impact('turbine'));
+      if(!world.powerStopped&&!powerCreature.lureId&&!powerCreature.searchOnly)tickStomp(powerCreature,powerCreature,'power',dt,terrainHeight,shedBlocksSight,impact('power'));
+      collisionSegments=legColliders(turbine,powerOnly?{state:'dormant'}:enemy,powerCreature,POWER_RIG,terrainHeight).concat(powerOnly?[]:staticLegs);
       for(const p of alive)if(p.alive)resolveLegCollision(p,collisionSegments,terrainHeight(p.x,p.z));
+      if(!powerOnly)for(const sim of world.extraPylons||[]){sim.step(dt,players);events.push(...sim.events.splice(0));}
     },
     snapshot() {
       const select = (o, keys) =>
         Object.fromEntries(keys.map((k) => [k, o[k]]));
       return {
+        ...(!powerOnly?{powers:[this.snapshotPower(),...(world.extraPylons||[]).map(s=>s.snapshotPower())]}:{}),
         turbine: {
           ...select(turbine, ["x", "y", "z"]),
           ...select(enemy, [
@@ -743,7 +754,7 @@ export function createEnemySimulation(world) {
             "crouch",
             "lean",
             "bank",
-            "targetId", "attack", "anger", "lureId",
+            "targetId", "attack", "anger", "lureId", "searchOnly",
             "anchor",
             "vx",
             "vz",
@@ -765,7 +776,7 @@ export function createEnemySimulation(world) {
             "rigBlend",
             "bodyDrop",
             "bodyBob",
-            "targetId", "attack", "anger", "lureId",
+            "targetId", "attack", "anger", "lureId", "searchOnly",
             "vx",
             "vz",
           ]),
@@ -775,6 +786,10 @@ export function createEnemySimulation(world) {
           })),
         },
       };
+    },
+    snapshotPower(){
+      const p=powerCreature;
+      return Object.fromEntries(['x','y','z','heading','state','clock','wake','rigBlend','bodyDrop','bodyBob','targetId','attack','anger','lureId','searchOnly','vx','vz','feet'].map(k=>[k,k==='feet'?p.feet.map(f=>({position:f.position,progress:f.progress})):p[k]]));
     },
   };
 }
