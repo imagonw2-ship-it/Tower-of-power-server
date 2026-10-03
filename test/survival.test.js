@@ -20,7 +20,7 @@ test('flare follows an arc, stops at a wall or floor, then expires',()=>{
  for(let i=0;i<100;i++)advanceFlares([f],.05,()=>0);
  assert.equal(f.landed,true);assert.equal(f.y,.09);
  assert.equal(advanceFlares([f],8,()=>0).length,0);
- f=spawnFlare(p,'wall');advanceFlares([f],.2,()=>0,()=>true);assert.equal(f.z,0);assert.equal(f.landed,true);
+ f=spawnFlare(p,'wall',()=>true);advanceFlares([f],.2,()=>0,()=>true);assert.equal(f.z,0);assert.equal(f.landed,true);
 });
 test('lure commits to a signal; its expiry increases aggression without disclosing a hidden player',()=>{
  const state={state:'running',lastKnown:[0,0],targetId:'player'},body={x:0,z:0};

@@ -275,13 +275,25 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
     Object.assign(hostPlayer,{x:item.x,y:item.y+1,z:item.z+.9});aimAt(hostPlayer,item);
     assert.equal((await action(host,'pickup',{itemId:item.id})).ok,true);
     assert.equal((await action(host,'equip',{item:'flare'})).ok,true);
-    assert.equal((await action(host,'flare',{x:9999,z:9999})).ok,true);
+    const shot=await action(host,'flare',{x:9999,z:9999});assert.equal(shot.ok,true);
+    assert.ok(shot.flare?.id&&Math.abs(shot.flare.x-hostPlayer.x)<1,'reply identifies the server-owned projectile for visual reconciliation');
     assert.equal(hostPlayer.inventory.flares,2);
     assert.equal((await action(host,'flare')).ok,false);
     await until(()=>phone.snapshot?.world.flares?.length>0);
     assert.ok(Math.abs(phone.snapshot.world.flares[0].x-hostPlayer.x)<30);
     assert.equal(item.ammo,2);
     room.world.flares=[];
+  });
+  await t.test('dropped launcher rests on the road, synchronizes its tilt, and preserves remaining rounds',async()=>{
+    Object.assign(hostPlayer,{x:119,z:-42,y:floorHeight(119,-42)+1.7,yaw:0,pitch:-.5,drinking:0});hostPlayer.input.yaw=0;hostPlayer.input.pitch=-.5;
+    assert.equal((await action(host,'equip',{item:'flare'})).ok,true);
+    assert.equal((await action(host,'drop',{item:'flare',y:999})).ok,true);
+    const item=room.world.items.find(i=>i.kind==='flare'&&i.dropped&&!i.holder);
+    assert.ok(item&&item.normal.every(Number.isFinite));assert.ok(item.y<hostPlayer.y-1);
+    assert.equal(item.ammo,2);assert.equal(hostPlayer.inventory.flare,false);
+    assert.equal((await action(host,'drop',{item:'flare'})).ok,false);
+    await until(()=>phone.snapshot?.world.items?.some(i=>i.id===item.id&&i.dropped));
+    aimAt(hostPlayer,item);assert.equal((await action(host,'pickup',{itemId:item.id})).ok,true);assert.equal(hostPlayer.inventory.flares,2);
   });
   await t.test('equipped items are validated and replicated between devices', async()=>{
     assert.equal((await action(phone,'equip',{item:'flashlight'})).ok,false);
