@@ -1,4 +1,5 @@
 import { spawnFlare } from '../shared/survival.js';
+import { blocked } from '../shared/physics.js';
 import { WebSocketServer, WebSocket } from "ws";
 import { acceptInput } from "./players.js";
 import { takeItem, dropItem } from "./items.js";
@@ -151,7 +152,7 @@ export function attachNetworking(
         )
           return;
         p.actionSeq = m.id;
-        let ok = false;
+        let ok = false,flareResult=null;
         const w = room.world;
         if (m.action === "world" && p.id === room.ownerId) {
           const a = m.value;
@@ -169,7 +170,7 @@ export function attachNetworking(
           if(m.action==='flare'&&p.heldItem==='flare'&&p.inventory.flare&&p.inventory.flares>0&&!(p.flareCooldown>0)&&w.flares.length<16){
             p.inventory.flares--;p.flareCooldown=1.2;
             const launcher=w.items.find(i=>i.kind==='flare'&&i.holder===p.id);if(launcher)launcher.ammo=p.inventory.flares;
-            w.flares.push(spawnFlare(p,'flare-'+(++w.flareSerial)));
+            flareResult=spawnFlare(p,'flare-'+(++w.flareSerial),blocked);w.flares.push(flareResult);
             w.sim.events.push({kind:'flare',id:p.id,x:p.x,z:p.z});ok=true;
           }
           if (m.action === "pickup") ok = takeItem(w, p, m.itemId);
@@ -198,7 +199,7 @@ export function attachNetworking(
             ok = true;
           }
         }
-        send(ws, { type: "actionResult", id: m.id, action: m.action, ok });
+        send(ws, { type: "actionResult", id: m.id, action: m.action, ok,...(flareResult?{flare:flareResult}:{}) });
       } catch (e) {
         send(ws, {
           type: "error",

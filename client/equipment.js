@@ -37,11 +37,14 @@ function toggleFlashlight(){
 function heldEquipmentMatrix(tool=equipmentMotion.shown){
   const dip=ease(equipmentMotion.lower),sway=Math.sin(bob.phase)*bob.blend*.008;
   const drinking=tool==='soda'&&game.drinking>0?Math.sin((1-game.drinking/1.1)*Math.PI):0;
-  const x=tool==='flashlight'?.27:tool==='soda'?.22:.22;
-  const y=tool==='flashlight'?.11:tool==='soda'?.25:.20,z=tool==='flashlight'?.59:tool==='soda'?.46:.42;
+  const x=tool==='flashlight'?.27:tool==='soda'?.21:.22;
+  // The launcher origin is above its handle. Raise it so the grip and knuckles
+  // remain in view instead of putting the entire glove below the screen edge.
+  const y=tool==='flashlight'?.11:tool==='soda'?.22:tool==='flare'?.035:.20;
+  const z=tool==='flashlight'?.59:tool==='soda'?.53:tool==='flare'?.53:.42;
   const p=cameraPosition.map((v,i)=>v+right[i]*(x+sway+dip*.055)-up[i]*(y+dip*.46+(game.sprinting?.045:0)-drinking*.24)+forward[i]*(z-dip*.1));
   const basis=new Float32Array([right[0],right[1],right[2],0,up[0],up[1],up[2],0,-forward[0],-forward[1],-forward[2],0,...p,1]);
-  const tilt=multiply(rotateX(dip*.62+drinking*.8),rotateZ(-dip*.17));
+  const tilt=multiply(rotateX(dip*.62+drinking*.8),rotateZ(-dip*.17+(tool==='soda'?-.12:0)));
   return multiply(multiply(basis,tilt),tool==='flashlight'?transform(0,0,0,1.3,1.3,1.3):identity());
 }
 function appendHeldEquipment(){
@@ -61,13 +64,17 @@ function refreshFieldKit(){
   document.getElementById('kitSodas').textContent=game.sodas;document.getElementById('kitFlares').textContent=game.flares||0;
   for(const card of kitCards){
     const tool=card.dataset.tool,available=canEquip(tool),selected=tool===equippedTool;
-    card.disabled=!available;card.setAttribute('aria-pressed',String(selected));
-    card.querySelector('.kitTag').textContent=selected?'IN HAND':available?'EQUIP':tool==='soda'?'EMPTY':'NOT COLLECTED';
+    const owned=tool==='soda'?game.sodas>0:available;
+    card.hidden=!owned;card.disabled=!owned;card.setAttribute('aria-pressed',String(selected));
+    card.querySelector('.kitTag').textContent=selected?'IN HAND':'EQUIP';
     if(tool==='flashlight')card.querySelector('.kitDetail').textContent=available?(game.torchOn?'Light is on':'Light is off'):'Find it in the shed';
   }
+  const ownedCount=kitCards.filter(card=>!card.hidden).length;
+  document.querySelectorAll('.kitEmpty').forEach((slot,i)=>{slot.hidden=i>=9-ownedCount;});
   const names={none:'EMPTY HAND',camera:'CAMERA',flashlight:'FLASHLIGHT',soda:'SODA',flare:'FLARE GUN'},actions={none:'EMPTY HAND',camera:'PHOTO',flashlight:game.torchOn?'LIGHT OFF':'LIGHT ON',soda:'DRINK',flare:'FIRE FLARE'};
   document.getElementById('equippedName').textContent=names[equippedTool];
-  document.getElementById('handName').textContent=names[equippedTool];document.getElementById('handIcon').setAttribute('href',equippedTool==='none'?'#icon-pickup':'#icon-'+equippedTool);document.getElementById('handHint').textContent=equippedTool==='none'?'':'UNEQUIP';document.getElementById('handSlot').setAttribute('aria-label',equippedTool==='none'?'Empty hand':'Unequip '+names[equippedTool]);document.getElementById('touchUse').hidden=equippedTool==='none';
+  document.getElementById('handName').textContent=names[equippedTool];document.getElementById('handHint').textContent=equippedTool==='none'?'':'UNEQUIP';document.getElementById('handSlot').setAttribute('aria-label',equippedTool==='none'?'Empty hand':'Unequip '+names[equippedTool]);document.getElementById('touchUse').hidden=equippedTool==='none';
+  if(!fieldKit.hidden)refreshItemPreviews();
   document.getElementById('touchUseLabel').textContent=actions[equippedTool];
   document.getElementById('touchUseIcon').setAttribute('href','#icon-'+equippedTool);
   document.getElementById('touchUse').setAttribute('aria-label',actions[equippedTool]);

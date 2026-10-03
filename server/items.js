@@ -1,4 +1,4 @@
-import { shed, blocked, floorHeight } from "../shared/physics.js";
+import { shed, blocked, floorHeight, terrainHeight } from "../shared/physics.js";
 import { droppedItemPose } from '../shared/dropped-items.js';
 export const starterCount = (rule, count) =>
   Math.max(
@@ -62,7 +62,7 @@ export function dropItem(world,p,kind){
   if(!item&&kind==='camera'){if(world.items.length>=512)return false;world.itemSerial=(world.itemSerial||0)+1;item={id:'camera-'+world.itemSerial,kind,holder:p.id};world.items.push(item);}
   if(!item)return false;
   if(kind==='flare'){item.ammo=p.inventory.flares;p.inventory.flares=0;}if(kind==='soda')p.inventory.sodas--;else p.inventory[kind]=false;
-  Object.assign(item,droppedItemPose(p,kind,world.elapsed,floorHeight,blocked,shed),{holder:null});p.heldItem='none';p.torch=false;world.itemRevision++;return true;
+  Object.assign(item,droppedItemPose(p,kind,world.elapsed,floorHeight,blocked,shed,terrainHeight),{holder:null});p.heldItem='none';p.torch=false;world.itemRevision++;return true;
 }
 export function releaseItems(world, p) {
   for (const i of world.items)

@@ -1,3 +1,13 @@
+## Version 11.8: equipment and inventory fixes
+
+- Tighter soda and launcher finger contact; the launcher grip stays in the first-person view. Existing flashlight and camera poses are preserved.
+- Flares visibly leave the muzzle, with immediate local launch feedback reconciled to the server, a glowing flight trail, warm light and distant sparks. Transparent effects render after solid objects and grass, while retaining depth occlusion. Muzzle offsets cannot shoot through a nearby shed wall.
+- Dropped props settle using their actual convex mesh support and the rendered triangular ground surface, including slopes. The server replicates resting orientation and keeps ownership and flare ammunition authoritative.
+- Inventory cards use cached studio renders of the shipped 3D models. Unowned items are hidden; slots return after drinking or dropping an item. The Drop button fits the main-hand panel, and mobile action icons are simpler monochrome outlines.
+- Android versionCode 21 / versionName 11.8 uses the same package and signing identity. Accounts require no migration. The matching server update enables launch reconciliation and the corrected shared drop placement.
+
+Validation includes mobile WebGL screenshots, model/ground contact checks, responsive inventory bounds, real HTTP/WebSocket account and multiplayer tests, and native GLES shader/lighting checks. Physical Android performance and appearance still need device testing.
+
 ## Version 11.7: proximity voice and quiet searches
 
 - Nearby voice uses the existing authenticated WebSocket connection. Tap the microphone to opt in; it starts muted and requests Android microphone permission only when enabled. Volume fades to silence at 42 metres, pans with the listener, and is muffled through the shed. Audible speech can alert the blind enemies. Voice is relayed live, never saved by the game server. Mute, pause, app background, death, disconnect and leaving the world stop microphone capture. Reconnecting remains muted.
