@@ -164,6 +164,7 @@
   const POWER_ZONE={x:-185,z:-270,name:'POWER CORRIDOR'};
   const powerCreature={};
   let pylonMesh,pylonLODMesh,pylonTexture,importNormalTexture,corridorMesh;
+  let importedTextureRevision=0;
   const pylonBones=new Float32Array(9*16);
   function unpackModel(record){
     const raw=Uint8Array.from(atob(record.vertices),c=>c.charCodeAt(0)),data=new DataView(raw.buffer),vertices=new Float32Array(record.vertexCount*15);
@@ -180,7 +181,9 @@
     gl.enableVertexAttribArray(3);gl.vertexAttribPointer(3,2,gl.FLOAT,false,60,36);
     gl.enableVertexAttribArray(4);gl.vertexAttribPointer(4,4,gl.FLOAT,false,60,44);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,indices,gl.STATIC_DRAW);gl.bindVertexArray(null);
-    return{vao,count:indices.length,source:record.source,vertexCount:record.vertexCount};
+    const min=[Infinity,Infinity,Infinity],max=[-Infinity,-Infinity,-Infinity];
+    for(let i=0;i<record.vertexCount;i++)for(let k=0;k<3;k++){min[k]=Math.min(min[k],vertices[i*15+k]);max[k]=Math.max(max[k],vertices[i*15+k]);}
+    return{vao,count:indices.length,source:record.source,vertexCount:record.vertexCount,bounds:{min,max}};
   }
   function importedTexture(src,unit,normal=false){
     const texture=gl.createTexture();gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,texture);
@@ -188,6 +191,7 @@
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);gl.generateMipmap(gl.TEXTURE_2D);
     const img=new Image();img.onload=()=>{
+      importedTextureRevision++;
       gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,texture);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
       gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);gl.generateMipmap(gl.TEXTURE_2D);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
       const an=gl.getExtension('EXT_texture_filter_anisotropic');if(an&&an.TEXTURE_MAX_ANISOTROPY_EXT)gl.texParameterf(gl.TEXTURE_2D,an.TEXTURE_MAX_ANISOTROPY_EXT,Math.min(8,gl.getParameter(an.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
@@ -1340,7 +1344,7 @@
           float radius=length(v_uv*2.-1.);
           if(radius>=1.)discard;
           float halo=pow(1.-radius,2.),core=exp(-radius*radius*38.);
-          color=vec4(vec3(1.,.18,.025)*halo+vec3(1.,.88,.57)*core,clamp(halo+core,0.,1.));return;
+          color=vec4(vec3(3.5,.35,.035)*halo+vec3(12.,8.,3.)*core,clamp(halo+core,0.,1.));return;
         }
         if(u_material>4.5){
           vec3 albedo=v_color,n=geometric;
@@ -1975,7 +1979,7 @@
     gl.uniform3f(u.u_shed??null,shed.x,shed.y,shed.z);gl.uniform1f(u.u_shedEnabled??null,isMenuScene()?0:1);
     return u;
   }
-  function drawObjects(program,shadow=false,matrix=lightVP){
+  function drawObjects(program,shadow=false,matrix=lightVP,transparent=false){
     const u=shadow?program.uniforms:bindWorld(program);
     if(shadow){gl.useProgram(program.p);gl.uniformMatrix4fv(u.u_vp,false,matrix);}
     gl.uniformMatrix4fv(u['u_bones[0]']??null,false,pylonBones);
@@ -1983,6 +1987,7 @@
     if(!shadow){gl.activeTexture(gl.TEXTURE0+7);gl.bindTexture(gl.TEXTURE_2D,signTexture);gl.uniform1i(u.u_signTexture??null,7);}
     for(const object of objectDraws){
       if(shadow&&object.castShadow===false)continue;
+      if(!shadow&&!!object.flareSprite!==transparent)continue;
       gl.bindVertexArray(object.mesh.vao);gl.uniformMatrix4fv(u.u_model,false,object.model);gl.uniform1f(u.u_rigBlend??null,object.rigBlend??(object.bones?1:object.rig?powerCreature.rigBlend:0));
       if(object.bones||object.rig)gl.uniformMatrix4fv(u['u_bones[0]']??null,false,object.bones||pylonBones);
       if(!shadow){gl.activeTexture(gl.TEXTURE0+5);gl.bindTexture(gl.TEXTURE_2D,object.texture||pylonTexture);}
@@ -2029,6 +2034,8 @@
     drawObjects(turbineProgram);
     u=bindWorld(grassProgram);gl.bindVertexArray(bladeMesh.vao);
     for(const lod of grassRings){gl.uniform4f(u.u_grid,lod[0],lod[1],lod[2],lod[3]);gl.uniform1f(u.u_seed,lod[4]);gl.drawElementsInstanced(gl.TRIANGLES,bladeMesh.count,gl.UNSIGNED_INT,0,lod[1]*lod[1]);}
+    // Transparent glow must see the final opaque depth buffer (including grass).
+    drawObjects(turbineProgram,false,lightVP,true);
     if(game.photoPending){
       drawPost(0);const photoContext=ui.photo.getContext('2d');if(photoContext)photoContext.drawImage(canvas,0,0,ui.photo.width,ui.photo.height);
       ui.photoPreview.classList.add('visible');game.photoPending=false;

@@ -33,7 +33,7 @@ function appendRemoteTorch(grip,strength,distance){
 }
 // All props share the same palm frame. Each origin is adjusted to its actual grip,
 // rather than putting the asset's center at the wrist.
-const itemGripAnchors={camera:[.059,-.003,.008],flashlight:[-.0005,-.17,.001],soda:[0,.095,0],flare:[0,-.111,.041]};
+const itemGripAnchors={camera:[.059,-.003,.008],flashlight:[-.0005,-.17,.001],soda:[0,.079,0],flare:[0,-.105,.039]};
 const itemPalm=[-.078,-.030,.002];
 // Fit the already curled glove to the actual handle cross-section. The larger
 // first-person torch needs its own clearance; the wrist and sleeve stay fixed.
@@ -48,6 +48,15 @@ function fitGripSurface(hand,kind,scale=1){
   let dx=p[0]-cx,dz=p[2]-cz,r=Math.hypot(dx/rx,dz/rz);
   if(r<.001){dx=rx;dz=0;r=1;}
   const target=kind==='camera'?Math.max(Math.abs(dx/rx),Math.abs(dz/rz)):r;
+  if((kind==='soda'||kind==='flare')&&hand[0]<-.045){
+    // Close the distal pads around the can/handle. The old 12 mm correction
+    // left the thumb sticking out and the fingers short of the narrow grip.
+    const curl=clamp((-.045-hand[0])/.035,0,1);
+    const shell=1.10+Math.max(0,target-1.1)*.18;
+    const snug=Math.max(1.07,lerp(target,shell,curl));
+    p[0]=cx+dx/target*snug;p[2]=cz+dz/target*snug;
+    return[(p[2]-a[2])*scale+itemPalm[0],(p[0]-a[0])*scale+itemPalm[1],(p[1]-a[1])*scale+itemPalm[2]];
+  }
   if(target<1.035){p[0]=cx+dx/target*1.035;p[2]=cz+dz/target*1.035;}
   // Close distant fingertips around thin camera / launcher handles. Cap this
   // correction to keep the original finger shapes and thumb opposition.

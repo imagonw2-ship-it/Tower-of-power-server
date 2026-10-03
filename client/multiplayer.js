@@ -63,6 +63,7 @@ const net = new TowerNetwork({
     refreshNetworkUI();
   },
   action: (m, request) => {
+    if(m.action==='flare')confirmFlareShot(m);
     if (!m.ok) {
       if(m.action==='drop')pendingDrop=null;
       game.notice = "ACTION UNAVAILABLE";
@@ -71,7 +72,6 @@ const net = new TowerNetwork({
     }
     if(m.action==='drop'){pendingDrop=null;equippedTool='none';game.torchOn=false;game.notice='ITEM DROPPED';game.noticeTime=1.5;advanceToolMotion(equipmentMotion,'none',0);}
     if (m.action === "photo") takePhoto(true);
-    if(m.action === "flare"){flareShotSound();game.flareCooldown=1.2;}
     if (m.action === "pickup") {
       const i = net.items.find((i) => i.id === request?.itemId);
       game.notice =
