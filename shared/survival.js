@@ -8,9 +8,15 @@ export function spendStamina(p,wantsSprint,dt){
   else if(p.staminaDelay===0)p.stamina=Math.min(100,p.stamina+18*dt);
   return sprint;
 }
-export function spawnFlare(p,id){
-  const cp=Math.cos(p.pitch),sp=Math.sin(p.pitch);
-  return{id,owner:p.id||'local',x:p.x,y:p.y,z:p.z,vx:-Math.sin(p.yaw)*cp*22,vy:sp*22+5,vz:-Math.cos(p.yaw)*cp*22,age:0,life:12,landed:false};
+export function spawnFlare(p,id,blocked){
+  const cp=Math.cos(p.pitch),sp=Math.sin(p.pitch),sy=Math.sin(p.yaw),cy=Math.cos(p.yaw);
+  const forward=[-sy*cp,sp,-cy*cp],right=[cy,0,-sy],up=[sy*sp,cp,cy*sp];
+  // Server-owned muzzle offset, matching the equipped launcher model. Never
+  // accept projectile positions/velocities or ammunition from a client.
+  const eye=[p.x,p.y,p.z],muzzle=eye.map((v,i)=>v+right[i]*.22-up[i]*.011+forward[i]*.804);
+  if(blocked?.(eye,muzzle))for(let i=0;i<3;i++)muzzle[i]=eye[i];
+  const aim=forward.map((v,i)=>v*40+([p.x,p.y,p.z][i]-muzzle[i])),length=Math.hypot(...aim);
+  return{id,owner:p.id||'local',x:muzzle[0],y:muzzle[1],z:muzzle[2],vx:aim[0]/length*26,vy:aim[1]/length*26+4.5,vz:aim[2]/length*26,age:0,life:12,landed:false};
 }
 export function advanceFlares(flares,dt,heightAt,blocked){
   for(const f of flares){
