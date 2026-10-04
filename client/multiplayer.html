@@ -30,14 +30,14 @@
     </div>
     <div id="worldMenu" hidden>
       <div class="netGrid">
-        <div class="netCard"><span class="netStep">01 / START A WORLD</span><h3>BRING YOUR FRIENDS</h3><p>Create a room, share its code, then start when everyone is ready.</p><button id="worldHost" class="netPrimary" data-net-action>CREATE WORLD / HOST <span aria-hidden="true">↗</span></button></div>
+        <div class="netCard"><span class="netStep">01 / START A WORLD</span><h3>BRING YOUR FRIENDS</h3><p>Create a room, share its code, then start when everyone is ready.</p><label for="worldSeed">WORLD SEED / OPTIONAL</label><input id="worldSeed" maxlength="40" placeholder="Random world" autocomplete="off" spellcheck="false"><button id="worldHost" class="netPrimary" data-net-action>CREATE WORLD / HOST <span aria-hidden="true">↗</span></button></div>
         <form id="joinForm" class="netCard"><span class="netStep">02 / FIND YOUR GROUP</span><label for="joinCode">ROOM CODE</label><input id="joinCode" maxlength="5" placeholder="K7P4Q" autocapitalize="characters" autocomplete="off" spellcheck="false"><button id="worldJoin" type="submit" data-net-action>JOIN WORLD <span aria-hidden="true">→</span></button></form>
       </div>
       <button id="accountLogout" class="netQuiet" data-net-action>LOGOUT</button>
     </div>
     <div id="worldLobby" hidden>
       <div class="netGrid">
-        <div class="netCard"><span class="netStep">YOUR ROOM CODE</span><div id="roomCodeLabel"></div><p>Share this code with your friends.</p><button id="roundStart">START ROUND <span aria-hidden="true">→</span></button><button id="roundResume" hidden>RETURN TO WORLD</button></div>
+        <div class="netCard"><span class="netStep">YOUR ROOM CODE</span><div id="roomCodeLabel"></div><p>Share this code with your friends.</p><p id="lobbySeed"></p><button id="roundStart">START ROUND <span aria-hidden="true">→</span></button><button id="roundResume" hidden>RETURN TO WORLD</button></div>
         <div class="netCard"><span class="netStep">PLAYERS / EQUIPMENT</span><p id="lobbyPlayers"></p><p id="lobbyEquipment"></p></div>
       </div>
       <button id="worldLeave" class="netQuiet">LEAVE WORLD</button>

@@ -5,7 +5,7 @@ import { makeLayout } from '../shared/world-layout.js';
 import { createEnemySimulation } from "./enemies.js";
 import { scaleItems } from "./items.js";
 import { tickPlayer } from "./players.js";
-import { pylonCountForPlayers, EXTRA_PYLON_SPAWNS } from '../shared/silent-search.js';
+import { pylonCountForPlayers } from '../shared/silent-search.js';
 export function makeWorld(rules,seed=randomInt(0,0x7fffffff)) {
   const w = {
     id: randomUUID(),
@@ -23,7 +23,7 @@ export function makeWorld(rules,seed=randomInt(0,0x7fffffff)) {
     objectives: { powerCorridor: false },
     rules,
   };
-  w.sim = createEnemySimulation(w);
+  w.sim = createEnemySimulation(w,{turbineSpawn:w.layout.turbines[0],powerSpawn:w.layout.pylons[0]});
   w.extraTurbines=w.layout.turbines.slice(1).map(t=>createEnemySimulation(w,{turbineOnly:true,turbineSpawn:t}));
   return w;
 }
@@ -33,8 +33,8 @@ export function startWorld(w, count) {
   w.started = true;
 }
 export function growPylons(w,count){
-  const wanted=Math.min(EXTRA_PYLON_SPAWNS.length,pylonCountForPlayers(count,w.rules.pylons)-1);
-  while(w.extraPylons.length<wanted)w.extraPylons.push(createEnemySimulation(w,{powerOnly:true,powerSpawn:EXTRA_PYLON_SPAWNS[w.extraPylons.length]}));
+  const wanted=Math.min(w.layout.pylons.length-1,pylonCountForPlayers(count,w.rules.pylons)-1);
+  while(w.extraPylons.length<wanted)w.extraPylons.push(createEnemySimulation(w,{powerOnly:true,powerSpawn:w.layout.pylons[w.extraPylons.length+1]}));
 }
 export function tickWorld(w, players, dt, now) {
   if (!w.started) return;
@@ -45,7 +45,7 @@ export function tickWorld(w, players, dt, now) {
   w.sim.step(dt, players);
   if (
     players.some(
-      (p) => p.alive && p.connected && Math.hypot(p.x + 185, p.z + 270) < 95,
+      (p) => p.alive && p.connected && Math.hypot(p.x-w.layout.power.x,p.z-w.layout.power.z) < 95,
     )
   )
     w.objectives.powerCorridor = true;

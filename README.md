@@ -1,3 +1,14 @@
+## Version 12.5: uncharted roads
+
+- Replaces the three preset maps with a deterministic road graph. Each seed changes junction positions, branches, loops, access roads, 1–4 turbines, and a connected network of 6–11 pylons. The safe shed approach stays consistent; the explorable map is finite.
+- Every turbine and pylon has an access road connected to the spawn network. Utility lines can fork, and every cable endpoint uses its tower’s rotated insulator socket. Additional multiplayer pylon enemies activate existing connected towers without leaving duplicate static meshes or collisions behind.
+- Optional seed fields support numbers or phrases for singleplayer and hosted rooms. Blank creates a fresh seed. The lobby and host world panel display the numeric seed for replaying the same geography; multiplayer clients use the server’s seed and generator version.
+- The forest varies in location and size and stays beyond the initial forest draw distance. Its own ▲ compass marker and distance remain visible alongside the ◆ power corridor marker. A connected road leads to the forest entrance, with tree trunks kept clear of the roads.
+- Road rendering evaluates eight nearby segments from a compact GPU lookup, keeping shader work bounded as the road network grows. Existing batched forest culling, effects, item models, mobile controls, voice, authoritative gameplay and account storage remain in place.
+- Android versionCode 23 / versionName 12.5 retains the existing package and signing identity. No account migration is required. Multiplayer requires layout capability 2, with an update message for older APKs before joining.
+
+Validation: all 81 automated checks passed, including 2,000 distinct connected seeds, road access for every landmark, pylon spacing and cable sockets, exact GPU road lookup, cross-device seed synchronization, accounts, reconnects, independent rooms, item/enemy authority, proximity voice, singleplayer and native GLES shader compilation. Real WebGL screenshots cover multiple road junctions, the connected utility corridor and both compass destinations. Physical Android performance and appearance still require device testing.
+
 ## Version 12.0: beyond the field
 
 - Sealed turbine belly and leg end caps fix the torn underside seen when looking up. The concrete foundation stays at its original ground position when the tower rises.

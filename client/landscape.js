@@ -1,6 +1,20 @@
-let activeLayout=makeLayout(0),forestChunks=[],forestBuiltSeed=null;
+let activeLayout=makeLayout(0),forestChunks=[],forestBuiltSeed=null,layoutLookup=null,layoutLookupTexture=null,layoutDataTexture=null;
 function selectLayout(seed){
-  activeLayout=makeLayout(seed);world.seed=activeLayout.seed;
+  const changed=!layoutLookup||activeLayout.seed!==(seed>>>0);
+  activeLayout=makeLayout(seed);world.seed=activeLayout.seed;Object.assign(POWER_ZONE,activeLayout.power);
+  if(changed){
+    layoutLookup=makeLayoutLookup(activeLayout);
+    layoutLookupTexture=layoutLookupTexture||gl.createTexture();layoutDataTexture=layoutDataTexture||gl.createTexture();
+    for(const [texture,unit,format,width,height,type,data] of [
+      [layoutLookupTexture,9,gl.RGBA8,layoutLookup.size,layoutLookup.size*3,gl.UNSIGNED_BYTE,layoutLookup.pixels],
+      [layoutDataTexture,10,gl.RGBA32F,256,2,gl.FLOAT,layoutLookup.data]]){
+      gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,texture);
+      gl.texImage2D(gl.TEXTURE_2D,0,format,width,height,0,gl.RGBA,type,data);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    }
+  }
+  document.getElementById('currentWorldSeed').textContent='WORLD SEED · '+activeLayout.seed;
   if(forestBuiltSeed!==activeLayout.seed){
     for(const c of forestChunks)disposeFieldMesh(c.mesh);
     forestChunks=[];forestBuiltSeed=null;

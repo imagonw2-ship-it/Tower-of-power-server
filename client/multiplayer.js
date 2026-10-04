@@ -15,7 +15,7 @@ for (const id of [
   "netIdentity",
   "worldMenu",
   "worldLobby",
-  "worldHost",
+  "worldHost", "worldSeed", "lobbySeed",
   "worldJoin",
   "joinCode",
   "roomCodeLabel",
@@ -132,6 +132,7 @@ function refreshNetworkUI() {
   const s = net.snapshots.at(-1);
   if (net.active) {
     netUI.roomCodeLabel.textContent = net.code;
+    netUI.lobbySeed.textContent=s?.world?"WORLD SEED · "+s.world.seed:"GENERATING WORLD…";
     netUI.lobbyPlayers.textContent = (s?.players || [])
       .map(
         (p) =>
@@ -267,7 +268,7 @@ netUI.accountLogout.addEventListener(
 );
 netUI.worldHost.addEventListener(
   "click",
-  guarded(() => { applyServerInput(); net.host(); }),
+  guarded(() => { applyServerInput(); net.host(netUI.worldSeed.value); }),
 );
 netUI.joinForm.addEventListener(
   "submit",
@@ -416,7 +417,7 @@ function updateNetworkFrame(dt) {
     setMode("lost");
     if (document.pointerLockElement === canvas) document.exitPointerLock();
   }
-  if(activeLayout.seed!==(latest.world.seed??0)){selectLayout(latest.world.seed??0);resetOtherTurbines();}
+  if(activeLayout.seed!==(latest.world.seed??0)){selectLayout(latest.world.seed??0);resetOtherTurbines();buildPowerCorridor();}
   Object.assign(world, {
     phase: latest.world.phase,
     cycle: latest.world.cycle,

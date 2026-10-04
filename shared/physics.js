@@ -1,5 +1,5 @@
 import { spendStamina } from './survival.js';
-import {fieldRoadOffset,collideForest} from './world-layout.js';
+import {fieldRoadOffset,collideForest,siteClearing} from './world-layout.js';
 // Rendering-independent world rules, copied from the current game.
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const rawHeight = (x, z) =>
@@ -122,8 +122,9 @@ export function movePlayer(p, input, dt, obstacles = [], collideLegs = () => {},
   }
   collideLegs(p);
   }
-  p.x = clamp(p.x, -1500, 1500);
-  p.z = clamp(p.z, -1500, 1500);
+  const bounds=layout?.bounds||[-1500,-1500,1500,1500];
+  p.x = clamp(p.x, bounds[0], bounds[2]);
+  p.z = clamp(p.z, bounds[1], bounds[3]);
   p.y = floorHeight(p.x, p.z) + (p.crouching ? 0.72 : 1.7);
   p.vx = (p.x - oldX) / dt;
   p.vz = (p.z - oldZ) / dt;
@@ -137,18 +138,10 @@ export function roadOffset(x, z,layout=null) {
   return fieldRoadOffset(x,z,(x - roadX(z)) / Math.sqrt(1 + s * s),layout);
 }
 export function grassCover(x, z,layout=null) {
-  const ax = roadX(-110),
-    dx = -185 - ax,
-    dz = -160,
-    t = clamp(((x - ax) * dx + (z + 110) * dz) / (dx * dx + dz * dz), 0, 1);
-  return (
-    Math.abs(roadOffset(x, z,layout)) >= 4.8 &&
-    Math.hypot(x - ax - dx * t, z + 110 - dz * t) >= 5.1 &&
-    Math.max(Math.abs(x + 185), Math.abs(z + 270)) >= 39 &&
-    !(layout?.turbines||[{x:95,z:-250}]).some(t=>Math.hypot(x-t.x,z-t.z)<11.4) &&
-    !(Math.abs(x - shed.x) < 4.1 && Math.abs(z - shed.z) < 4)
-  );
+  return Math.abs(roadOffset(x,z,layout))>=4.8 && !siteClearing(x,z,layout) &&
+    !(Math.abs(x-shed.x)<4.1 && Math.abs(z-shed.z)<4);
 }
+
 export const footstepRadius = (p,layout=null) =>
   p.crouching
     ? grassCover(p.x, p.z,layout)

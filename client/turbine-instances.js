@@ -37,6 +37,7 @@ function collideOtherTurbines(){
   }
 }
 function appendTurbine(body,state,meshes,style=0){
+  if(!isMenuScene()&&Math.hypot(player.x-body.x,player.z-body.z)>750)return;
   const deployment=state.state==='dormant'?0:ease(clamp(state.awake/7.8,0,1));
   const tilt=state.state==='dormant'?0:(Math.sin(state.gait*1.8)*.008+state.bank)*deployment;
   const orientation=multiply(rotateY(state.heading),multiply(rotateX(state.lean),rotateZ(tilt)));

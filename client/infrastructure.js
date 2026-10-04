@@ -93,7 +93,9 @@ function buildInfrastructure() {
 function appendInfrastructure() {
   if (Math.hypot(player.x - POWER_ZONE.x, player.z - POWER_ZONE.z) > 550)
     return;
-  for (const s of CORRIDOR_SIGNS) {
+  const center=activeLayout.pylons[0],approach=activeLayout.nodes[center.accessNode],dx=approach.x-center.x,dz=approach.z-center.z,len=Math.hypot(dx,dz),nx=dx/len,nz=dz/len;
+  for (const side of [-1,1]) {
+    const s={x:center.x+nx*32-nz*side*6,z:center.z+nz*32+nx*side*6,heading:Math.atan2(nx,nz)};
     const model = multiply(
       transform(s.x, terrainHeight(s.x, s.z) + 1.52, s.z),
       rotateY(s.heading),
