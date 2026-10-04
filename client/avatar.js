@@ -180,6 +180,7 @@ function appendHazmat(p,clock){
   for(const part of avatarParts)objectDraws.push({mesh:part.name==='ClassASuitGear_low'&&gripMeshes[held]?gripMeshes[held]:part.mesh,model:root,bones:a.bones,texture:part.texture,material:5,assetKind:5,castShadow:shadow});
   const head=AVATAR_ASSET.bones.indexOf('head');
   appendHeadCensor(root,a.bones.subarray(head*16,head*16+16));
+  appendSuitCard(p,root,a.bones,distance);
   if(held!=='none'&&distance<60){
     const h=a.matrices[AVATAR_ASSET.bones.indexOf('hand_r')],grip=multiply(root,multiply(h,itemGripMatrix(held)));
     const mesh=held==='flashlight'?flashlightMesh:held==='soda'?sodaMesh:held==='flare'?flareGunMesh:cameraItemMesh;

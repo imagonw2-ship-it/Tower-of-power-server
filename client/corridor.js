@@ -65,18 +65,18 @@ function appendPowerObjects(){
   const p=powerCreature,distance=Math.hypot(player.x-p.x,player.z-p.z);
   if(distance<650){
     const model=multiply(transform(p.x,p.y,p.z),rotateY(p.heading));
-    objectDraws.push({mesh:distance>200?pylonLODMesh:pylonMesh,model,material:5,assetKind:3,rig:true},{mesh:socketMesh,model,material:2});
+    objectDraws.push({mesh:distance>200?pylonLODMesh:pylonMesh,model,material:5,assetKind:3,variant:activeLayout.pylonStyle,rig:true},{mesh:socketMesh,model,material:2});
   }
   if(net.active)for(const [slot,pylon] of networkPylons.entries()){
     const d=Math.hypot(player.x-pylon.x,player.z-pylon.z);if(d>650)continue;
     const bones=networkPylonPalettes[slot]||(networkPylonPalettes[slot]=new Float32Array(9*16));updatePylonRig(pylon,bones);
     const model=multiply(transform(pylon.x,pylon.y,pylon.z),rotateY(pylon.heading));
-    objectDraws.push({mesh:d>200?pylonLODMesh:pylonMesh,model,material:5,assetKind:3,bones,rigBlend:pylon.rigBlend,castShadow:d<220},{mesh:socketMesh,model,material:2,castShadow:false});
+    objectDraws.push({mesh:d>200?pylonLODMesh:pylonMesh,model,material:5,assetKind:3,variant:activeLayout.pylonStyle,bones,rigBlend:pylon.rigBlend,castShadow:d<220},{mesh:socketMesh,model,material:2,castShadow:false});
     for(const f of pylon.feet)objectDraws.push({mesh:ankleSteel,model:transform(f.position[0],f.position[1]-.12,f.position[2]),material:2,castShadow:d<80});
   }
   for(const tower of corridorTowers)if(Math.hypot(player.x-tower.x,player.z-tower.z)<650){
     const model=multiply(transform(tower.x,tower.y,tower.z,tower.scale,tower.scale,tower.scale),rotateY(tower.heading));
-    objectDraws.push({mesh:tower.shoes,model:identity(),material:2},{mesh:pylonLODMesh,model,material:5,assetKind:3},{mesh:socketMesh,model,material:2});
+    objectDraws.push({mesh:tower.shoes,model:identity(),material:2},{mesh:pylonLODMesh,model,material:5,assetKind:3,variant:activeLayout.pylonStyle},{mesh:socketMesh,model,material:2});
   }
   for(let i=0;i<corridorSpans.length;i++){
     const span=corridorSpans[i],midX=(span.a.x+span.b.x)/2,midZ=(span.a.z+span.b.z)/2;

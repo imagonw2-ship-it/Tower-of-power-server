@@ -195,7 +195,7 @@ class TowerNetwork {
     const timeout = setTimeout(() => ws.close(), 8000);
     ws.onopen = () =>
       ws.send(
-        JSON.stringify({ type: "hello", protocol: 1, token: this.token }),
+        JSON.stringify({ type: "hello", protocol: 1, layoutVersion: 1, token: this.token }),
       );
     ws.onmessage = (e) => {
       if (this.socket !== ws) return;
@@ -233,7 +233,7 @@ class TowerNetwork {
         if (!this.code) {
           this.manual = true;
           ws.close();
-          this.setStatus("SERVER OFFLINE");
+          this.setStatus(m.code === 'UPDATE_REQUIRED' ? 'UPDATE REQUIRED' : "SERVER OFFLINE");
         }
       }
     };
