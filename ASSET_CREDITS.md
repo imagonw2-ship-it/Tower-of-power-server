@@ -31,3 +31,7 @@ Three detailed pine meshes from **Nature Kit** by Kenney, distributed under Crea
 The mobile conversion normalizes scale, combines OBJ geometry, recolors the foliage and bark, and embeds the geometry in `client/tree-assets.js`. Forest placement, terrain shading, batching, distance fading and trunk collisions are original game code. Trees require no login or runtime download. Regenerate with `scripts/prepare_trees.py` and the official Nature Kit ZIP.
 
 The printed suit-card portrait in 12.0 is rendered from the existing uploaded hazmat suit. Its face is blacked out before it is embedded; `scripts/prepare_suit_portrait.mjs` regenerates it.
+
+## User-supplied tree packs (12.5.1)
+
+`low-poly-trees-free.zip`, `realistic-trees-pack-of-2-free.zip`, and `more-realistic-trees-free.zip` were supplied for this game. Their seven Blender trees and embedded bark, leaf and opacity images are converted by `scripts/prepare_trees.py` and `scripts/pack_tree_assets.py`. The mobile versions share an atlas, retain roots below ground, simplify branches and reduce leaf clusters into two LODs. Original author and license metadata were not supplied with these packs; this project does not label them CC0. The older Kenney credit above applies to the previous pine assets.

@@ -39,7 +39,7 @@ async function until(fn, ms = 5000) {
   }
   throw Error("Timed out waiting for condition");
 }
-async function device(session, agent = "Desktop Chrome", layoutVersion = 2) {
+async function device(session, agent = "Desktop Chrome", layoutVersion = 3) {
   const ws = new WebSocket(origin.replace("http", "ws") + "/ws", {
       headers: { Origin: origin, "User-Agent": agent },
     }),
@@ -193,7 +193,7 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
   await t.test('separate devices share the map seed and reject outdated world renderers', async()=>{
     await until(()=>[host,phone,tablet,chrome].every(c=>c.snapshot?.world.seed===2&&c.snapshot?.enemies.turbines.length===room.world.layout.turbines.length));
     for(const c of [host,phone,tablet,chrome]){
-      assert.equal(c.snapshot.world.layoutVersion,2);
+      assert.equal(c.snapshot.world.layoutVersion,3);
       assert.equal(c.snapshot.enemies.turbines[1].x,room.world.layout.turbines[1].x);
       assert.equal(c.snapshot.enemies.turbines[1].z,room.world.layout.turbines[1].z);
     }

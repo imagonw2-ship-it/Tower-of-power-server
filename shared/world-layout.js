@@ -1,6 +1,7 @@
 // Versioned, deterministic world generation. The server owns the seed; every
 // client builds the same roads, utility corridor and forest from these rules.
-export const LAYOUT_VERSION=2;
+import {FOREST_TREE_TYPES} from './tree-shapes.js';
+export const LAYOUT_VERSION=3;
 export function layoutRandom(seed){let a=seed>>>0;return()=>{a+=0x6D2B79F5;let t=Math.imul(a^a>>>15,a|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 export function seedFromText(value){
   const text=String(value??'').trim().slice(0,40);if(!text)return null;
@@ -123,23 +124,42 @@ export function makeLayoutLookup(layout,size=192){
   }
   return{size,bounds,pixels,data};
 }
+export const FOREST_CELL_SIZE=8;
 const forestCache=new Map();
 export function forestForLayout(layout){
   const l=layout||makeLayout(0),key=l.seed;if(forestCache.has(key))return forestCache.get(key);
-  const r=layoutRandom(key^0x72f415),trees=[],cells=new Map(),f=l.forest,extent=Math.ceil(f.radius/12);
-  for(let gz=-extent;gz<=extent;gz++)for(let gx=-extent;gx<=extent;gx++){
-    const dx=gx*12+(r()-.5)*8,dz=gz*12+(r()-.5)*8,x=f.x+dx,z=f.z+dz;
-    if(Math.hypot(dx,dz)>f.radius-8||Math.abs(dx+Math.sin(dz*.018)*18)<5||nearestRoad(x,z,l).distance<7)continue;
-    const tree={x,z,height:12+r()*11,yaw:r()*Math.PI*2,kind:Math.floor(r()*3),shade:.8+r()*.3};tree.radius=.25+tree.height*.019;trees.push(tree);
-    const cell=Math.floor(x/16)+','+Math.floor(z/16);if(!cells.has(cell))cells.set(cell,[]);cells.get(cell).push(tree);
+  const r=layoutRandom(key^0x72f415),trees=[],cells=new Map(),chunks=new Map(),f=l.forest,clusters=[],clearings=[];
+  for(let i=0;i<4;i++){const a=r()*Math.PI*2,d=f.radius*(.15+r()*.58);clearings.push({x:Math.cos(a)*d,z:Math.sin(a)*d,radius:12+r()*15});}
+  function add(dx,dz,kind){
+    const a=Math.atan2(dz,dx),edge=f.radius-10+Math.sin(a*5+key%19)*7+Math.sin(a*9)*4;
+    if(dx*dx+dz*dz>edge*edge||Math.abs(dx+Math.sin(dz*.018)*18)<4.5||clearings.some(c=>(c.x-dx)**2+(c.z-dz)**2<c.radius*c.radius))return;
+    const x=f.x+dx,z=f.z+dz;if(nearestRoad(x,z,l).distance<7.5)return;
+    const gx=Math.floor(x/FOREST_CELL_SIZE),gz=Math.floor(z/FOREST_CELL_SIZE);
+    for(let iz=-1;iz<=1;iz++)for(let ix=-1;ix<=1;ix++)for(const t of cells.get((gx+ix)+','+(gz+iz))||[])if((t.x-x)**2+(t.z-z)**2<10.24)return;
+    const spec=FOREST_TREE_TYPES[kind],height=spec.minHeight+r()*(spec.maxHeight-spec.minHeight);
+    const tree={x,z,height,yaw:r()*Math.PI*2,kind,shade:.78+r()*.20,radius:spec.radius*height};trees.push(tree);
+    const cell=gx+','+gz;if(!cells.has(cell))cells.set(cell,[]);cells.get(cell).push(tree);
+    const cx=Math.floor(x/48),cz=Math.floor(z/48),chunk=cx+','+cz;
+    if(!chunks.has(chunk))chunks.set(chunk,{x:(cx+.5)*48,z:(cz+.5)*48,trees:[]});chunks.get(chunk).trees.push(tree);
   }
-  const result={trees,cells};if(forestCache.size>=64)forestCache.delete(forestCache.keys().next().value);forestCache.set(key,result);return result;
+  const target=Math.round(Math.PI*f.radius*f.radius/2800);
+  for(let attempt=0;clusters.length<target&&attempt<target*15;attempt++){
+    const a=r()*Math.PI*2,d=Math.sqrt(r())*(f.radius-18),x=Math.cos(a)*d,z=Math.sin(a)*d;
+    if(clusters.some(c=>(c.x-x)**2+(c.z-z)**2<22*22))continue;
+    const cluster={x,z,radius:19+r()*21,kind:Math.floor(r()*FOREST_TREE_TYPES.length)};clusters.push(cluster);
+    const amount=28+Math.floor(r()*29);
+    for(let i=0;i<amount;i++){const angle=r()*Math.PI*2,distance=Math.pow(r(),.75)*cluster.radius;add(x+Math.cos(angle)*distance,z+Math.sin(angle)*distance,r()<.72?cluster.kind:Math.floor(r()*FOREST_TREE_TYPES.length));}
+  }
+  for(let i=0;i<target*4;i++){const a=r()*Math.PI*2,d=Math.sqrt(r())*(f.radius-12);add(Math.cos(a)*d,Math.sin(a)*d,Math.floor(r()*FOREST_TREE_TYPES.length));}
+  const result={trees,cells,chunks:[...chunks.values()],clusters,clearings};if(forestCache.size>=32)forestCache.delete(forestCache.keys().next().value);forestCache.set(key,result);return result;
 }
 export function collideForest(p,layout){
-  const f=layout?.forest;if(!f||Math.hypot(p.x-f.x,p.z-f.z)>f.radius+3)return;
-  const cells=forestForLayout(layout).cells,gx=Math.floor(p.x/16),gz=Math.floor(p.z/16);
+  const f=layout?.forest;if(!f||(p.x-f.x)**2+(p.z-f.z)**2>(f.radius+4)**2)return 0;
+  const cells=forestForLayout(layout).cells,gx=Math.floor(p.x/FOREST_CELL_SIZE),gz=Math.floor(p.z/FOREST_CELL_SIZE);let checks=0;
   for(let iz=-1;iz<=1;iz++)for(let ix=-1;ix<=1;ix++)for(const t of cells.get((gx+ix)+','+(gz+iz))||[]){
+    checks++;
     const dx=p.x-t.x,dz=p.z-t.z,d=Math.hypot(dx,dz),radius=t.radius+.29;
     if(d<radius){p.x=t.x+(d>.001?dx/d:1)*radius;p.z=t.z+(d>.001?dz/d:0)*radius;}
   }
+  return checks;
 }

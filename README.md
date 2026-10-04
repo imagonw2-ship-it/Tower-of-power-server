@@ -1,3 +1,12 @@
+## Version 12.5.1: deep woods and clear suit IDs
+
+- The three supplied tree packs replace the old pine meshes with seven textured trees, original foliage opacity and two detail levels. Seeded clusters, clearings and uneven edges create a denser forest. Roads stay clear and the forest compass marker remains available.
+- Forest geometry is shared in at most 14 instanced batches, culled beyond the quality-dependent range. Detailed nearby trees cast cutout leaf shadows. Stationary players do not resend tree transforms. Server and client check an 8-metre collision grid around each player instead of scanning the forest.
+- Suit cards are smaller, angled against the chest and attached to the animated chest bone. A larger print texture prioritizes the username, with the censored suit portrait retained. Cards render after VHS so text remains clear, while depth testing and back-face rejection keep them hidden behind walls and on the far side of a suit.
+- Android versionCode 24 / versionName 12.5.1 preserves the existing package and signing certificate. The server uses layout capability 3 for matching tree placement and collisions. Older APKs receive an update message before joining; account data needs no migration.
+
+Validation: all 84 automated checks passed, including account and WebSocket multiplayer flows, 2,000 connected road seeds, shared enemies, equipment, singleplayer, native GLES shader compilation, clustered-tree collision locality, instanced LOD upload bounds and animated card alignment. Real WebGL checks cover the forest, clear standing/crouched cards and wall occlusion. Physical Android performance and appearance still require device testing.
+
 ## Version 12.5: uncharted roads
 
 - Replaces the three preset maps with a deterministic road graph. Each seed changes junction positions, branches, loops, access roads, 1–4 turbines, and a connected network of 6–11 pylons. The safe shed approach stays consistent; the explorable map is finite.

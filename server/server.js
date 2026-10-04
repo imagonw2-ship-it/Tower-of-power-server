@@ -72,7 +72,7 @@ export function createApp(options = {}) {
         return;
       }
       if (req.url === "/health") {
-        reply(200, { ok: true, protocol: 1, release: "12.5", features: ["shared-drops", "proximity-voice", "scaled-pylons", "silent-search", "seeded-worlds", "forest", "procedural-roads", "connected-pylon-graph", "forest-navigation", "suit-id-cards"], rooms: rooms.rooms.size });
+        reply(200, { ok: true, protocol: 1, release: "12.5.1", features: ["shared-drops", "proximity-voice", "scaled-pylons", "silent-search", "seeded-worlds", "forest", "procedural-roads", "connected-pylon-graph", "forest-navigation", "suit-id-cards", "clustered-forests", "clear-suit-ids"], rooms: rooms.rooms.size });
         return;
       }
       if (

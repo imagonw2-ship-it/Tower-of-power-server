@@ -34,6 +34,6 @@ export function launch(touch=true, graphics={}){
   context.window=context;
   const run=s=>vm.runInContext(s,context);
   run(html.match(/<script>([\s\S]*?)<\/script>/)[1]);
-  assert.deepEqual(errors,[]);assert.equal(run('running'),true);assert.ok(uploads.length>20);assert.equal(shaders.length,12);
+  assert.deepEqual(errors,[]);assert.equal(run('running'),true);assert.ok(uploads.length>20);assert.equal(shaders.length,14);
   return{document,context,run,errors,shaders};
 }
