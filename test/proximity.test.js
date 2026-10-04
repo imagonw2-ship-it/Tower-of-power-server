@@ -57,7 +57,7 @@ test('two independent WebSocket devices receive nearby voice, isolate other room
   const c={session,json:[],audio:[],ws:new WebSocket(origin.replace('http','ws')+'/ws',{headers:{Origin:origin}})};clients.push(c);
   c.ws.on('message',(b,binary)=>binary?c.audio.push(b):c.json.push(JSON.parse(b)));c.send=m=>c.ws.send(JSON.stringify(m));
   c.wait=type=>until(()=>{const i=c.json.findIndex(m=>m.type===type);return i>=0?c.json.splice(i,1)[0]:null;});
-  await new Promise((resolve,reject)=>{c.ws.once('open',resolve);c.ws.once('error',reject);});c.send({type:'hello',protocol:1,token:session.token});await c.wait('authenticated');return c;
+  await new Promise((resolve,reject)=>{c.ws.once('open',resolve);c.ws.once('error',reject);});c.send({type:'hello',protocol:1,layoutVersion:1,token:session.token});await c.wait('authenticated');return c;
  }
  const a=await device(),b=await device(),c=await device();a.send({type:'host'});const joined=await a.wait('joined');
  b.send({type:'join',code:joined.code});await b.wait('joined');c.send({type:'host'});await c.wait('joined');
