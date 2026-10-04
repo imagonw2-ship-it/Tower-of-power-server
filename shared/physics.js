@@ -1,4 +1,5 @@
 import { spendStamina } from './survival.js';
+import {fieldRoadOffset,collideForest} from './world-layout.js';
 // Rendering-independent world rules, copied from the current game.
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const rawHeight = (x, z) =>
@@ -86,7 +87,7 @@ export function blocked(a, b) {
   }
   return false;
 }
-export function movePlayer(p, input, dt, obstacles = [], collideLegs = () => {}) {
+export function movePlayer(p, input, dt, obstacles = [], collideLegs = () => {},layout=null) {
   const oldX = p.x,
     oldZ = p.z;
   let x = clamp(input.x || 0, -1, 1),
@@ -109,6 +110,7 @@ export function movePlayer(p, input, dt, obstacles = [], collideLegs = () => {})
   p.x += dx / steps;
   p.z += dz / steps;
   collideShed(p);
+  collideForest(p,layout);
   for (const o of obstacles) {
     const dx = p.x - o.x,
       dz = p.z - o.z,
@@ -129,30 +131,30 @@ export function movePlayer(p, input, dt, obstacles = [], collideLegs = () => {})
 }
 export const roadX = (z) =>
   119 + 12 * Math.sin((z + 42) * 0.007) + 4 * Math.sin((z + 42) * 0.018);
-export function roadOffset(x, z) {
+export function roadOffset(x, z,layout=null) {
   const s =
     0.084 * Math.cos((z + 42) * 0.007) + 0.072 * Math.cos((z + 42) * 0.018);
-  return (x - roadX(z)) / Math.sqrt(1 + s * s);
+  return fieldRoadOffset(x,z,(x - roadX(z)) / Math.sqrt(1 + s * s),layout);
 }
-export function grassCover(x, z) {
+export function grassCover(x, z,layout=null) {
   const ax = roadX(-110),
     dx = -185 - ax,
     dz = -160,
     t = clamp(((x - ax) * dx + (z + 110) * dz) / (dx * dx + dz * dz), 0, 1);
   return (
-    Math.abs(roadOffset(x, z)) >= 4.8 &&
+    Math.abs(roadOffset(x, z,layout)) >= 4.8 &&
     Math.hypot(x - ax - dx * t, z + 110 - dz * t) >= 5.1 &&
     Math.max(Math.abs(x + 185), Math.abs(z + 270)) >= 39 &&
-    Math.hypot(x - 95, z + 250) >= 11.2 &&
+    !(layout?.turbines||[{x:95,z:-250}]).some(t=>Math.hypot(x-t.x,z-t.z)<11.4) &&
     !(Math.abs(x - shed.x) < 4.1 && Math.abs(z - shed.z) < 4)
   );
 }
-export const footstepRadius = (p) =>
+export const footstepRadius = (p,layout=null) =>
   p.crouching
-    ? grassCover(p.x, p.z)
+    ? grassCover(p.x, p.z,layout)
       ? 4.5
-      : Math.abs(roadOffset(p.x, p.z)) < 3.2
+      : Math.abs(roadOffset(p.x, p.z,layout)) < 3.2
         ? 16
         : 9
     : (p.sprinting ? 104 : 43) *
-      (Math.abs(roadOffset(p.x, p.z)) < 3.2 ? 1.35 : 1);
+      (Math.abs(roadOffset(p.x, p.z,layout)) < 3.2 ? 1.35 : 1);
