@@ -195,7 +195,7 @@ class TowerNetwork {
     const timeout = setTimeout(() => ws.close(), 8000);
     ws.onopen = () =>
       ws.send(
-        JSON.stringify({ type: "hello", protocol: 1, layoutVersion: 2, token: this.token }),
+        JSON.stringify({ type: "hello", protocol: 1, layoutVersion: 3, token: this.token }),
       );
     ws.onmessage = (e) => {
       if (this.socket !== ws) return;

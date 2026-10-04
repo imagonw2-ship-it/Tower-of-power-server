@@ -98,7 +98,7 @@
       <button id="settingsOpen">SETTINGS</button>
       <button id="controlsOpen">CONTROLS</button>
     </nav>
-    <p class="menuFoot"><strong id="releaseLabel">VERSION 12.5 · UNCHARTED ROADS</strong><br>HEADPHONES RECOMMENDED</p>
+    <p class="menuFoot"><strong id="releaseLabel">VERSION 12.5.1 · DEEP WOODS</strong><br>HEADPHONES RECOMMENDED</p>
   </main>
   <section id="settingsPanel" class="panel settings" hidden aria-label="Settings">
     <h2>SETTINGS</h2>
@@ -143,7 +143,7 @@
     <button id="retry">TRY AGAIN</button><button id="lostMenu">MAIN MENU</button>
   </section>
   <div id="loading" hidden><span>ACQUIRING SIGNAL<span class="loadingDots">...</span></span></div>
-  <div id="hud" hidden aria-hidden="true"><div id="compass"><div id="compassTape"><span id="compassMark0">N</span><span id="compassMark1">NE</span><span id="compassMark2">E</span><span id="compassMark3">SE</span><span id="compassMark4">S</span><span id="compassMark5">SW</span><span id="compassMark6">W</span><span id="compassMark7">NW</span><div id="compassTicks"></div></div><span id="powerMarker">◆</span><span id="forestMarker">▲</span><span id="compassBearing">N / 000°</span><span id="powerDestination">POWER CORRIDOR</span><span id="forestDestination">PINE FOREST</span></div><span class="rec"><i></i> REC</span><span class="tape">SP ▰▰▰</span><span id="frameCount">FRAME 000</span><span id="equipment">ZOOM 1.0X</span><div class="viewCorner tl"></div><div class="viewCorner tr"></div><div class="viewCorner bl"></div><div class="viewCorner br"></div></div>
+  <div id="hud" hidden aria-hidden="true"><div id="compass"><div id="compassTape"><span id="compassMark0">N</span><span id="compassMark1">NE</span><span id="compassMark2">E</span><span id="compassMark3">SE</span><span id="compassMark4">S</span><span id="compassMark5">SW</span><span id="compassMark6">W</span><span id="compassMark7">NW</span><div id="compassTicks"></div></div><span id="powerMarker">◆</span><span id="forestMarker">▲</span><span id="compassBearing">N / 000°</span><span id="powerDestination">POWER CORRIDOR</span><span id="forestDestination">FOREST</span></div><span class="rec"><i></i> REC</span><span class="tape">SP ▰▰▰</span><span id="frameCount">FRAME 000</span><span id="equipment">ZOOM 1.0X</span><div class="viewCorner tl"></div><div class="viewCorner tr"></div><div class="viewCorner bl"></div><div class="viewCorner br"></div></div>
   <div id="photoPreview"><canvas id="photo" width="240" height="150"></canvas><span>EXPOSURE CAPTURED</span></div>
   <div id="onboarding" hidden aria-label="Starting controls"><span><b>W A S D</b> MOVE</span><span><b>SHIFT</b> RUN</span><span><b>X</b> CROUCH</span><span><b>E</b> PICK UP</span><span><b>MOUSE</b> LOOK</span><span><b>R</b> USE TOOL</span><span><b>I</b> FIELD KIT</span><span><b>C</b> FLASH PHOTO</span><span><b>WHEEL / +/-</b> ZOOM</span><span><b>M</b> WORLD PANEL</span><span><b>ESC</b> PAUSE</span></div>
   <div id="torchControls" hidden><b>F</b> FLASHLIGHT <span id="torchState">ON</span></div>
@@ -318,7 +318,7 @@
   function updatePowerCompass(){
     for(const [info,marker,label,symbol] of [
       [powerCompassInfo(),ui.powerMarker,ui.powerDestination,'◆'],
-      [destinationCompassInfo(activeLayout.forest.entrance,'PINE FOREST'),ui.forestMarker,ui.forestDestination,'▲']]){
+      [destinationCompassInfo(activeLayout.forest.entrance,'FOREST'),ui.forestMarker,ui.forestDestination,'▲']]){
       const side=info.delta<0?'‹':'›',edge=Math.abs(info.delta)>60;
       marker.textContent=edge?side:symbol;marker.style.transform='translateX('+(clamp(info.delta,-59,59)*2-6).toFixed(1)+'px)';marker.style.opacity=edge?'.65':'1';
       label.textContent=(edge?side+' ':symbol+' ')+info.label+' · '+Math.round(info.distance)+'m';label.classList.toggle('near',info.distance<95);
@@ -1354,20 +1354,20 @@
       }
     `);
 
-    turbineProgram=makeProgram('Objects', commonGLSL+rigGLSL+`
+    turbineProgram=makeProgram('Objects', commonGLSL+rigGLSL+treeInstanceGLSL+`
       layout(location=0) in vec3 a_position;
       layout(location=1) in vec3 a_normal;
       layout(location=2) in vec3 a_color;
       layout(location=3) in vec2 a_uv;
       uniform mat4 u_vp;
-      uniform mat4 u_model;uniform float u_assetKind,u_time;
+      uniform mat4 u_model;uniform float u_assetKind;
       out vec3 v_world, v_normal, v_color, v_local, v_localNormal;
       out vec2 v_uv;
       void main() {
         mat4 skin=skinTransform();
         v_world=(u_model*skin*vec4(a_position,1.)).xyz;
-        if(u_assetKind>7.5&&u_assetKind<8.5)v_world.x+=sin(u_time*.65+v_world.z*.04)*.12*smoothstep(2.,14.,v_world.y-heightAt(v_world.xz));
-        v_normal=mat3(u_model)*mat3(skin)*a_normal; v_color=a_color;v_local=a_position;v_localNormal=a_normal;v_uv=a_uv;
+        if(u_treeInstanced>.5)v_world=treePoint(a_position);
+        v_normal=u_treeInstanced>.5?treeRotate(a_normal):mat3(u_model)*mat3(skin)*a_normal; v_color=a_color*(u_treeInstanced>.5?a_treeStyle.z:1.);v_local=a_position;v_localNormal=a_normal;v_uv=a_uv;
         gl_Position=u_vp*vec4(v_world,1.);
       }
     `,commonGLSL+materialGLSL+`
@@ -1390,13 +1390,14 @@
           vec3 albedo=v_color,n=geometric;
           bool tree=u_assetKind>7.5&&u_assetKind<8.5,cameraProp=u_assetKind>5.5&&!tree,avatar=u_assetKind>4.5&&u_assetKind<5.5,steel=u_assetKind>2.5&&u_assetKind<3.5,torch=u_assetKind<1.5;
           if(avatar||cameraProp)albedo=texture(u_assetTexture,v_uv).rgb;else if(u_assetKind>3.5&&u_assetKind<4.5)albedo=texture(u_signTexture,v_uv).rgb;else if(steel)albedo*=texture(u_assetTexture,v_uv).rgb*1.16;
-          if(tree){float fade=1.-smoothstep(u_forestRange-55.,u_forestRange,length(v_world.xz-u_camera.xz));if(fract(dot(floor(gl_FragCoord.xy),vec2(.754877,.56984)))>fade)discard;albedo*=.85+.15*noise(v_world.xz*3.+v_world.y);}
+          if(tree){vec4 tex=texture(u_assetTexture,v_uv);if(tex.a<.45)discard;albedo*=tex.rgb;float fade=1.-smoothstep(u_forestRange-55.,u_forestRange,length(v_world.xz-u_camera.xz));if(fract(dot(floor(gl_FragCoord.xy),vec2(.754877,.56984)))>fade)discard;albedo*=.85+.15*noise(v_world.xz*3.+v_world.y);}
           if(steel&&u_variant>.5){float rust=smoothstep(.42,.75,noise(v_world.xz*.18+v_world.y*.04));albedo=mix(albedo,vec3(.35,.18,.09),rust*(u_variant<1.5?.30:.55));}
           if(torch)n=mappedNormal(v_world,n,v_uv,texture(u_assetNormal,v_uv).rgb,.055);
           if(u_assetKind>1.5&&u_assetKind<2.5){float gray=dot(albedo,vec3(.2126,.7152,.0722));albedo=vec3(.44+gray*.4);}
-          float roughness=cameraProp?.45:avatar?.9:steel?.62:torch?.38:.28,metalness=avatar?0.:steel?.7:torch?.3:.8;
+          float roughness=tree?.94:cameraProp?.45:avatar?.9:steel?.62:torch?.38:.28,metalness=tree||avatar?0.:steel?.7:torch?.3:.8;
           vec3 eye=normalize(u_camera-v_world);float vis=fieldShadow(v_world+geometric*.04);
           vec3 c=albedo*(interiorAmbient(v_world)+u_direct*max(dot(n,SUN),0.)*vis);
+          if(tree&&v_uv.x>.5)c+=albedo*u_direct*.22*max(dot(-n,SUN),0.)*vis;
           c+=u_direct*pow(max(dot(n,normalize(SUN+eye)),0.),mix(120.,16.,roughness))*.24*vis;
           c+=u_ambient*.08*pow(1.-max(dot(n,eye),0.),3.);
           c=flashLight(c,albedo,v_world,u_camera,n,metalness);
@@ -1524,12 +1525,14 @@
         color=vec4(clamp(c,0.,1.),1.);
       }
     `);
-    shadowProgram=makeProgram('Shadows', `precision highp float;`+rigGLSL+`
+    shadowProgram=makeProgram('Shadows', `precision highp float;`+rigGLSL+treeInstanceGLSL+`
       precision highp float;
       layout(location=0) in vec3 a_position;
+      layout(location=3) in vec2 a_uv;out vec2 v_uv;
       uniform mat4 u_vp,u_model;
-      void main(){gl_Position=u_vp*u_model*skinTransform()*vec4(a_position,1.);}
-    `,`precision highp float;void main(){}`);
+      void main(){v_uv=a_uv;vec4 p=u_model*skinTransform()*vec4(a_position,1.);if(u_treeInstanced>.5)p=vec4(treePoint(a_position),1.);gl_Position=u_vp*p;}
+    `,`precision highp float;in vec2 v_uv;uniform float u_treeInstanced;uniform sampler2D u_assetTexture;void main(){if(u_treeInstanced>.5&&texture(u_assetTexture,v_uv).a<.45)discard;}`);
+    buildSuitCardProgram();
     const vertices = [], indices = [];
     const segments = 192;
     for (let z=0; z<=segments; z++) for (let x=0; x<=segments; x++) {
@@ -1838,7 +1841,7 @@
   }
 
   function buildObjects(){
-    headCensorCount=0;remoteTorchCount=0;objectDraws.length=0;appendPowerObjects();appendFlareObjects();if(!net.active&&!isMenuScene())for(const i of localDroppedItems)appendWorldItem(i,time);
+    headCensorCount=0;remoteTorchCount=0;suitCardDraws.length=0;objectDraws.length=0;appendPowerObjects();appendFlareObjects();if(!net.active&&!isMenuScene())for(const i of localDroppedItems)appendWorldItem(i,time);
     appendForest();
     appendTurbine(turbine,enemy,legMeshes,activeLayout.turbines[0].style);
     if(!isMenuScene())for(const t of otherTurbines)appendTurbine(t.body,t.state,t.meshes,t.style);
@@ -2036,7 +2039,7 @@
   }
   function drawObjects(program,shadow=false,matrix=lightVP,transparent=false){
     const u=shadow?program.uniforms:bindWorld(program);
-    if(shadow){gl.useProgram(program.p);gl.uniformMatrix4fv(u.u_vp,false,matrix);}
+    if(shadow){gl.useProgram(program.p);gl.uniformMatrix4fv(u.u_vp,false,matrix);gl.uniform1f(u.u_time??null,reducedMotion?0:time);gl.uniform1i(u.u_assetTexture??null,5);}
     gl.uniformMatrix4fv(u['u_bones[0]']??null,false,pylonBones);
     if(!shadow){gl.activeTexture(gl.TEXTURE0+5);gl.bindTexture(gl.TEXTURE_2D,pylonTexture);gl.uniform1i(u.u_assetTexture??null,5);gl.activeTexture(gl.TEXTURE0+6);gl.bindTexture(gl.TEXTURE_2D,importNormalTexture);gl.uniform1i(u.u_assetNormal??null,6);}
     if(!shadow){gl.activeTexture(gl.TEXTURE0+7);gl.bindTexture(gl.TEXTURE_2D,signTexture);gl.uniform1i(u.u_signTexture??null,7);}
@@ -2045,10 +2048,11 @@
       if(!shadow&&!!object.flareSprite!==transparent)continue;
       gl.bindVertexArray(object.mesh.vao);gl.uniformMatrix4fv(u.u_model,false,object.model);gl.uniform1f(u.u_rigBlend??null,object.rigBlend??(object.bones?1:object.rig?powerCreature.rigBlend:0));
       if(object.bones||object.rig)gl.uniformMatrix4fv(u['u_bones[0]']??null,false,object.bones||pylonBones);
-      if(!shadow){gl.activeTexture(gl.TEXTURE0+5);gl.bindTexture(gl.TEXTURE_2D,object.texture||pylonTexture);}
+      if(!shadow||object.forest){gl.activeTexture(gl.TEXTURE0+5);gl.bindTexture(gl.TEXTURE_2D,object.texture||pylonTexture);}
+      gl.uniform1f(u.u_treeInstanced??null,object.treeInstances?1:0);
       if(!shadow){gl.uniform1f(u.u_material??null,object.material||0);gl.uniform1f(u.u_variant??null,object.variant||0);gl.uniform1f(u.u_receiveTorch??null,object.receiveTorch===false?0:1);gl.uniform1f(u.u_assetKind??null,object.assetKind||0);}
       if(!shadow&&object.flareSprite){gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.depthMask(false);}
-      gl.drawElements(gl.TRIANGLES,object.mesh.count,gl.UNSIGNED_INT,0);
+      if(object.treeInstances)gl.drawElementsInstanced(gl.TRIANGLES,object.mesh.count,gl.UNSIGNED_INT,0,object.treeInstances);else gl.drawElements(gl.TRIANGLES,object.mesh.count,gl.UNSIGNED_INT,0);
       if(!shadow&&object.flareSprite){gl.disable(gl.BLEND);gl.depthMask(true);}
     }
   }
@@ -2060,7 +2064,7 @@
     gl.uniform1i(u.u_censorCount,headCensorCount);gl.uniform4fv(u['u_censorRects[0]']??null,headCensorRects);gl.uniform1fv(u['u_censorDepths[0]']??null,headCensorDepths);gl.uniform2f(u.u_texel,1/canvas.width,1/canvas.height);
     gl.uniform1f(u.u_time,time);gl.uniform1f(u.u_vhs,settings.vhs);gl.uniform1f(u.u_intro,game.intro);gl.uniform1f(u.u_flash,flash);
     gl.uniform1f(u.u_bloom,settings.bloom?1:0);gl.uniform1f(u.u_lost,game.mode==='lost'?1:0);gl.uniform1f(u.u_fade,game.mode==='loading'?1:game.fadeIn);
-    gl.uniform1f(u.u_threat,enemy.state==='dormant'&&powerCreature.state==='dormant'?0:1);gl.drawArrays(gl.TRIANGLES,0,3);
+    gl.uniform1f(u.u_threat,enemy.state==='dormant'&&powerCreature.state==='dormant'?0:1);gl.drawArrays(gl.TRIANGLES,0,3);drawSuitCards();
   }
   function frame(now){
     if(!running)return;const elapsed=previousTime?(now-previousTime)/1000:0;const dt=document.hidden?0:Math.min(elapsed,.05);previousTime=now;time+=dt;
