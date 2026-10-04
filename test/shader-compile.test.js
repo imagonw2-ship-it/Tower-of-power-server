@@ -22,7 +22,7 @@ test('native GLES compiles the game and verifies flashlight visibility, falloff 
   assert.ifError(result.error);
   assert.equal(result.status, 0, result.stdout + result.stderr);
   const report = JSON.parse(result.stdout);
-  assert.equal(report.programs.length, 7);
+  assert.equal(report.programs.length, 8);
   assert.ok(report.programs.every(p => p.linked));
   assert.deepEqual(report.failures, []);
 });
