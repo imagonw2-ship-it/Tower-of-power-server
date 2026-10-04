@@ -71,3 +71,6 @@ body.touch .netPanel { max-height:calc(100dvh - 24px); }
   .serverState { font-size:8px; }
   .netFooter { padding-left:16px; padding-right:16px; }
 }
+
+#worldMenuNotice{max-width:290px;font:11px/1.5 monospace;color:#adb4b0;margin:14px 0 0}
+#worldMenuNotice:not([hidden])+.menuFoot{margin-top:18px}

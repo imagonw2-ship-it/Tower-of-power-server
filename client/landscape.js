@@ -11,11 +11,11 @@ function selectLayout(seed){
   const changed=!layoutLookup||activeLayout.seed!==(seed>>>0);
   activeLayout=makeLayout(seed);world.seed=activeLayout.seed;Object.assign(POWER_ZONE,activeLayout.power);
   if(changed){
-    layoutLookup=makeLayoutLookup(activeLayout);
+    layoutLookup=makeLayoutLookup(activeLayout);uploadWoodland();
     layoutLookupTexture=layoutLookupTexture||gl.createTexture();layoutDataTexture=layoutDataTexture||gl.createTexture();
     for(const [texture,unit,format,width,height,type,data] of [
-      [layoutLookupTexture,9,gl.RGBA8,layoutLookup.size,layoutLookup.size*3,gl.UNSIGNED_BYTE,layoutLookup.pixels],
-      [layoutDataTexture,10,gl.RGBA32F,256,2,gl.FLOAT,layoutLookup.data]]){
+      [layoutLookupTexture,9,gl.RGBA8,layoutLookup.size,layoutLookup.size*5,gl.UNSIGNED_BYTE,layoutLookup.pixels],
+      [layoutDataTexture,10,gl.RGBA32F,256,3,gl.FLOAT,layoutLookup.data]]){
       gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,texture);
       gl.texImage2D(gl.TEXTURE_2D,0,format,width,height,0,gl.RGBA,type,data);
       gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
@@ -47,7 +47,7 @@ function appendForest(){
   if(isMenuScene())return;
   const f=activeLayout.forest,range=settings.quality==='low'?195:285;
   if(Math.hypot(player.x-f.x,player.z-f.z)>f.radius+range)return;
-  buildForest();
+  buildForest();appendFallenLogs();
   if((player.x-forestRefreshX)**2+(player.z-forestRefreshZ)**2>16||forestRefreshQuality!==settings.quality){
     for(const b of forestBatches)b.count=0;
     const near=settings.quality==='low'?38:60;

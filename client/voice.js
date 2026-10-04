@@ -24,15 +24,19 @@ class ProximityVoice {
     })();
     try{return await this.audioPending;}finally{this.audioPending=null;}
   }
+  canSpeak(){
+    const alive=this.net.snapshots.at(-1)?.players.find(p=>p.id===this.net.player?.id)?.alive!==false;
+    return this.net.active&&this.net.connected&&alive&&!document.hidden&&game.mode!=='lost';
+  }
   async toggle(){
     if(this.enabled||this.pending){this.stop();return;}
-    if(!this.net.connected)return;
+    if(!this.canSpeak())return;
     const generation=++this.generation;this.pending=true;this.label.textContent='ALLOW MICROPHONE';
     try{
       await this.ensureAudio();
       if(!navigator.mediaDevices?.getUserMedia)throw Error('Microphone unavailable. Use the updated APK.');
       const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
-      if(generation!==this.generation||!this.net.connected){stream.getTracks().forEach(t=>t.stop());return;}
+      if(generation!==this.generation||!this.canSpeak()){stream.getTracks().forEach(t=>t.stop());return;}
       this.stream=stream;this.input=this.context.createMediaStreamSource(stream);this.input.connect(this.node);this.enabled=true;
       this.node.port.postMessage({type:'capture',enabled:true});this.net.send({type:'voice',enabled:true});this.label.textContent='MIC ON · NEARBY';
       for(const track of stream.getTracks())track.onended=()=>this.stop();
@@ -52,7 +56,7 @@ class ProximityVoice {
     this.button.classList.toggle('latched',this.enabled);document.getElementById('voiceIcon').setAttribute('href',this.enabled?'#icon-mic':'#icon-mic-off');
   }
   transmit(samples){
-    if(!this.enabled||!this.net.connected||document.hidden||!['playing','menu'].includes(game.mode)||this.net.socket.bufferedAmount>8192)return;
+    if(!this.enabled||!this.canSpeak()||this.net.socket.bufferedAmount>8192)return;
     let energy=0;for(const value of samples)energy+=value*value;
     const rms=Math.sqrt(energy/samples.length);this.button.classList.toggle('speaking',rms>.008);
     if(rms>.008)this.hangover=6;else if(this.hangover>0)this.hangover--;else return;
@@ -68,11 +72,11 @@ class ProximityVoice {
   }
   update(){
     document.getElementById('voiceHud').hidden=!this.net.active;
-    const alive=this.net.snapshots.at(-1)?.players.find(p=>p.id===this.net.player?.id)?.alive!==false;
-    if((this.enabled||this.pending)&&(!this.net.connected||!alive||document.hidden||['paused','fieldPanel','lost','inventory'].includes(game.mode)))this.stop();
+    if((this.enabled||this.pending)&&!this.canSpeak())this.stop();
     if(!this.net.active||!this.net.connected){this.node?.port.postMessage({type:'clear'});this.latest.clear();}
     if(this.enabled&&!this.pending)this.label.textContent='MIC ON · NEARBY';
   }
 }
 const proximityVoice=new ProximityVoice(net);
 net.hooks.voice=buffer=>proximityVoice.receive(buffer);
+net.hooks.leave=()=>proximityVoice.stop();

@@ -177,6 +177,11 @@ function closeMultiplayer() {
   syncUI();
   refreshNetworkUI();
 }
+document.getElementById('resumeWorldMenu').addEventListener('click',()=>{
+  if(!net.roundStarted){openMultiplayer();return;}
+  sound.start();setMode('paused');captureMouse();
+});
+document.getElementById('leaveWorldMenu').addEventListener('click',()=>leaveMultiplayer());
 function leaveMultiplayer() {
   net.leave();
   netUI.onlineRoster.hidden = true;
