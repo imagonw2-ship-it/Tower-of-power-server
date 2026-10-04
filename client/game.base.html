@@ -43,6 +43,7 @@
     #compass{position:absolute;left:50%;top:0;transform:translateX(-50%);width:260px;text-align:center;opacity:.88;font:10px monospace;letter-spacing:1px}
     #compassTape{height:29px;position:relative;overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent)}
     #compassTape span{position:absolute;left:50%;top:1px;width:24px;text-align:center;font-size:10px}#compassTicks{position:absolute;inset:19px 0 0;background:repeating-linear-gradient(90deg,#dbe3ca70 0 1px,transparent 1px 30px);height:5px}
+    #forestMarker{position:absolute;top:26px;left:50%;width:12px;color:#e6eee7;font-size:10px}#forestDestination{display:block;white-space:nowrap;margin:5px -40px 0;color:#e0e9e1;font:9px monospace;letter-spacing:1px}
     #powerMarker{position:absolute;top:15px;left:50%;width:12px;color:#e2bd70;text-shadow:0 0 8px #c1975580;font-size:11px}#powerDestination{display:block;white-space:nowrap;margin:9px -40px 0;color:#d5b370;font:9px monospace;letter-spacing:1px}#powerDestination.near{color:#f2d398}
     #compass:after{content:'';position:absolute;top:27px;left:calc(50% - 2px);border-left:2px solid transparent;border-right:2px solid transparent;border-bottom:4px solid #e6e8d4}#compassBearing{display:block;margin-top:9px;color:#cdd6c0;font-size:9px}
     @media(max-width:600px){#compass{width:190px}.rec{left:0;font-size:10px}.tape{right:0;font-size:9px}}
@@ -97,10 +98,11 @@
       <button id="settingsOpen">SETTINGS</button>
       <button id="controlsOpen">CONTROLS</button>
     </nav>
-    <p class="menuFoot"><strong id="releaseLabel">VERSION 12.0 · BEYOND THE FIELD</strong><br>HEADPHONES RECOMMENDED</p>
+    <p class="menuFoot"><strong id="releaseLabel">VERSION 12.5 · UNCHARTED ROADS</strong><br>HEADPHONES RECOMMENDED</p>
   </main>
   <section id="settingsPanel" class="panel settings" hidden aria-label="Settings">
     <h2>SETTINGS</h2>
+    <h3>NEXT SINGLEPLAYER WORLD</h3><label>SEED<input id="singleplayerSeed" type="text" maxlength="40" placeholder="Random world" autocomplete="off" spellcheck="false"></label>
     <h3>GRAPHICS</h3>
     <label>QUALITY<select id="quality"><option value="low">LOW</option><option value="medium">MEDIUM</option><option value="high">HIGH</option></select></label>
     <label>DYNAMIC SHADOWS<select id="shadows"><option value="off">OFF</option><option value="medium">MEDIUM</option><option value="high">HIGH</option></select></label>
@@ -117,8 +119,8 @@
   </section>
   <section id="controlsPanel" class="panel" hidden>
     <h2>CONTROLS</h2>
-    <dl><dt>TOUCH</dt><dd>Joystick moves; push to the outer edge to run. Drag the right side to look. KIT chooses the big Use button’s tool.</dd><dt>I / TAB</dt><dd>Open the Field Kit</dd><dt>R</dt><dd>Use equipped tool</dd><dt>W A S D</dt><dd>Walk</dd><dt>SHIFT</dt><dd>Sprint</dd><dt>X</dt><dd>Toggle crouch / hide in grass</dd><dt>MOUSE</dt><dd>Look around</dd><dt>C</dt><dd>Photograph with flash</dd><dt>E</dt><dd>Pick up the item you are looking at</dd><dt>Q</dt><dd>Drink soda for a 15-second speed boost</dd><dt>M</dt><dd>Time of day / stop turbine</dd><dt>F</dt><dd>Toggle flashlight</dd><dt>WHEEL / +/-</dt><dd>Zoom in / out (1x–6x)</dd><dt>ESC</dt><dd>Pause / release mouse</dd></dl>
-    <p class="tagline">Both giants are blind. They follow footsteps and the camera shutter, then search the last place they heard you. Follow the amber compass marker to the power corridor. Get some distance and crouch in the grass with X. Quiet movement can lose it; asphalt carries louder footsteps. Your flashlight is safe to use.</p>
+    <dl><dt>TOUCH</dt><dd>Joystick moves; tap the run button to toggle sprint. Drag the right side to look. KIT chooses the big Use button’s tool.</dd><dt>I / TAB</dt><dd>Open the Field Kit</dd><dt>R</dt><dd>Use equipped tool</dd><dt>W A S D</dt><dd>Walk</dd><dt>SHIFT</dt><dd>Sprint</dd><dt>X</dt><dd>Toggle crouch / hide in grass</dd><dt>MOUSE</dt><dd>Look around</dd><dt>C</dt><dd>Photograph with flash</dd><dt>E</dt><dd>Pick up the item you are looking at</dd><dt>Q</dt><dd>Drink soda for a 15-second speed boost</dd><dt>M</dt><dd>Time of day / stop turbine</dd><dt>F</dt><dd>Toggle flashlight</dd><dt>WHEEL / +/-</dt><dd>Zoom in / out (1x–6x)</dd><dt>ESC</dt><dd>Pause / release mouse</dd></dl>
+    <p class="tagline">Both giants are blind. They follow footsteps and the camera shutter, then search the last place they heard you. Follow ◆ to the power corridor or ▲ to the forest entrance. Both have access roads. Get some distance and crouch in the grass with X. Quiet movement can lose it; asphalt carries louder footsteps. Your flashlight is safe to use.</p>
     <button id="controlsBack">BACK</button>
   </section>
   <section id="pausePanel" class="panel" hidden>
@@ -127,6 +129,7 @@
   </section>
   <section id="fieldPanel" class="panel settings" hidden aria-label="World controls">
     <p class="eyebrow">M / WORLD CONTROLS</p><h2>THE FIELD</h2>
+    <p id="currentWorldSeed" class="worldStatus"></p>
     <p id="timeLabel" class="worldStatus">DAYLIGHT</p>
     <div class="timeButtons"><button id="setDay">DAY</button><button id="setNight">NIGHT</button></div>
     <label>TIME OF DAY<input id="timeSlider" type="range" min="0" max="1000" step="1" aria-label="Time of day"></label>
@@ -140,7 +143,7 @@
     <button id="retry">TRY AGAIN</button><button id="lostMenu">MAIN MENU</button>
   </section>
   <div id="loading" hidden><span>ACQUIRING SIGNAL<span class="loadingDots">...</span></span></div>
-  <div id="hud" hidden aria-hidden="true"><div id="compass"><div id="compassTape"><span id="compassMark0">N</span><span id="compassMark1">NE</span><span id="compassMark2">E</span><span id="compassMark3">SE</span><span id="compassMark4">S</span><span id="compassMark5">SW</span><span id="compassMark6">W</span><span id="compassMark7">NW</span><div id="compassTicks"></div></div><span id="powerMarker">◆</span><span id="compassBearing">N / 000°</span><span id="powerDestination">POWER CORRIDOR</span></div><span class="rec"><i></i> REC</span><span class="tape">SP ▰▰▰</span><span id="frameCount">FRAME 000</span><span id="equipment">ZOOM 1.0X</span><div class="viewCorner tl"></div><div class="viewCorner tr"></div><div class="viewCorner bl"></div><div class="viewCorner br"></div></div>
+  <div id="hud" hidden aria-hidden="true"><div id="compass"><div id="compassTape"><span id="compassMark0">N</span><span id="compassMark1">NE</span><span id="compassMark2">E</span><span id="compassMark3">SE</span><span id="compassMark4">S</span><span id="compassMark5">SW</span><span id="compassMark6">W</span><span id="compassMark7">NW</span><div id="compassTicks"></div></div><span id="powerMarker">◆</span><span id="forestMarker">▲</span><span id="compassBearing">N / 000°</span><span id="powerDestination">POWER CORRIDOR</span><span id="forestDestination">PINE FOREST</span></div><span class="rec"><i></i> REC</span><span class="tape">SP ▰▰▰</span><span id="frameCount">FRAME 000</span><span id="equipment">ZOOM 1.0X</span><div class="viewCorner tl"></div><div class="viewCorner tr"></div><div class="viewCorner bl"></div><div class="viewCorner br"></div></div>
   <div id="photoPreview"><canvas id="photo" width="240" height="150"></canvas><span>EXPOSURE CAPTURED</span></div>
   <div id="onboarding" hidden aria-label="Starting controls"><span><b>W A S D</b> MOVE</span><span><b>SHIFT</b> RUN</span><span><b>X</b> CROUCH</span><span><b>E</b> PICK UP</span><span><b>MOUSE</b> LOOK</span><span><b>R</b> USE TOOL</span><span><b>I</b> FIELD KIT</span><span><b>C</b> FLASH PHOTO</span><span><b>WHEEL / +/-</b> ZOOM</span><span><b>M</b> WORLD PANEL</span><span><b>ESC</b> PAUSE</span></div>
   <div id="torchControls" hidden><b>F</b> FLASHLIGHT <span id="torchState">ON</span></div>
@@ -217,9 +220,9 @@
     }
   `;
   function resetPowerCreature(){
-    const y=terrainHeight(POWER_ZONE.x,POWER_ZONE.z);
-    Object.assign(powerCreature,{x:POWER_ZONE.x,z:POWER_ZONE.z,y,heading:PYLON_HEADING,silence:0,searchOnly:false,searchHint:null,attack:null,attackCooldown:0,targetId:null,heardVelocity:[0,0],sample:null,sampleTime:-99,state:'dormant',clock:0,wake:0,rigBlend:0,bodyDrop:0,bodyBob:0,vx:0,vz:0,noise:null,lastKnown:[POWER_ZONE.x,POWER_ZONE.z],memoryAge:99,navAge:0,navTarget:null,stepIndex:0,impact:0,stepRest:0,discovered:false});
-    powerCreature.feet=POWER_RIG.feet.map(p=>{const at=[POWER_ZONE.x+p[2],terrainHeight(POWER_ZONE.x+p[2],POWER_ZONE.z-p[0])-.06,POWER_ZONE.z-p[0]];return{position:at.slice(),start:at.slice(),target:at.slice(),progress:1,duration:.62,lift:5};});
+    const rest=groundedPylon({...POWER_ZONE,heading:POWER_ZONE.heading??PYLON_HEADING},POWER_RIG,terrainHeight),y=rest.y;
+    Object.assign(powerCreature,{x:POWER_ZONE.x,z:POWER_ZONE.z,y,heading:rest.heading,silence:0,searchOnly:false,searchHint:null,attack:null,attackCooldown:0,targetId:null,heardVelocity:[0,0],sample:null,sampleTime:-99,state:'dormant',clock:0,wake:0,rigBlend:0,bodyDrop:0,bodyBob:0,vx:0,vz:0,noise:null,lastKnown:[POWER_ZONE.x,POWER_ZONE.z],memoryAge:99,navAge:0,navTarget:null,stepIndex:0,impact:0,stepRest:0,discovered:false});
+    powerCreature.feet=POWER_RIG.feet.map(p=>{const at=pylonPoint(rest,p);at[1]=terrainHeight(at[0],at[2])+.06;return{position:at.slice(),start:at.slice(),target:at.slice(),progress:1,duration:.62,lift:5};});
     for(let i=0;i<9;i++)pylonBones.set(identity(),i*16);
   }
   function enterPowerState(state){powerCreature.state=state;powerCreature.clock=0;powerCreature.navAge=0;}
@@ -307,21 +310,23 @@
     p.y=terrainHeight(p.x,p.z)+p.bodyDrop+Math.sin(p.bodyBob*2)*.38-p.impact*.28;p.rigBlend=1;animatePowerFeet(dt);updatePylonRig();
     if(fast)game.shake=Math.max(game.shake,.32/(1+distance*.023));
   }
-  function powerCompassInfo(){
-    const forest=activeLayout.forest,nearForest=!isMenuScene()&&Math.hypot(player.x-forest.x,player.z-forest.z)<Math.hypot(player.x-POWER_ZONE.x,player.z-POWER_ZONE.z),destination=nearForest?forest:POWER_ZONE;
+  function destinationCompassInfo(destination,label){
     const dx=destination.x-player.x,dz=destination.z-player.z,bearing=(Math.atan2(dx,-dz)*180/Math.PI+360)%360,delta=((bearing-compassHeading(player.yaw)+540)%360)-180;
-    return{distance:Math.hypot(dx,dz),bearing,delta,label:nearForest?'PINE FOREST':'POWER CORRIDOR'};
+    return{distance:Math.hypot(dx,dz),bearing,delta,label};
   }
+  function powerCompassInfo(){return destinationCompassInfo(POWER_ZONE,'POWER CORRIDOR');}
   function updatePowerCompass(){
-    const m=powerCompassInfo(),side=m.delta<0?'‹':'›',edge=Math.abs(m.delta)>60;
-    ui.powerMarker.textContent=edge?side:'◆';ui.powerMarker.style.transform='translateX('+(clamp(m.delta,-59,59)*2-6).toFixed(1)+'px)';
-    ui.powerMarker.style.opacity=edge?'.65':'1';
-    ui.powerDestination.textContent=(edge?side+' ':'')+m.label+' · '+Math.round(m.distance)+'m';
-    ui.powerDestination.classList.toggle('near',m.distance<95);
+    for(const [info,marker,label,symbol] of [
+      [powerCompassInfo(),ui.powerMarker,ui.powerDestination,'◆'],
+      [destinationCompassInfo(activeLayout.forest.entrance,'PINE FOREST'),ui.forestMarker,ui.forestDestination,'▲']]){
+      const side=info.delta<0?'‹':'›',edge=Math.abs(info.delta)>60;
+      marker.textContent=edge?side:symbol;marker.style.transform='translateX('+(clamp(info.delta,-59,59)*2-6).toFixed(1)+'px)';marker.style.opacity=edge?'.65':'1';
+      label.textContent=(edge?side+' ':symbol+' ')+info.label+' · '+Math.round(info.distance)+'m';label.classList.toggle('near',info.distance<95);
+    }
   }
   function resolvePowerCollision(){
     if(isMenuScene())return;
-    resolveLegCollision(player,legColliders(turbine,enemy,powerCreature,POWER_RIG,terrainHeight).concat(corridorColliders,net.active?networkPylons.flatMap(p=>legColliders(turbine,{state:'dormant'},p,POWER_RIG,terrainHeight)):[]),terrainHeight(player.x,player.z),game.crouching);
+    resolveLegCollision(player,legColliders(turbine,enemy,powerCreature,POWER_RIG,terrainHeight).concat(staticPylonColliders(),net.active?networkPylons.flatMap(p=>legColliders(turbine,{state:'dormant'},p,POWER_RIG,terrainHeight)):[]),terrainHeight(player.x,player.z),game.crouching);
   }
   function updateEnemyCombat(dt){
     if(net.active||game.mode!=='playing')return;
@@ -464,15 +469,41 @@
   const commonGLSL = `
     precision highp float;
     uniform vec3 u_lightDirection,u_sun,u_ambient,u_direct;
-    uniform float u_day,u_crossroad,u_forestRange;
+    uniform float u_day,u_forestRange,u_mapEnabled;
     uniform vec3 u_forest;
-    float forestFloor(vec2 p){return 1.-smoothstep(u_forest.z-35.,u_forest.z,length(p-u_forest.xy));}
+    uniform vec2 u_powerOrigin;
+    uniform vec4 u_mapBounds;
+    uniform highp int u_mapSize;
+    uniform highp sampler2D u_mapLookup,u_mapData;
+    float forestFloor(vec2 p){return (1.-smoothstep(u_forest.z-35.,u_forest.z,length(p-u_forest.xy)))*u_mapEnabled;}
     #define SUN u_lightDirection
-    float trackDistance(vec2 p){vec2 a=vec2(119.+12.*sin(-68.*.007)+4.*sin(-68.*.018),-110.),b=vec2(-185.,-270.);vec2 d=b-a;float t=clamp(dot(p-a,d)/dot(d,d),0.,1.);return length(p-a-d*t);}
-    float corridorClearing(vec2 p){float d=max(abs(p.x+185.),abs(p.y+270.));float near=1.-smoothstep(34.,39.,d);float far=min(length(p-vec2(-185.,-445.)),length(p-vec2(-185.,-620.)));return max(near,1.-smoothstep(13.,19.,far));}
     float roadX(float z){return 119.+12.*sin((z+42.)*.007)+4.*sin((z+42.)*.018);}
-    float crossingOffset(vec2 p){return u_crossroad>.5?dot(p-vec2(108.,-170.),vec2(.70710678,-.70710678)):1000000.;}
-    float roadOffset(vec2 p){float s=.084*cos((p.y+42.)*.007)+.072*cos((p.y+42.)*.018);float a=(p.x-roadX(p.y))/sqrt(1.+s*s),b=crossingOffset(p);return abs(b)<abs(a)?b:a;}
+    ivec2 mapCell(vec2 p){return ivec2(floor((p-u_mapBounds.xy)*u_mapBounds.zw*float(u_mapSize)));}
+    bool mapOutside(ivec2 cell){return any(lessThan(cell,ivec2(0)))||any(greaterThanEqual(cell,ivec2(u_mapSize)));}
+    vec4 roadInfo(vec2 p){
+      if(u_mapEnabled<.5){float slope=.084*cos((p.y+42.)*.007)+.072*cos((p.y+42.)*.018),side=(p.x-roadX(p.y))/sqrt(1.+slope*slope);return vec4(abs(side),side,p.y,1.);}
+      ivec2 cell=mapCell(p);if(mapOutside(cell))return vec4(1000000.,0.,0.,0.);
+      vec4 best=vec4(1000000.,0.,0.,1.);vec2 heading=vec2(0.);float junction=0.;
+      // Eight nearby segments only, even in a world with many branches.
+      for(int group=0;group<2;group++){
+        ivec4 ids=ivec4(round(texelFetch(u_mapLookup,cell+ivec2(0,group*u_mapSize),0)*255.));
+        for(int i=0;i<4;i++){
+          int id=ids[i]-1;if(id<0)continue;
+          vec4 edge=texelFetch(u_mapData,ivec2(id,0),0);vec2 delta=edge.zw-edge.xy;float lengthD=length(delta);
+          vec2 dir=delta/max(lengthD,.001),relative=p-edge.xy;float along=dot(relative,dir),distanceD=length(relative-dir*clamp(along,0.,lengthD));
+          if(distanceD<4.&&best.x<4.&&abs(dot(dir,heading))<.90)junction=1.;
+          if(distanceD<best.x){best=vec4(distanceD,relative.x*dir.y-relative.y*dir.x,along,1.);heading=dir;}
+        }
+      }
+      best.w=1.-junction;return best;
+    }
+    float roadOffset(vec2 p){return roadInfo(p).x;}
+    float siteClearance(vec2 p){
+      if(u_mapEnabled<.5)return 0.;ivec2 cell=mapCell(p);if(mapOutside(cell))return 0.;
+      ivec4 ids=ivec4(round(texelFetch(u_mapLookup,cell+ivec2(0,2*u_mapSize),0)*255.));float value=0.;
+      for(int i=0;i<4;i++){int id=ids[i]-1;if(id<0)continue;vec4 site=texelFetch(u_mapData,ivec2(id,1),0);value=max(value,1.-smoothstep(site.z-3.,site.z+2.,length(p-site.xy)));}
+      return value;
+    }
     uniform highp sampler2D u_torchShadowMap;
     uniform mat4 u_torchVP;
     uniform vec2 u_torchTexel;
@@ -481,8 +512,7 @@
     uniform float u_torchShadowStrength,u_receiveTorch;
     uniform vec3 u_turbine;
     uniform vec3 u_anchor;
-    uniform vec3 u_secondAnchor; // x, z, enabled
-    float anchorDistance(vec2 p){return min(length(p-u_anchor.xz),u_secondAnchor.z>.5?length(p-u_secondAnchor.xy):1000000.);}
+    float anchorDistance(vec2 p){return length(p-u_anchor.xz);}
     uniform highp sampler2D u_shadowMap;
     uniform highp sampler2DShadow u_nearShadowMap;
     uniform mat4 u_nearLightVP;
@@ -1219,28 +1249,26 @@
         vec3 c=mix(vec3(.17,.235,.065),vec3(.295,.36,.115),broad)*(.88+grain*.20);
         float shade=noise(v_world.xz*.012+vec2(u_time*.003,4.));
         c*=.86+.14*smoothstep(.35,.7,shade);
-        float gravel=1.-smoothstep(7.8,11.5,anchorDistance(v_world.xz));
+        float gravel=u_mapEnabled>.5?siteClearance(v_world.xz):1.-smoothstep(7.8,11.5,anchorDistance(v_world.xz));
         c=mix(c,mix(vec3(.34,.32,.26),vec3(.49,.47,.39),grain),gravel);
         float shedD=max(abs(v_world.x-u_shed.x)-3.5,abs(v_world.z-u_shed.z)-3.3);
         c=mix(c,vec3(.205,.18,.12)*(grain*.35+.8),(1.-smoothstep(0.,1.2,shedD))*u_shedEnabled);
         c=mix(c,vec3(.16,.14,.095)*(.7+grain*.6),forestFloor(v_world.xz)*.88);
-        float lateral=roadOffset(v_world.xz),edge=abs(lateral),ragged=(noise(v_world.xz*3.)-.5)*.2;
+        vec4 road=roadInfo(v_world.xz);
+        float lateral=road.y,edge=road.x,ragged=(noise(v_world.xz*3.)-.5)*.2;
         float shoulder=1.-smoothstep(3.1,4.8+ragged,edge);
         c=mix(c,vec3(.28,.27,.225)*(.72+grain*.5),shoulder);
         float pavement=1.-smoothstep(2.97+ragged,3.08+ragged,edge);
-        vec2 uv=vec2(lateral,v_world.z)/3.;
+        vec2 uv=vec2(lateral,road.z)/3.;
         vec3 asphalt=texture(u_colorMaps,vec3(uv,2.)).rgb*.87;
-        float paint=(1.-smoothstep(.06,.095,edge))*(1.-smoothstep(2.6,2.8,mod((abs(crossingOffset(v_world.xz))<abs((v_world.x-roadX(v_world.z)))?dot(v_world.xz,vec2(.70710678,.70710678)):v_world.z)+3000.,8.)));
-        paint*=mix(1.,smoothstep(3.3,5.,length(v_world.xz-vec2(108.,-170.))),u_crossroad)*(smoothstep(.19,.7,grain))*(.35+.4*noise(v_world.xz*.65));
+        float paint=(1.-smoothstep(.06,.095,abs(lateral)))*(1.-smoothstep(2.6,2.8,mod(road.z+3000.,8.)))*road.w;
+        paint*=smoothstep(.19,.7,grain)*(.35+.4*noise(v_world.xz*.65));
         asphalt=mix(asphalt,vec3(.70,.68,.55),paint);
         c=mix(c,asphalt,pavement);
         vec3 n=normalize(cross(dFdx(v_world),dFdy(v_world)));if(n.y<0.)n=-n;
         vec4 surface=texture(u_surfaceMaps,vec3(uv,2.));
         n=mappedNormal(v_world,n,uv,surface.rgb,pavement*.65);
-        float track=1.-smoothstep(2.6,4.8,trackDistance(v_world.xz));
-        float clearing=corridorClearing(v_world.xz),service=max(track,clearing)*u_shedEnabled*(1.-pavement);
-        c=mix(c,mix(vec3(.255,.245,.205),vec3(.38,.36,.29),grain),service);
-        vec2 yard=v_world.xz+vec2(185.,270.);
+        vec2 yard=v_world.xz-u_powerOrigin;
         float pad=(1.-smoothstep(32.5,32.75,abs(yard.x)))*(1.-smoothstep(30.5,30.75,abs(yard.y)));
         vec2 joint=abs(mod(yard+vec2(4.5,7.5),vec2(9.,15.))-vec2(4.5,7.5));
         float seam=1.-smoothstep(.014,.04,min(joint.x,joint.y));
@@ -1279,9 +1307,8 @@
         float edge = max(abs(relative.x),abs(relative.y));
         float fade = 1.-smoothstep(u_grid.w-3.,u_grid.w,edge);
         if (u_grid.z > 0.) fade *= smoothstep(u_grid.z-3.,u_grid.z,edge);
-        fade*=smoothstep(7.8,10.3,anchorDistance(base));
+        fade*=u_mapEnabled>.5?1.-siteClearance(base):smoothstep(7.8,10.3,anchorDistance(base));
         fade*=smoothstep(3.4,4.8,abs(roadOffset(base)));fade*=1.-forestFloor(base)*.82;
-        fade*=mix(1.,smoothstep(3.1,5.1,trackDistance(base))*(1.-corridorClearing(base)),u_shedEnabled);
         float shedD=max(abs(base.x-u_shed.x)-3.2,abs(base.y-u_shed.z)-2.95);
         fade*=mix(1.,smoothstep(-.1,.3,shedD),u_shedEnabled);
         v_blade=a_blade;
@@ -1543,7 +1570,7 @@
   }
 
   const ui={};
-  for(const id of ['menu','settingsPanel','controlsPanel','pausePanel','lostPanel','loading','hud','photoPreview','photo','frameCount','equipment','onboarding','torchControls','torchState','fieldPanel','setDay','setNight','timeSlider','timeLabel','cycleEnabled','turbineToggle','turbineStatus','fieldBack','stealthReadout','sodaControls','compassBearing','compassTicks','powerMarker','powerDestination','powerToggle','powerStatus','compassMark0','compassMark1','compassMark2','compassMark3','compassMark4','compassMark5','compassMark6','compassMark7'])ui[id]=document.getElementById(id);
+  for(const id of ['menu','settingsPanel','controlsPanel','pausePanel','lostPanel','loading','hud','photoPreview','photo','frameCount','equipment','onboarding','torchControls','torchState','fieldPanel','setDay','setNight','timeSlider','timeLabel','cycleEnabled','turbineToggle','turbineStatus','fieldBack','stealthReadout','sodaControls','compassBearing','compassTicks','powerMarker','powerDestination','forestMarker','forestDestination','powerToggle','powerStatus','compassMark0','compassMark1','compassMark2','compassMark3','compassMark4','compassMark5','compassMark6','compassMark7'])ui[id]=document.getElementById(id);
   function isMenuScene(){return ['menu','controls','transition'].includes(game.mode)||(game.mode==='settings'&&game.returnTo==='menu');}
   function syncUI(){
     const names={menu:'menu',settingsPanel:'settings',controlsPanel:'controls',pausePanel:'paused',lostPanel:'lost',loading:'loading',fieldPanel:'fieldPanel'};
@@ -1559,11 +1586,11 @@
   }
   function setMode(mode){game.mode=mode;game.clock=0;keys.clear();game.sprinting=false;syncUI();}
   function resetWorld(playable,seed=null){
-    clearSuitCards();selectLayout(playable?(seed??(net.active?net.snapshots.at(-1)?.world.seed:Math.floor(Math.random()*0x7fffffff))??0):0);
+    clearSuitCards();selectLayout(playable?(seed??(net.active?net.snapshots.at(-1)?.world.seed:(seedFromText(document.getElementById('singleplayerSeed').value)??Math.floor(Math.random()*0x7fffffff)))??0):0);
     avatarCache.clear();networkPylons=[];localDroppedItems=[];localDropSerial=0;pendingDrop=null;localFlares=[];flareSerial=0;cameraDynamics={lean:0,pitch:0,speed:0,breath:0};
     equippedTool='camera';kitPreviousFlashlight=false;resetEquipmentMotion();
-    turbine.x=playable?95:-35;turbine.z=playable?-250:-250;turbine.y=terrainHeight(turbine.x,turbine.z);
-    resetEnemy();resetPowerCreature();resetOtherTurbines();Object.assign(world,{phase:.43,cycle:true,turbineStopped:false,powerStopped:false});updateEnvironment(0);
+    turbine.x=playable?activeLayout.turbines[0].x:-35;turbine.z=playable?activeLayout.turbines[0].z:-250;turbine.y=terrainHeight(turbine.x,turbine.z);
+    resetEnemy();resetPowerCreature();resetOtherTurbines();buildPowerCorridor();Object.assign(world,{phase:.43,cycle:true,turbineStopped:false,powerStopped:false});updateEnvironment(0);
     Object.assign(player,playable?{x:128,z:-34,yaw:-.015,pitch:-.025}:{x:0,z:6,yaw:0,pitch:-.01});
     player.y=shedFloor(player.x,player.z)+EYE_HEIGHT;
     Object.assign(bob,{phase:0,blend:0,strafe:0,vertical:0,lateral:0,roll:0});
@@ -1914,7 +1941,7 @@
   }
   function closeFieldPanel(){setMode('paused');sound.start();captureMouse();}
   function grassCover(x,z){
-    if(Math.abs(roadOffset(x,z))<4.8||serviceTrackDistance(x,z)<5.1||Math.max(Math.abs(x-POWER_ZONE.x),Math.abs(z-POWER_ZONE.z))<39)return false;
+    if(Math.abs(roadOffset(x,z))<4.8||siteClearing(x,z,activeLayout))return false;
     if(activeLayout.turbines.some(t=>Math.hypot(x-t.x,z-t.z)<11.4))return false;
     if(Math.abs(x-shed.x)<4.1&&Math.abs(z-shed.z)<4.0)return false;
     return true;
@@ -1984,8 +2011,13 @@
     gl.useProgram(program.p);const u=program.uniforms;bindEnvironment(u);
     gl.uniformMatrix4fv(u.u_vp??null,false,viewProjection);gl.uniform3fv(u.u_camera??null,cameraPosition);
     gl.uniform3f(u.u_turbine??null,turbine.x,turbine.y,turbine.z);gl.uniform3fv(u.u_anchor??null,enemy.anchor);
-    const second=activeLayout.turbines[1];gl.uniform3f(u.u_secondAnchor??null,second?.x||0,second?.z||0,second&&!isMenuScene()?1:0);
-    gl.uniform1f(u.u_time??null,reducedMotion?0:time);gl.uniform1f(u.u_crossroad??null,activeLayout.crossroad?1:0);gl.uniform3f(u.u_forest??null,activeLayout.forest.x,activeLayout.forest.z,activeLayout.forest.radius);gl.uniform1f(u.u_forestRange??null,settings.quality==='low'?195:285);
+    gl.uniform1f(u.u_time??null,reducedMotion?0:time);gl.uniform3f(u.u_forest??null,activeLayout.forest.x,activeLayout.forest.z,activeLayout.forest.radius);gl.uniform1f(u.u_forestRange??null,settings.quality==='low'?195:285);
+    gl.uniform1f(u.u_mapEnabled??null,isMenuScene()?0:1);gl.uniform2f(u.u_powerOrigin??null,POWER_ZONE.x,POWER_ZONE.z);
+    if(layoutLookup){
+      const b=layoutLookup.bounds;gl.uniform4f(u.u_mapBounds??null,b[0],b[1],1/b[2],1/b[3]);gl.uniform1i(u.u_mapSize??null,layoutLookup.size);
+      gl.activeTexture(gl.TEXTURE0+9);gl.bindTexture(gl.TEXTURE_2D,layoutLookupTexture);gl.uniform1i(u.u_mapLookup??null,9);
+      gl.activeTexture(gl.TEXTURE0+10);gl.bindTexture(gl.TEXTURE_2D,layoutDataTexture);gl.uniform1i(u.u_mapData??null,10);
+    }
     gl.uniformMatrix4fv(u.u_lightVP??null,false,lightVP);gl.uniform2f(u.u_shadowTexel??null,1/shadowTarget.size,1/shadowTarget.size);
     gl.uniformMatrix4fv(u.u_nearLightVP??null,false,nearLightVP);gl.uniform2f(u.u_nearShadowTexel??null,1/nearShadowTarget.size,1/nearShadowTarget.size);gl.uniform1i(u.u_nearShadowMap??null,8);
     gl.uniform1f(u.u_shadowStrength??null,settings.shadows==='off'?0:1);gl.uniform1i(u.u_shadowMap??null,1);

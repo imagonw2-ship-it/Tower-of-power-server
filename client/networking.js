@@ -173,8 +173,8 @@ class TowerNetwork {
       this.hooks.identity?.();
     }
   }
-  host() {
-    this.connect({ type: "host" });
+  host(seed="") {
+    this.connect({ type: "host", seed:String(seed).trim().slice(0,40) });
   }
   join(code) {
     if (!/^[A-Z2-9]{5}$/.test(code))
@@ -195,7 +195,7 @@ class TowerNetwork {
     const timeout = setTimeout(() => ws.close(), 8000);
     ws.onopen = () =>
       ws.send(
-        JSON.stringify({ type: "hello", protocol: 1, layoutVersion: 1, token: this.token }),
+        JSON.stringify({ type: "hello", protocol: 1, layoutVersion: 2, token: this.token }),
       );
     ws.onmessage = (e) => {
       if (this.socket !== ws) return;
