@@ -39,7 +39,7 @@ async function until(fn, ms = 5000) {
   }
   throw Error("Timed out waiting for condition");
 }
-async function device(session, agent = "Desktop Chrome", layoutVersion = 1) {
+async function device(session, agent = "Desktop Chrome", layoutVersion = 2) {
   const ws = new WebSocket(origin.replace("http", "ws") + "/ws", {
       headers: { Origin: origin, "User-Agent": agent },
     }),
@@ -64,8 +64,8 @@ async function device(session, agent = "Desktop Chrome", layoutVersion = 1) {
   clients.push(c);
   return c;
 }
-async function joinRoom(c, type, code) {
-  c.send({ type, code });
+async function joinRoom(c, type, code, seed) {
+  c.send({ type, code, seed });
   const joined = await c.wait("joined");
   c.seq = joined.seq;
   c.action = joined.actionSeq;
@@ -155,12 +155,10 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
     "guest devices host/join short room codes; equipment scales 1, 2, 4",
     async () => {
       host = await device(account);
-      code = await joinRoom(host, "host");
+      code = await joinRoom(host, "host", undefined,"2");
       assert.match(code, /^[A-Z2-9]{5}$/);
       room = app.rooms.rooms.get(code);
-      // Pin this integration fixture to the twin map; production picks its seed.
-      room.world = makeWorld(room.world.rules, 2);
-      scaleItems(room.world, 1, room.world.rules.starterItems);
+      assert.equal(room.world.seed,2);
       hostPlayer = room.players.get(account.player.id);
       assert.equal(
         room.world.items.filter((i) => i.kind === "flashlight").length,
@@ -193,15 +191,15 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
     },
   );
   await t.test('separate devices share the map seed and reject outdated world renderers', async()=>{
-    await until(()=>[host,phone,tablet,chrome].every(c=>c.snapshot?.world.seed===2&&c.snapshot?.enemies.turbines.length===2));
+    await until(()=>[host,phone,tablet,chrome].every(c=>c.snapshot?.world.seed===2&&c.snapshot?.enemies.turbines.length===room.world.layout.turbines.length));
     for(const c of [host,phone,tablet,chrome]){
-      assert.equal(c.snapshot.world.layoutVersion,1);
-      assert.equal(c.snapshot.enemies.turbines[1].x,325);
-      assert.equal(c.snapshot.enemies.turbines[1].z,-325);
+      assert.equal(c.snapshot.world.layoutVersion,2);
+      assert.equal(c.snapshot.enemies.turbines[1].x,room.world.layout.turbines[1].x);
+      assert.equal(c.snapshot.enemies.turbines[1].z,room.world.layout.turbines[1].z);
     }
     const legacy=await device(await api('guest',{}),'Older APK',0),before=app.rooms.rooms.size;
     legacy.send({type:'host'});assert.equal((await legacy.wait('error')).code,'UPDATE_REQUIRED');
-    legacy.send({type:'join',code});assert.match((await legacy.wait('error')).message,/12\.0/);
+    legacy.send({type:'join',code});assert.match((await legacy.wait('error')).message,/12\.5/);
     assert.equal(app.rooms.rooms.size,before);assert.equal(room.players.size,4);
   });
   await t.test(
@@ -337,21 +335,21 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
       assert.equal(room.ownerId, account.player.id);
       assert.equal(room.players.size, 4);
       assert.equal(host.snapshot.world.seed,2);
-      assert.equal(host.snapshot.enemies.turbines.length,2);
+      assert.equal(host.snapshot.enemies.turbines.length,room.world.layout.turbines.length);
     },
   );
   await t.test(
     "rooms are independent; only owner can edit shared world settings",
     async () => {
       const another = await device(await api("guest", {}));
-      const otherCode = await joinRoom(another, "host");
+      const otherCode = await joinRoom(another, "host",undefined,"1");
       assert.notEqual(otherCode, code);
       const other = app.rooms.rooms.get(otherCode);
-      other.world = makeWorld(other.world.rules, 1);
+      assert.equal(other.world.seed,1);
       assert.equal(other.players.size, 1);
       assert.notEqual(other.world.id, room.world.id);
       await until(()=>another.snapshot?.world.seed===1);
-      assert.equal(another.snapshot.enemies.turbines.length,1);
+      assert.equal(another.snapshot.enemies.turbines.length,other.world.layout.turbines.length);
       assert.equal(phone.snapshot.world.seed,2);
       assert.equal(
         (

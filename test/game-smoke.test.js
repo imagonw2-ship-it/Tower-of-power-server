@@ -6,7 +6,7 @@ import {launch} from './game-harness.js';
 test('complete mobile game builds its geometry and runs singleplayer, kit, pickups and tools',()=>{
   const {run,document,errors}=launch();
   run("resetWorld(true);setMode('playing');locked=true;frame(1000);frame(1050);");
-  assert.equal(run('corridorTowers.length'),6);
+  assert.equal(run('corridorTowers.length'),run('activeLayout.pylons.length'));
   assert.equal(run('game.mode'),'playing');
   assert.equal(run("equipTool('flashlight')"),false);
   run('openFieldKit()');assert.equal(document.getElementById('fieldKit').hidden,false);assert.equal(run('game.mode'),'inventory');
