@@ -1,0 +1,2 @@
+// Normalized trunk widths used by both server and client.
+export const FOREST_TREE_TYPES=[{"radius":0.012,"minHeight":9,"maxHeight":17},{"radius":0.012,"minHeight":9,"maxHeight":17},{"radius":0.012,"minHeight":9,"maxHeight":17},{"radius":0.045,"minHeight":11,"maxHeight":21},{"radius":0.045,"minHeight":11,"maxHeight":21},{"radius":0.045,"minHeight":11,"maxHeight":21},{"radius":0.045,"minHeight":11,"maxHeight":21}];
