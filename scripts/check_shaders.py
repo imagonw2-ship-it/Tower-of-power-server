@@ -53,7 +53,7 @@ delete_program = gl('glDeleteProgram', None, [U])
 sources = json.load(sys.stdin)
 assert sources and len(sources) % 2 == 0
 failures, programs = [], []
-names = ['sky','ground','grass','objects','camera effects','shadows','flashlight probe']
+names = ['sky','ground','grass','objects','camera effects','shadows','clear suit IDs','flashlight probe']
 for pair in range(len(sources)//2):
     program = create_program()
     shaders = []
@@ -115,7 +115,7 @@ for pair in range(len(sources)//2):
             pixel=(c.c_ubyte*4)();gl('glReadPixels',None,[I,I,I,I,U,U,P])(0,0,1,1,0x1908,0x1401,pixel)
             assert (max(pixel[:3])==0)==redacted, f'Head censor pixel check failed: {count,depth,flash,list(pixel)}'
         assert gl('glGetError',U,[])()==0,'Graphics error during censor pixel checks'
-    if not errors and pair == 6:
+    if not errors and pair == len(sources)//2-1:
         gl('glUseProgram',None,[U])(program)
         location=gl('glGetUniformLocation',I,[U,c.c_char_p])
         uf=gl('glUniform1f',None,[I,c.c_float]);ui=gl('glUniform1i',None,[I,I])
