@@ -1,3 +1,4 @@
+import { LAYOUT_VERSION,seedFromText } from "../shared/world-layout.js";
 import { randomInt } from "node:crypto";
 import { config } from "./config.js";
 import { HttpError } from "./auth.js";
@@ -11,7 +12,8 @@ export class Rooms {
     this.rooms = new Map();
     this.membership = new Map();
   }
-  create(account) {
+  create(account,seed) {
+    if(seed!==undefined&&(typeof seed!=="string"||seed.length>40))throw new HttpError(400,"Use a world seed of up to 40 characters.");
     if (this.rooms.size >= this.config.maxRooms)
       throw new HttpError(503, "World limit reached. Try later.");
     if (this.membership.has(account.id))
@@ -29,7 +31,7 @@ export class Rooms {
       players: new Map(),
       voiceSerial: 0,
       phase: "lobby",
-      world: makeWorld(this.config),
+      world: makeWorld(this.config,seedFromText(seed)??undefined),
       lastOccupied: Date.now(),
       created: Date.now(),
     };
@@ -128,7 +130,7 @@ export class Rooms {
       world: {
         id: w.id,
         seed:w.seed,
-        layoutVersion:1,
+        layoutVersion:LAYOUT_VERSION,
         phase: w.phase,
         cycle: w.cycle,
         turbineStopped: w.turbineStopped,

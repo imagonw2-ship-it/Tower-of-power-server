@@ -1,7 +1,7 @@
 // Reuses the current game's awakening, pathfinding, hearing, and foot planting.
 import { applyFlareLure } from '../shared/survival.js';
 import { SoundTargets, legColliders, resolveLegCollision, tickStomp, stompHits, pylonLegPoints } from "../shared/enemy-combat.js";
-import { PYLON_HEADING, PYLON_RIG, STATIC_PYLONS, groundedPylon } from "../shared/power-layout.js";
+import { PYLON_HEADING, PYLON_RIG, STATIC_PYLONS, groundedPylon, pylonPoint } from "../shared/power-layout.js";
 import { terrainHeight, shed, clamp } from "../shared/physics.js";
 import { silentSearch, noteAudibleContact } from '../shared/silent-search.js';
 export function createEnemySimulation(world, {powerOnly=false,turbineOnly=false,turbineSpawn={x:95,z:-250},powerSpawn={x:-185,z:-270}}={}) {
@@ -29,23 +29,23 @@ export function createEnemySimulation(world, {powerOnly=false,turbineOnly=false,
   const POWER_RIG = PYLON_RIG;
   const turbineTargets = new SoundTargets(), powerTargets = new SoundTargets();
   let collisionSegments = [];
-  const staticLegs = STATIC_PYLONS.flatMap(t => {
+  const staticLegs = (world.layout?.pylons||STATIC_PYLONS).map((t,index) => {
     const pose=groundedPylon(t,POWER_RIG,terrainHeight);
     const scaled={hips:POWER_RIG.hips.map(p=>p.map(v=>v*t.scale)),knees:POWER_RIG.knees.map(p=>p.map(v=>v*t.scale)),feet:POWER_RIG.feet.map(p=>p.map(v=>v*t.scale))};
-    return [0,1,2,3].flatMap(i=>{const p=pylonLegPoints(pose,scaled,i);return [{a:p[1],b:p[2],r0:.7,r1:.45}];});
+    return [0,1,2,3].flatMap(i=>{const p=pylonLegPoints(pose,scaled,i);return [{a:p[1],b:p[2],r0:.7,r1:.45,index}];});
   });
   function resetPowerCreature() {
-    const y = terrainHeight(POWER_ZONE.x, POWER_ZONE.z);
+    const rest=groundedPylon({...POWER_ZONE,heading:POWER_ZONE.heading??PYLON_HEADING},POWER_RIG,terrainHeight),y=rest.y;
     Object.assign(powerCreature, {
       x: POWER_ZONE.x,
       z: POWER_ZONE.z,
       y,
-      heading: PYLON_HEADING,
+      heading: rest.heading,
       attack: null, attackCooldown: 0, targetId: null,
       state: "dormant",
       clock: 0,
       wake: 0,
-      rigBlend: powerOnly?1:0,
+      rigBlend: 0,
       bodyDrop: 0,
       bodyBob: 0,
       vx: 0,
@@ -61,11 +61,7 @@ export function createEnemySimulation(world, {powerOnly=false,turbineOnly=false,
       discovered: false,
     });
     powerCreature.feet = POWER_RIG.feet.map((p) => {
-      const at = [
-        POWER_ZONE.x + p[2],
-        terrainHeight(POWER_ZONE.x + p[2], POWER_ZONE.z - p[0]) + 0.06,
-        POWER_ZONE.z - p[0],
-      ];
+      const at=pylonPoint(rest,p);at[1]=terrainHeight(at[0],at[2])+.06;
       return {
         position: at.slice(),
         start: at.slice(),
@@ -735,7 +731,7 @@ export function createEnemySimulation(world, {powerOnly=false,turbineOnly=false,
       if(!turbineOnly&&!world.powerStopped&&!powerCreature.lureId&&!powerCreature.searchOnly)tickStomp(powerCreature,powerCreature,'power',dt,terrainHeight,shedBlocksSight,impact('power'));
       collisionSegments=legColliders(turbine,powerOnly?{state:'dormant'}:enemy,powerCreature,POWER_RIG,terrainHeight);
       if(turbineOnly)collisionSegments=enemy.state==='dormant'?[]:collisionSegments.slice(0,12);
-      else if(!powerOnly)collisionSegments.push(...staticLegs);
+      else if(!powerOnly)collisionSegments.push(...staticLegs.slice(world.layout?1+(world.extraPylons?.length||0):0).flat());
       for(const p of alive)if(p.alive)resolveLegCollision(p,collisionSegments,terrainHeight(p.x,p.z));
       if(!powerOnly&&!turbineOnly)for(const sim of [...(world.extraPylons||[]),...(world.extraTurbines||[])]){sim.step(dt,players);events.push(...sim.events.splice(0));}
     },
