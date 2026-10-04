@@ -127,6 +127,8 @@ export class Rooms {
       players: [...r.players.values()].map(wirePlayer),
       world: {
         id: w.id,
+        seed:w.seed,
+        layoutVersion:1,
         phase: w.phase,
         cycle: w.cycle,
         turbineStopped: w.turbineStopped,

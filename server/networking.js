@@ -86,6 +86,7 @@ export function attachNetworking(
           account = auth.verify(m.token);
           if (!account) throw Error("Login expired.");
           ws.token = m.token;
+          ws.layoutVersion = m.layoutVersion === 1 ? 1 : 0;
           clearTimeout(deadline);
           send(ws, { type: "authenticated", player: account });
           return;
@@ -95,6 +96,9 @@ export function attachNetworking(
           return;
         }
         if (["host", "join", "resume"].includes(m.type)) {
+          // Older builds cannot draw the new roads, trees or second enemy.
+          // Keep login available, but never put them into an invisible world.
+          if (ws.layoutVersion !== 1) throw Object.assign(Error('Update TOWER OF POWER to 12.0 or newer to join multiplayer.'), { code: 'UPDATE_REQUIRED' });
           if (room) throw Error("Already in a world.");
           const target =
               m.type === "host"
@@ -203,6 +207,7 @@ export function attachNetworking(
       } catch (e) {
         send(ws, {
           type: "error",
+          ...(e.code === 'UPDATE_REQUIRED' ? {code: e.code} : {}),
           message: e.status
             ? e.message
             : (e.message || "Request rejected.").slice(0, 120),

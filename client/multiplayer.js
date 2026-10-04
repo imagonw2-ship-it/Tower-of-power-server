@@ -152,18 +152,7 @@ function refreshNetworkUI() {
     netUI.roundStart.hidden = s?.phase !== "lobby";
     netUI.roundStart.disabled = s?.ownerId !== net.player?.id;
     netUI.roundResume.hidden = s?.phase !== "playing";
-    netUI.onlineRoster.textContent =
-      "ROOM " +
-      net.code +
-      "\n" +
-      (s?.players || [])
-        .filter((p) => p.id !== net.player?.id)
-        .map(
-          (p) =>
-            p.username +
-            (!p.connected ? " · RECONNECTING" : !p.alive ? " · LOST" : ""),
-        )
-        .join("\n");
+    netUI.onlineRoster.textContent = 'ROOM '+net.code+' · '+(s?.players.length||0)+' CREW';
   }
   netUI.onlineRoster.hidden =
     !net.active ||
@@ -427,6 +416,7 @@ function updateNetworkFrame(dt) {
     setMode("lost");
     if (document.pointerLockElement === canvas) document.exitPointerLock();
   }
+  if(activeLayout.seed!==(latest.world.seed??0)){selectLayout(latest.world.seed??0);resetOtherTurbines();}
   Object.assign(world, {
     phase: latest.world.phase,
     cycle: latest.world.cycle,
@@ -439,6 +429,11 @@ function updateNetworkFrame(dt) {
   Object.assign(turbine, { x: e.x, y: e.y, z: e.z });
   Object.assign(enemy, e);
   Object.assign(powerCreature, pw);
+  for(let i=0;i<otherTurbines.length;i++){
+    const cur=q.b.enemies.turbines?.[i+1];if(!cur)continue;
+    const e=poseBetween(q.a.enemies.turbines?.[i+1]||cur,cur,q.t);
+    Object.assign(otherTurbines[i].body,{x:e.x,y:e.y,z:e.z});Object.assign(otherTurbines[i].state,e);
+  }
   networkPylons=(q.b.enemies.powers||[]).slice(1).map((p,i)=>poseBetween(q.a.enemies.powers?.[i+1]||p,p,q.t));
   updatePylonRig();
   if (enemy.state === "running" || powerCreature.state === "running") {
@@ -457,7 +452,7 @@ function appendNetworkObjects() {
   for(const i of net.items)if(!i.holder&&!i.consumed)appendWorldItem(i,net.snapshots.at(-1)?.world.elapsed||0);
   const q = snapshotPair();
   if (!q) return;
-  const present=new Set(q.b.players.map(p=>p.id));for(const id of avatarCache.keys())if(!present.has(id))avatarCache.delete(id);
+  const present=new Set(q.b.players.map(p=>p.id));for(const id of avatarCache.keys())if(!present.has(id)){avatarCache.delete(id);const card=suitCards.get(id);if(card){gl.deleteTexture(card.texture);suitCards.delete(id);}}
   for(const cur of q.b.players){
     if(cur.id===net.player.id||!cur.alive)continue;
     const prev=q.a.players.find(p=>p.id===cur.id)||cur,p=poseBetween(prev,cur,q.t);

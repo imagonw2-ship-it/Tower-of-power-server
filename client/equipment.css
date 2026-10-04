@@ -80,3 +80,8 @@ body.touch .kitSheet footer{display:none}
 #touchControls .touchBtn{border-radius:16px!important}
 #touchUse svg{width:30px;height:30px}#touchControls button:focus-visible,#kitDrop:focus-visible{outline:2px solid #fff9;outline-offset:3px}
 @media(max-height:470px){.kitSlot{gap:1px}.kitSlot .itemPreview{max-height:calc(100% - 24px)}.kitCard strong,#handName{font-size:9px}#kitDrop{margin-top:8px;font-size:10px;letter-spacing:.04em}.kitHand{padding:7px 12px 16px}}
+
+/* 12.0: spare monochrome controls, with large unchanged touch targets. */
+#touchControls svg,#voiceHud svg{stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;filter:none}
+#touchControls .touchBtn{border:1px solid #ffffff30!important;background:linear-gradient(145deg,#ffffff09,#ffffff02)!important}
+#touchControls .touchBtn.latched{border-color:#ffffff70!important;background:#ffffff0d!important}

@@ -97,7 +97,7 @@
       <button id="settingsOpen">SETTINGS</button>
       <button id="controlsOpen">CONTROLS</button>
     </nav>
-    <p class="menuFoot"><strong id="releaseLabel">VERSION 11.7 · PROXIMITY UPDATE</strong><br>HEADPHONES RECOMMENDED</p>
+    <p class="menuFoot"><strong id="releaseLabel">VERSION 12.0 · BEYOND THE FIELD</strong><br>HEADPHONES RECOMMENDED</p>
   </main>
   <section id="settingsPanel" class="panel settings" hidden aria-label="Settings">
     <h2>SETTINGS</h2>
@@ -308,14 +308,15 @@
     if(fast)game.shake=Math.max(game.shake,.32/(1+distance*.023));
   }
   function powerCompassInfo(){
-    const dx=POWER_ZONE.x-player.x,dz=POWER_ZONE.z-player.z,bearing=(Math.atan2(dx,-dz)*180/Math.PI+360)%360,delta=((bearing-compassHeading(player.yaw)+540)%360)-180;
-    return{distance:Math.hypot(dx,dz),bearing,delta};
+    const forest=activeLayout.forest,nearForest=!isMenuScene()&&Math.hypot(player.x-forest.x,player.z-forest.z)<Math.hypot(player.x-POWER_ZONE.x,player.z-POWER_ZONE.z),destination=nearForest?forest:POWER_ZONE;
+    const dx=destination.x-player.x,dz=destination.z-player.z,bearing=(Math.atan2(dx,-dz)*180/Math.PI+360)%360,delta=((bearing-compassHeading(player.yaw)+540)%360)-180;
+    return{distance:Math.hypot(dx,dz),bearing,delta,label:nearForest?'PINE FOREST':'POWER CORRIDOR'};
   }
   function updatePowerCompass(){
     const m=powerCompassInfo(),side=m.delta<0?'‹':'›',edge=Math.abs(m.delta)>60;
     ui.powerMarker.textContent=edge?side:'◆';ui.powerMarker.style.transform='translateX('+(clamp(m.delta,-59,59)*2-6).toFixed(1)+'px)';
     ui.powerMarker.style.opacity=edge?'.65':'1';
-    ui.powerDestination.textContent=(edge?side+' ':'')+'POWER CORRIDOR · '+Math.round(m.distance)+'m';
+    ui.powerDestination.textContent=(edge?side+' ':'')+m.label+' · '+Math.round(m.distance)+'m';
     ui.powerDestination.classList.toggle('near',m.distance<95);
   }
   function resolvePowerCollision(){
@@ -352,7 +353,7 @@
   const EYE_HEIGHT=1.7, BENCH_TOP=1.06, CROUCH_SPEED=1.35;
   const player = { x: 0, z: 6, y: 1.7, yaw: 0, pitch: -0.045 };
   const TOWER_SCALE=3.2;
-  const turbine={x:-35,z:-250,height:30.3*TOWER_SCALE,radius:14.5*TOWER_SCALE};
+  let turbine={x:-35,z:-250,height:30.3*TOWER_SCALE,radius:14.5*TOWER_SCALE};
   const shed={x:134,z:-43,y:Math.max(...[-3,3].flatMap(x=>[-2.8,2.8].map(z=>terrainHeight(134+x,-43+z))))+.02};
   turbine.y = terrainHeight(turbine.x, turbine.z);
   const bob = { phase: 0, blend: 0, strafe: 0, vertical: 0, lateral: 0, roll: 0 };
@@ -365,7 +366,7 @@
   if(!['off','medium','high'].includes(settings.shadows))settings.shadows='medium';
   const game={mode:'menu',returnTo:'menu',clock:0,stamina:100,staminaDelay:0,exhausted:false,hasFlare:false,flareTaken:false,flares:0,flareCooldown:0,photos:0,flash:0,photoCooldown:0,photoPending:false,photoAge:99,shake:0,sprinting:false,intro:0,hintAge:0,fadeIn:0,hasFlashlight:false,torchOn:false,zoom:1,zoomTarget:1,noticeTime:0,notice:''};
   const world={phase:.43,cycle:true,turbineStopped:false,day:1,sun:[0,1,0],light:[0,1,0],direct:[1,.95,.84],ambient:[.4,.44,.47]};
-  const enemy={state:'dormant',silence:0,searchOnly:false,searchHint:null,attack:null,attackCooldown:0,targetId:null,heardVelocity:[0,0],sample:null,sampleTime:-99,angle:.22,awake:0,lift:0,vx:0,vz:0,heading:0,gait:0,lastStep:-1,feet:[],clock:0,cooldown:3,crouch:0,lean:0,anchor:[turbine.x,turbine.y,turbine.z]};
+  let enemy={state:'dormant',silence:0,searchOnly:false,searchHint:null,attack:null,attackCooldown:0,targetId:null,heardVelocity:[0,0],sample:null,sampleTime:-99,angle:.22,awake:0,lift:0,vx:0,vz:0,heading:0,gait:0,lastStep:-1,feet:[],clock:0,cooldown:3,crouch:0,lean:0,anchor:[turbine.x,turbine.y,turbine.z]};
   const keys = new Set();
   const moveKeys = new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight']);
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -447,7 +448,7 @@
     }
   `;
   function roadX(z){return 119+12*Math.sin((z+42)*.007)+4*Math.sin((z+42)*.018);}
-  function roadOffset(x,z){const slope=.084*Math.cos((z+42)*.007)+.072*Math.cos((z+42)*.018);return(x-roadX(z))/Math.sqrt(1+slope*slope);}
+  function roadOffset(x,z){const slope=.084*Math.cos((z+42)*.007)+.072*Math.cos((z+42)*.018);return fieldRoadOffset(x,z,(x-roadX(z))/Math.sqrt(1+slope*slope),activeLayout);}
   function onRoad(x,z){return Math.abs(roadOffset(x,z))<3.2;}
   function compassHeading(yaw){return ((-yaw*180/Math.PI)%360+360)%360;}
   function updateCompass(){
@@ -463,12 +464,15 @@
   const commonGLSL = `
     precision highp float;
     uniform vec3 u_lightDirection,u_sun,u_ambient,u_direct;
-    uniform float u_day;
+    uniform float u_day,u_crossroad,u_forestRange;
+    uniform vec3 u_forest;
+    float forestFloor(vec2 p){return 1.-smoothstep(u_forest.z-35.,u_forest.z,length(p-u_forest.xy));}
     #define SUN u_lightDirection
     float trackDistance(vec2 p){vec2 a=vec2(119.+12.*sin(-68.*.007)+4.*sin(-68.*.018),-110.),b=vec2(-185.,-270.);vec2 d=b-a;float t=clamp(dot(p-a,d)/dot(d,d),0.,1.);return length(p-a-d*t);}
     float corridorClearing(vec2 p){float d=max(abs(p.x+185.),abs(p.y+270.));float near=1.-smoothstep(34.,39.,d);float far=min(length(p-vec2(-185.,-445.)),length(p-vec2(-185.,-620.)));return max(near,1.-smoothstep(13.,19.,far));}
     float roadX(float z){return 119.+12.*sin((z+42.)*.007)+4.*sin((z+42.)*.018);}
-    float roadOffset(vec2 p){float s=.084*cos((p.y+42.)*.007)+.072*cos((p.y+42.)*.018);return(p.x-roadX(p.y))/sqrt(1.+s*s);}
+    float crossingOffset(vec2 p){return u_crossroad>.5?dot(p-vec2(108.,-170.),vec2(.70710678,-.70710678)):1000000.;}
+    float roadOffset(vec2 p){float s=.084*cos((p.y+42.)*.007)+.072*cos((p.y+42.)*.018);float a=(p.x-roadX(p.y))/sqrt(1.+s*s),b=crossingOffset(p);return abs(b)<abs(a)?b:a;}
     uniform highp sampler2D u_torchShadowMap;
     uniform mat4 u_torchVP;
     uniform vec2 u_torchTexel;
@@ -477,6 +481,8 @@
     uniform float u_torchShadowStrength,u_receiveTorch;
     uniform vec3 u_turbine;
     uniform vec3 u_anchor;
+    uniform vec3 u_secondAnchor; // x, z, enabled
+    float anchorDistance(vec2 p){return min(length(p-u_anchor.xz),u_secondAnchor.z>.5?length(p-u_secondAnchor.xy):1000000.);}
     uniform highp sampler2D u_shadowMap;
     uniform highp sampler2DShadow u_nearShadowMap;
     uniform mat4 u_nearLightVP;
@@ -683,7 +689,7 @@
 
   let skyProgram, groundProgram, grassProgram, turbineProgram, postProgram, shadowProgram;
   let groundMesh,bladeMesh,towerMesh,rotorMesh,skyVAO,shedWoodMesh,shedMetalMesh,shedDetailMesh,flashlightMesh,sodaMesh;
-  let legMeshes=[];
+  let legMeshes=[],turbineFoundationMesh;
   let sceneTarget=null;
   let hdr=false;
 
@@ -716,12 +722,12 @@
     const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array(indices),gl.STATIC_DRAW);
     gl.bindVertexArray(null);
-    return {vao,count:indices.length,buffer:vb};
+    return {vao,count:indices.length,buffer:vb,indexBuffer:ib};
   }
 
   function buildTurbine() {
     const makeGeometry=()=>({positions:[],colors:[],indices:[]});
-    const tower=makeGeometry(),rotor=makeGeometry();
+    const tower=makeGeometry(),rotor=makeGeometry(),foundation=makeGeometry();
     const white=[.91,.915,.875],concrete=[.51,.51,.465],metal=[.46,.49,.47];
     function surface(g,nu,nv,point,color,flip=false) {
       const start=g.positions.length/3;
@@ -742,7 +748,10 @@
       },color,true);
       for(const top of [false,true]) {
         const r=top?r1:r0,cy=y+(top?height:0);
-        surface(g,64,1,(u,v)=>[Math.cos(u*Math.PI*2)*r*v,cy,Math.sin(u*Math.PI*2)*r*v],color,!top);
+        const start=g.positions.length/3;
+        g.positions.push(0,cy,0);g.colors.push(...color);
+        for(let i=0;i<=64;i++){const a=i/64*Math.PI*2;g.positions.push(Math.cos(a)*r,cy,Math.sin(a)*r);g.colors.push(...color);}
+        for(let i=0;i<64;i++)g.indices.push(...(top?[start,start+i+2,start+i+1]:[start,start+i+1,start+i+2]));
       }
     }
     function ellipsoid(g,center,scale,color) {
@@ -752,7 +761,9 @@
           center[1]+scale[1]*Math.cos(p),center[2]+scale[2]*Math.sin(p)*Math.sin(a)];
       },color);
     }
-    cylinder(tower,.01,2.4,2.05,.28,concrete);
+    cylinder(foundation,.01,2.4,2.05,.28,concrete);
+    cylinder(tower,-.12,1.58,1.58,.20,[.55,.58,.56]);
+    cylinder(tower,.08,1.58,1.02,.20,white);
     cylinder(tower,.27,1.02,.52,29.9,white);
     cylinder(tower,.28,1.026,1.009,.8,metal);
     for(const y of [10.3,20.3]) {
@@ -802,7 +813,7 @@
         return [c*x-s*r,s*x+c*r,z];
       },(u,v)=>v>.89?[.70,.245,.165]:white,true);
     }
-    towerMesh=mesh3D(tower);rotorMesh=mesh3D(rotor);
+    towerMesh=mesh3D(tower);rotorMesh=mesh3D(rotor);turbineFoundationMesh=mesh3D(foundation);
     legMeshes=[0,1,2].map(()=>makeLegMesh());
   }
 
@@ -1208,18 +1219,19 @@
         vec3 c=mix(vec3(.17,.235,.065),vec3(.295,.36,.115),broad)*(.88+grain*.20);
         float shade=noise(v_world.xz*.012+vec2(u_time*.003,4.));
         c*=.86+.14*smoothstep(.35,.7,shade);
-        float gravel=1.-smoothstep(7.8,11.5,length(v_world.xz-u_anchor.xz));
+        float gravel=1.-smoothstep(7.8,11.5,anchorDistance(v_world.xz));
         c=mix(c,mix(vec3(.34,.32,.26),vec3(.49,.47,.39),grain),gravel);
         float shedD=max(abs(v_world.x-u_shed.x)-3.5,abs(v_world.z-u_shed.z)-3.3);
         c=mix(c,vec3(.205,.18,.12)*(grain*.35+.8),(1.-smoothstep(0.,1.2,shedD))*u_shedEnabled);
+        c=mix(c,vec3(.16,.14,.095)*(.7+grain*.6),forestFloor(v_world.xz)*.88);
         float lateral=roadOffset(v_world.xz),edge=abs(lateral),ragged=(noise(v_world.xz*3.)-.5)*.2;
         float shoulder=1.-smoothstep(3.1,4.8+ragged,edge);
         c=mix(c,vec3(.28,.27,.225)*(.72+grain*.5),shoulder);
         float pavement=1.-smoothstep(2.97+ragged,3.08+ragged,edge);
         vec2 uv=vec2(lateral,v_world.z)/3.;
         vec3 asphalt=texture(u_colorMaps,vec3(uv,2.)).rgb*.87;
-        float paint=(1.-smoothstep(.06,.095,edge))*(1.-smoothstep(2.6,2.8,mod(v_world.z+3000.,8.)));
-        paint*=smoothstep(.19,.7,grain)*(.35+.4*noise(v_world.xz*.65));
+        float paint=(1.-smoothstep(.06,.095,edge))*(1.-smoothstep(2.6,2.8,mod((abs(crossingOffset(v_world.xz))<abs((v_world.x-roadX(v_world.z)))?dot(v_world.xz,vec2(.70710678,.70710678)):v_world.z)+3000.,8.)));
+        paint*=mix(1.,smoothstep(3.3,5.,length(v_world.xz-vec2(108.,-170.))),u_crossroad)*(smoothstep(.19,.7,grain))*(.35+.4*noise(v_world.xz*.65));
         asphalt=mix(asphalt,vec3(.70,.68,.55),paint);
         c=mix(c,asphalt,pavement);
         vec3 n=normalize(cross(dFdx(v_world),dFdy(v_world)));if(n.y<0.)n=-n;
@@ -1267,8 +1279,8 @@
         float edge = max(abs(relative.x),abs(relative.y));
         float fade = 1.-smoothstep(u_grid.w-3.,u_grid.w,edge);
         if (u_grid.z > 0.) fade *= smoothstep(u_grid.z-3.,u_grid.z,edge);
-        fade*=smoothstep(7.8,10.3,length(base-u_anchor.xz));
-        fade*=smoothstep(3.4,4.8,abs(roadOffset(base)));
+        fade*=smoothstep(7.8,10.3,anchorDistance(base));
+        fade*=smoothstep(3.4,4.8,abs(roadOffset(base)));fade*=1.-forestFloor(base)*.82;
         fade*=mix(1.,smoothstep(3.1,5.1,trackDistance(base))*(1.-corridorClearing(base)),u_shedEnabled);
         float shedD=max(abs(base.x-u_shed.x)-3.2,abs(base.y-u_shed.z)-2.95);
         fade*=mix(1.,smoothstep(-.1,.3,shedD),u_shedEnabled);
@@ -1321,19 +1333,20 @@
       layout(location=2) in vec3 a_color;
       layout(location=3) in vec2 a_uv;
       uniform mat4 u_vp;
-      uniform mat4 u_model;
+      uniform mat4 u_model;uniform float u_assetKind,u_time;
       out vec3 v_world, v_normal, v_color, v_local, v_localNormal;
       out vec2 v_uv;
       void main() {
         mat4 skin=skinTransform();
         v_world=(u_model*skin*vec4(a_position,1.)).xyz;
+        if(u_assetKind>7.5&&u_assetKind<8.5)v_world.x+=sin(u_time*.65+v_world.z*.04)*.12*smoothstep(2.,14.,v_world.y-heightAt(v_world.xz));
         v_normal=mat3(u_model)*mat3(skin)*a_normal; v_color=a_color;v_local=a_position;v_localNormal=a_normal;v_uv=a_uv;
         gl_Position=u_vp*vec4(v_world,1.);
       }
     `,commonGLSL+materialGLSL+`
       in vec3 v_world,v_normal,v_color,v_local,v_localNormal;
       in vec2 v_uv;
-      uniform float u_material,u_assetKind;
+      uniform float u_material,u_assetKind,u_variant;
       uniform sampler2D u_assetTexture,u_assetNormal,u_signTexture;
       uniform vec3 u_camera;
       out vec4 color;
@@ -1348,8 +1361,10 @@
         }
         if(u_material>4.5){
           vec3 albedo=v_color,n=geometric;
-          bool cameraProp=u_assetKind>5.5,avatar=u_assetKind>4.5&&u_assetKind<5.5,steel=u_assetKind>2.5&&u_assetKind<3.5,torch=u_assetKind<1.5;
+          bool tree=u_assetKind>7.5&&u_assetKind<8.5,cameraProp=u_assetKind>5.5&&!tree,avatar=u_assetKind>4.5&&u_assetKind<5.5,steel=u_assetKind>2.5&&u_assetKind<3.5,torch=u_assetKind<1.5;
           if(avatar||cameraProp)albedo=texture(u_assetTexture,v_uv).rgb;else if(u_assetKind>3.5&&u_assetKind<4.5)albedo=texture(u_signTexture,v_uv).rgb;else if(steel)albedo*=texture(u_assetTexture,v_uv).rgb*1.16;
+          if(tree){float fade=1.-smoothstep(u_forestRange-55.,u_forestRange,length(v_world.xz-u_camera.xz));if(fract(dot(floor(gl_FragCoord.xy),vec2(.754877,.56984)))>fade)discard;albedo*=.85+.15*noise(v_world.xz*3.+v_world.y);}
+          if(steel&&u_variant>.5){float rust=smoothstep(.42,.75,noise(v_world.xz*.18+v_world.y*.04));albedo=mix(albedo,vec3(.35,.18,.09),rust*(u_variant<1.5?.30:.55));}
           if(torch)n=mappedNormal(v_world,n,v_uv,texture(u_assetNormal,v_uv).rgb,.055);
           if(u_assetKind>1.5&&u_assetKind<2.5){float gray=dot(albedo,vec3(.2126,.7152,.0722));albedo=vec3(.44+gray*.4);}
           float roughness=cameraProp?.45:avatar?.9:steel?.62:torch?.38:.28,metalness=avatar?0.:steel?.7:torch?.3:.8;
@@ -1371,6 +1386,12 @@
         float roughness=clamp(surface.a,.12,1.);
         vec3 albedo=v_color;
         float strength=.30,metalness=.18;
+        if(u_material<.5&&u_variant>.5){
+          float wear=noise(v_world.xz*.3+v_world.y*.06);
+          albedo=mix(albedo,vec3(.41,.35,.24),smoothstep(.5,.85,wear)*(u_variant<1.5?.16:.27));
+          float band=(1.-smoothstep(.13,.20,abs(fract(v_local.y*.10)-.35)))*step(4.,v_local.y)*step(v_local.y,27.);
+          if(u_variant>1.5)albedo=mix(albedo,vec3(.36,.17,.12),band*.68);
+        }
         if(u_material>.5&&u_material<1.5){
           albedo=tex*1.5*clamp(v_color/vec3(.36,.34,.27),vec3(.62),vec3(1.25));
           strength=.8;roughness=max(roughness,.68);metalness=0.;
@@ -1537,11 +1558,12 @@
     if(!hint.classList.contains('error'))hint.textContent='';
   }
   function setMode(mode){game.mode=mode;game.clock=0;keys.clear();game.sprinting=false;syncUI();}
-  function resetWorld(playable){
+  function resetWorld(playable,seed=null){
+    clearSuitCards();selectLayout(playable?(seed??(net.active?net.snapshots.at(-1)?.world.seed:Math.floor(Math.random()*0x7fffffff))??0):0);
     avatarCache.clear();networkPylons=[];localDroppedItems=[];localDropSerial=0;pendingDrop=null;localFlares=[];flareSerial=0;cameraDynamics={lean:0,pitch:0,speed:0,breath:0};
     equippedTool='camera';kitPreviousFlashlight=false;resetEquipmentMotion();
     turbine.x=playable?95:-35;turbine.z=playable?-250:-250;turbine.y=terrainHeight(turbine.x,turbine.z);
-    resetEnemy();resetPowerCreature();Object.assign(world,{phase:.43,cycle:true,turbineStopped:false,powerStopped:false});updateEnvironment(0);
+    resetEnemy();resetPowerCreature();resetOtherTurbines();Object.assign(world,{phase:.43,cycle:true,turbineStopped:false,powerStopped:false});updateEnvironment(0);
     Object.assign(player,playable?{x:128,z:-34,yaw:-.015,pitch:-.025}:{x:0,z:6,yaw:0,pitch:-.01});
     player.y=shedFloor(player.x,player.z)+EYE_HEIGHT;
     Object.assign(bob,{phase:0,blend:0,strafe:0,vertical:0,lateral:0,roll:0});
@@ -1576,21 +1598,23 @@
   }
   // Thick articulated shells meet at angular hinge creases.
   function makeLegMesh(){
-    const rings=32,sides=18,vertices=new Float32Array((rings+1)*(sides+1)*9),indices=[];
+    const rings=32,sides=18,vertices=new Float32Array(((rings+1)*(sides+1)+2)*9),indices=[];
     for(let j=0;j<rings;j++)for(let i=0;i<sides;i++){
       const a=j*(sides+1)+i,b=a+1,c=a+sides+1;
       indices.push(a,b,c,b,c+1,c);
     }
+    const cap=(rings+1)*(sides+1);
+    for(let i=0;i<sides;i++){indices.push(cap,i+1,i);indices.push(cap+1,rings*(sides+1)+i,rings*(sides+1)+i+1);}
     const vao=gl.createVertexArray();gl.bindVertexArray(vao);
     const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,vertices,gl.DYNAMIC_DRAW);
     for(let i=0;i<3;i++){gl.enableVertexAttribArray(i);gl.vertexAttribPointer(i,3,gl.FLOAT,false,36,i*12);}
     const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array(indices),gl.STATIC_DRAW);
-    gl.bindVertexArray(null);return{vao,buffer,vertices,rings,sides,count:indices.length};
+    gl.bindVertexArray(null);return{vao,buffer,indexBuffer:ib,vertices,rings,sides,count:indices.length};
   }
   function emergenceProgress(index){return clamp((enemy.awake-(.65+index*.55))/2.6,0,1);}
   function legPose(index){return turbineLegPoints(turbine,enemy,index,terrainHeight);}
-  function updateLegMesh(mesh,index){
-    const {points,radial}=legPose(index),side=[radial[2],0,-radial[0]],radii=[3.32,2.9,2.08,1.03,.20],data=mesh.vertices;
+  function updateLegMesh(mesh,index,body=turbine,state=enemy){
+    const {points,radial}=turbineLegPoints(body,state,index,terrainHeight),side=[radial[2],0,-radial[0]],radii=[3.32,2.9,2.08,1.03,.20],data=mesh.vertices;
     const directions=points.slice(0,4).map((p,i)=>norm(points[i+1].map((v,k)=>v-p[k])));
     for(let j=0;j<=mesh.rings;j++){
       const t=j/mesh.rings*4,segment=Math.min(3,Math.floor(t)),v=t-segment;
@@ -1610,6 +1634,8 @@
         data[o+6]=.935*dirt*shade;data[o+7]=.945*dirt*shade;data[o+8]=.91*dirt*shade;
       }
     }
+    const cap=(mesh.rings+1)*(mesh.sides+1);
+    for(let end=0;end<2;end++){const at=points[end?4:0],n=directions[end?3:0].map(v=>v*(end?1:-1)),o=(cap+end)*9;data.set([...at,...n,.68,.70,.66],o);}
     gl.bindBuffer(gl.ARRAY_BUFFER,mesh.buffer);gl.bufferSubData(gl.ARRAY_BUFFER,0,data);
   }
 
@@ -1644,6 +1670,9 @@
       const p=powerCreature,d=Math.hypot(player.x-p.x,player.z-p.z),blocked=shedBlocksSight([p.x,terrainHeight(p.x,p.z)+1.6,p.z],[player.x,player.y,player.z]);
       if(d<radius*(blocked?.60:1)*(p.state==='dormant'?1.5:1)){noteAudibleContact(p);p.noise=[player.x,player.z];rememberSoundMotion(p,p.noise,time);}
     }
+    emitTurbineNoise(radius);extraTurbineNoise(radius);
+  }
+  function emitTurbineNoise(radius){
     if(world.turbineStopped)return;
     const origin=[player.x,player.z],d=Math.hypot(origin[0]-turbine.x,origin[1]-turbine.z);
     // Walls soften sound. Light, camera direction and player visibility are never queried.
@@ -1783,16 +1812,9 @@
 
   function buildObjects(){
     headCensorCount=0;remoteTorchCount=0;objectDraws.length=0;appendPowerObjects();appendFlareObjects();if(!net.active&&!isMenuScene())for(const i of localDroppedItems)appendWorldItem(i,time);
-    const deployment=enemy.state==='dormant'?0:ease(clamp(enemy.awake/7.8,0,1));
-    const tilt=enemy.state==='dormant'?0:(Math.sin(enemy.gait*1.8)*.008+enemy.bank)*deployment;
-    const orientation=multiply(rotateY(enemy.heading),multiply(rotateX(enemy.lean),rotateZ(tilt)));
-    const body=multiply(multiply(transform(turbine.x,turbine.y,turbine.z),orientation),transform(0,0,0,TOWER_SCALE,TOWER_SCALE,TOWER_SCALE));
-    objectDraws.push({mesh:towerMesh,model:body});
-    objectDraws.push({mesh:rotorMesh,model:multiply(multiply(body,transform(0,30.3,2.1)),rotateZ(enemy.angle))});
-    if(enemy.state!=='dormant')for(let i=0;i<3;i++){
-      updateLegMesh(legMeshes[i],i);
-      objectDraws.push({mesh:legMeshes[i],model:identity()});
-    }
+    appendForest();
+    appendTurbine(turbine,enemy,legMeshes,activeLayout.turbines[0].style);
+    if(!isMenuScene())for(const t of otherTurbines)appendTurbine(t.body,t.state,t.meshes,t.style);
     if(!isMenuScene()){
       const model=transform(shed.x,shed.y,shed.z);
       objectDraws.push({mesh:shedWoodMesh,model,material:1},{mesh:shedMetalMesh,model,material:2},{mesh:shedDetailMesh,model});
@@ -1824,7 +1846,7 @@
       }
     }
     if(game.mode==='playing'&&!staminaTicked)spendStamina(game,false,dt);
-    if(game.mode==='playing'){resolveShedCollision();resolvePowerCollision();}
+    if(game.mode==='playing'){resolveShedCollision();resolvePowerCollision();collideOtherTurbines();collideForest(player,activeLayout);}
     const distance=game.mode==='playing'?Math.hypot(player.x-oldX,player.z-oldZ):0,moving=distance>.00001;
     const previousStep=Math.floor(bob.phase/Math.PI);
     bob.phase+=distance*Math.PI*2/(game.sprinting?4.1:2.9);
@@ -1893,7 +1915,7 @@
   function closeFieldPanel(){setMode('paused');sound.start();captureMouse();}
   function grassCover(x,z){
     if(Math.abs(roadOffset(x,z))<4.8||serviceTrackDistance(x,z)<5.1||Math.max(Math.abs(x-POWER_ZONE.x),Math.abs(z-POWER_ZONE.z))<39)return false;
-    if(Math.hypot(x-enemy.anchor[0],z-enemy.anchor[2])<11.4)return false;
+    if(activeLayout.turbines.some(t=>Math.hypot(x-t.x,z-t.z)<11.4))return false;
     if(Math.abs(x-shed.x)<4.1&&Math.abs(z-shed.z)<4.0)return false;
     return true;
   }
@@ -1962,7 +1984,8 @@
     gl.useProgram(program.p);const u=program.uniforms;bindEnvironment(u);
     gl.uniformMatrix4fv(u.u_vp??null,false,viewProjection);gl.uniform3fv(u.u_camera??null,cameraPosition);
     gl.uniform3f(u.u_turbine??null,turbine.x,turbine.y,turbine.z);gl.uniform3fv(u.u_anchor??null,enemy.anchor);
-    gl.uniform1f(u.u_time??null,reducedMotion?0:time);
+    const second=activeLayout.turbines[1];gl.uniform3f(u.u_secondAnchor??null,second?.x||0,second?.z||0,second&&!isMenuScene()?1:0);
+    gl.uniform1f(u.u_time??null,reducedMotion?0:time);gl.uniform1f(u.u_crossroad??null,activeLayout.crossroad?1:0);gl.uniform3f(u.u_forest??null,activeLayout.forest.x,activeLayout.forest.z,activeLayout.forest.radius);gl.uniform1f(u.u_forestRange??null,settings.quality==='low'?195:285);
     gl.uniformMatrix4fv(u.u_lightVP??null,false,lightVP);gl.uniform2f(u.u_shadowTexel??null,1/shadowTarget.size,1/shadowTarget.size);
     gl.uniformMatrix4fv(u.u_nearLightVP??null,false,nearLightVP);gl.uniform2f(u.u_nearShadowTexel??null,1/nearShadowTarget.size,1/nearShadowTarget.size);gl.uniform1i(u.u_nearShadowMap??null,8);
     gl.uniform1f(u.u_shadowStrength??null,settings.shadows==='off'?0:1);gl.uniform1i(u.u_shadowMap??null,1);
@@ -1991,7 +2014,7 @@
       gl.bindVertexArray(object.mesh.vao);gl.uniformMatrix4fv(u.u_model,false,object.model);gl.uniform1f(u.u_rigBlend??null,object.rigBlend??(object.bones?1:object.rig?powerCreature.rigBlend:0));
       if(object.bones||object.rig)gl.uniformMatrix4fv(u['u_bones[0]']??null,false,object.bones||pylonBones);
       if(!shadow){gl.activeTexture(gl.TEXTURE0+5);gl.bindTexture(gl.TEXTURE_2D,object.texture||pylonTexture);}
-      if(!shadow){gl.uniform1f(u.u_material??null,object.material||0);gl.uniform1f(u.u_receiveTorch??null,object.receiveTorch===false?0:1);gl.uniform1f(u.u_assetKind??null,object.assetKind||0);}
+      if(!shadow){gl.uniform1f(u.u_material??null,object.material||0);gl.uniform1f(u.u_variant??null,object.variant||0);gl.uniform1f(u.u_receiveTorch??null,object.receiveTorch===false?0:1);gl.uniform1f(u.u_assetKind??null,object.assetKind||0);}
       if(!shadow&&object.flareSprite){gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.depthMask(false);}
       gl.drawElements(gl.TRIANGLES,object.mesh.count,gl.UNSIGNED_INT,0);
       if(!shadow&&object.flareSprite){gl.disable(gl.BLEND);gl.depthMask(true);}
@@ -2009,7 +2032,7 @@
   }
   function frame(now){
     if(!running)return;const elapsed=previousTime?(now-previousTime)/1000:0;const dt=document.hidden?0:Math.min(elapsed,.05);previousTime=now;time+=dt;
-    updateGame(dt);updateEnvironment(dt);updateSurvival(dt);updateCamera(dt);updateEnemy(dt);updatePowerCreature(dt);updateEnemyCombat(dt);updateEquipment(dt);updateFieldKit(dt);buildObjects();updateLight();updateTorchLight();sound.update();
+    updateGame(dt);updateEnvironment(dt);updateSurvival(dt);updateCamera(dt);updateEnemy(dt);updatePowerCreature(dt);updateEnemyCombat(dt);updateOtherTurbines(dt);updateEquipment(dt);updateFieldKit(dt);buildObjects();updateLight();updateTorchLight();sound.update();
     gl.activeTexture(gl.TEXTURE0+8);gl.bindTexture(gl.TEXTURE_2D,null);
     gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,null);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,null);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,null);
     if(settings.shadows!=='off'){
@@ -2152,7 +2175,7 @@
     try { initialize(); }
     catch(error) {
       running=false; console.error(error);
-      showError('Graphics startup failed (11.7): '+String(error?.message||error).slice(0,240));
+      showError('Graphics startup failed (12.0): '+String(error?.message||error).slice(0,240));
     }
   }
   </script>

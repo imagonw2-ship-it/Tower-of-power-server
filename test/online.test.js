@@ -6,7 +6,8 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import WebSocket from "ws";
 import { createApp } from "../server/server.js";
-import { starterCount } from "../server/items.js";
+import { starterCount, scaleItems } from "../server/items.js";
+import { makeWorld } from "../server/worlds.js";
 import { floorHeight } from "../shared/physics.js";
 
 const directory = mkdtempSync(join(tmpdir(), "tower-online-"));
@@ -38,7 +39,7 @@ async function until(fn, ms = 5000) {
   }
   throw Error("Timed out waiting for condition");
 }
-async function device(session, agent = "Desktop Chrome") {
+async function device(session, agent = "Desktop Chrome", layoutVersion = 1) {
   const ws = new WebSocket(origin.replace("http", "ws") + "/ws", {
       headers: { Origin: origin, "User-Agent": agent },
     }),
@@ -58,7 +59,7 @@ async function device(session, agent = "Desktop Chrome") {
     ws.once("open", resolve);
     ws.once("error", reject);
   });
-  c.send({ type: "hello", protocol: 1, token: session.token });
+  c.send({ type: "hello", protocol: 1, layoutVersion, token: session.token });
   await c.wait("authenticated");
   clients.push(c);
   return c;
@@ -157,6 +158,9 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
       code = await joinRoom(host, "host");
       assert.match(code, /^[A-Z2-9]{5}$/);
       room = app.rooms.rooms.get(code);
+      // Pin this integration fixture to the twin map; production picks its seed.
+      room.world = makeWorld(room.world.rules, 2);
+      scaleItems(room.world, 1, room.world.rules.starterItems);
       hostPlayer = room.players.get(account.player.id);
       assert.equal(
         room.world.items.filter((i) => i.kind === "flashlight").length,
@@ -188,6 +192,18 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
       assert.equal(room.world.items.filter(i=>i.kind==='flare').length,4);
     },
   );
+  await t.test('separate devices share the map seed and reject outdated world renderers', async()=>{
+    await until(()=>[host,phone,tablet,chrome].every(c=>c.snapshot?.world.seed===2&&c.snapshot?.enemies.turbines.length===2));
+    for(const c of [host,phone,tablet,chrome]){
+      assert.equal(c.snapshot.world.layoutVersion,1);
+      assert.equal(c.snapshot.enemies.turbines[1].x,325);
+      assert.equal(c.snapshot.enemies.turbines[1].z,-325);
+    }
+    const legacy=await device(await api('guest',{}),'Older APK',0),before=app.rooms.rooms.size;
+    legacy.send({type:'host'});assert.equal((await legacy.wait('error')).code,'UPDATE_REQUIRED');
+    legacy.send({type:'join',code});assert.match((await legacy.wait('error')).message,/12\.0/);
+    assert.equal(app.rooms.rooms.size,before);assert.equal(room.players.size,4);
+  });
   await t.test(
     "fixed-step movement appears on another device; impossible inputs ignored",
     async () => {
@@ -320,6 +336,8 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
       assert.equal(hostPlayer.inventory.flashlight, true);
       assert.equal(room.ownerId, account.player.id);
       assert.equal(room.players.size, 4);
+      assert.equal(host.snapshot.world.seed,2);
+      assert.equal(host.snapshot.enemies.turbines.length,2);
     },
   );
   await t.test(
@@ -329,8 +347,12 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
       const otherCode = await joinRoom(another, "host");
       assert.notEqual(otherCode, code);
       const other = app.rooms.rooms.get(otherCode);
+      other.world = makeWorld(other.world.rules, 1);
       assert.equal(other.players.size, 1);
       assert.notEqual(other.world.id, room.world.id);
+      await until(()=>another.snapshot?.world.seed===1);
+      assert.equal(another.snapshot.enemies.turbines.length,1);
+      assert.equal(phone.snapshot.world.seed,2);
       assert.equal(
         (
           await action(phone, "world", {
@@ -386,6 +408,15 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
       assert.equal(p.health, 0);
     },
   );
+  await t.test('the second turbine wakes independently and replicates its feet to both devices',async()=>{
+    const sim=room.world.extraTurbines[0],p=room.players.get(chrome.session.player.id);
+    p.x=sim.turbine.x+22;p.z=sim.turbine.z;p.y=floorHeight(p.x,p.z)+1.7;
+    room.world.sim.noise(p,20);
+    for(let i=0;i<20;i++)app.rooms.tick(.05);
+    assert.notEqual(sim.enemy.state,'dormant');
+    await until(()=>host.snapshot?.enemies.turbines[1].state!=='dormant'&&phone.snapshot?.enemies.turbines[1].state!=='dormant');
+    for(const c of [host,phone])assert.ok(c.snapshot.enemies.turbines[1].feet.every(f=>f.position.every(Number.isFinite)));
+  });
   await t.test(
     "voluntary leave, grace cleanup and consumed items do not duplicate",
     async () => {

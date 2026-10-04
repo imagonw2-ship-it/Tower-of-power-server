@@ -23,3 +23,11 @@ Version 11.3 first-person sleeve/glove: extracted from the existing user-provide
 The flare-gun model was supplied by the project owner and converted for the mobile build. Its original author and redistribution license were not provided; no third-party license or authorship is inferred. The separate Oxygen3D Sketchfab listing was not downloaded or bundled.
 
 Version 11.7 fits the existing glove vertices to each item grip and renders flare light with an original radial shader. The updated button icons are original SVG artwork, not Higgsfield-generated assets.
+
+## Pine forest (12.0)
+
+Three detailed pine meshes from **Nature Kit** by Kenney, distributed under Creative Commons CC0: https://kenney.nl/assets/nature-kit . The original license is preserved in `client/tree-license.txt`. Source models: `tree_pineTallA_detailed`, `tree_pineTallB_detailed`, and `tree_pineTallD_detailed`.
+
+The mobile conversion normalizes scale, combines OBJ geometry, recolors the foliage and bark, and embeds the geometry in `client/tree-assets.js`. Forest placement, terrain shading, batching, distance fading and trunk collisions are original game code. Trees require no login or runtime download. Regenerate with `scripts/prepare_trees.py` and the official Nature Kit ZIP.
+
+The printed suit-card portrait in 12.0 is rendered from the existing uploaded hazmat suit. Its face is blacked out before it is embedded; `scripts/prepare_suit_portrait.mjs` regenerates it.

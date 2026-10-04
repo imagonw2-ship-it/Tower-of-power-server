@@ -73,9 +73,10 @@ export function tickPlayer(p, dt, world, now) {
   const obstacles = [];
   if (world.sim.enemy.state === "dormant")
     obstacles.push({ x: world.sim.turbine.x, z: world.sim.turbine.z, r: 8.1 });
-  const distance = movePlayer(p, p.input, dt, obstacles, world.sim.collide);
+  for(const s of world.extraTurbines||[])if(s.enemy.state==='dormant')obstacles.push({x:s.turbine.x,z:s.turbine.z,r:8.1});
+  const distance = movePlayer(p, p.input, dt, obstacles, world.sim.collide,world.layout);
   if (distance > 0.001) {
-    if (p.steps <= 0) world.sim.noise(p, footstepRadius(p));
+    if (p.steps <= 0) world.sim.noise(p, footstepRadius(p,world.layout));
     p.steps += distance;
     if (p.steps > (p.sprinting ? 2.05 : 1.45)) p.steps = 0;
   } else p.steps = 0;

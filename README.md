@@ -1,3 +1,14 @@
+## Version 12.0: beyond the field
+
+- Sealed turbine belly and leg end caps fix the torn underside seen when looking up. The concrete foundation stays at its original ground position when the tower rises.
+- Each room has one authoritative seed: Open Field, Crossroads or Twin Sentinels. The twin variant has two independent hearing, emergence, movement and attack simulations. Tower and pylon finishes vary with the seed. Offline worlds use the same layout rules.
+- A distant pine forest starts outside the spawn render distance, uses three CC0 Kenney tree models, and fades in as players approach. Trees are batched and culled by distance; trunk collisions use the same deterministic placement on server and client. The compass points toward the forest when it is the nearer destination.
+- Simpler monochrome controls, including a down-arrow crouch button. In-game player names move to printed suit ID cards with the existing hazmat suit portrait and blacked-out face; lobby account names remain available.
+- Android versionCode 22 / versionName 12.0 retains the package and signing identity. Accounts need no migration. Multiplayer requires the 12.0 layout capability: older builds can still log in but receive an explicit update message before entering a world they cannot render.
+- Voice-mimicking creatures and their combat are deferred to the later update. This release does not record or store voice clips. Existing proximity voice remains available.
+
+Validation: full game harness, real HTTP/WebSocket devices, login and persistence, reconnects, room isolation, item authority, proximity voice, shared map seeds, independent second-turbine synchronization and native GLES shader tests. Rendered screenshots cover the closed underside, all three layouts, forest and animated suit cards. Physical Android appearance and performance still require device testing.
+
 ## Version 11.8: equipment and inventory fixes
 
 - Tighter soda and launcher finger contact; the launcher grip stays in the first-person view. Existing flashlight and camera poses are preserved.
