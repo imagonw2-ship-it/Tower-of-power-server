@@ -4,13 +4,13 @@ import { SoundTargets, legColliders, resolveLegCollision, tickStomp, stompHits, 
 import { PYLON_HEADING, PYLON_RIG, STATIC_PYLONS, groundedPylon } from "../shared/power-layout.js";
 import { terrainHeight, shed, clamp } from "../shared/physics.js";
 import { silentSearch, noteAudibleContact } from '../shared/silent-search.js';
-export function createEnemySimulation(world, {powerOnly=false,powerSpawn={x:-185,z:-270}}={}) {
+export function createEnemySimulation(world, {powerOnly=false,turbineOnly=false,turbineSpawn={x:95,z:-250},powerSpawn={x:-185,z:-270}}={}) {
   const lerp = (a, b, t) => a + (b - a) * t,
     ease = (t) => t * t * (3 - 2 * t);
   const POWER_ZONE = powerSpawn,
     powerCreature = {},
     enemy = {},
-    turbine = { x: 95, z: -250, y: terrainHeight(95, -250) };
+    turbine = { x: turbineSpawn.x, z: turbineSpawn.z, y: terrainHeight(turbineSpawn.x,turbineSpawn.z) };
   const player = { x: 128, z: -34, y: 1.7 },
     game = { mode: "playing", shake: 0 },
     isMenuScene = () => false;
@@ -695,13 +695,13 @@ export function createEnemySimulation(world, {powerOnly=false,powerSpawn={x:-185
     events,
     collide(p) {
       resolveLegCollision(p, collisionSegments, terrainHeight(p.x,p.z));
-      if(!powerOnly)for(const sim of world.extraPylons||[])sim.collide(p);
+      if(!powerOnly&&!turbineOnly)for(const sim of [...(world.extraPylons||[]),...(world.extraTurbines||[])])sim.collide(p);
     },
     noise(p, radius) {
       const occluded = body => shedBlocksSight([body.x,terrainHeight(body.x,body.z)+1.6,body.z],[p.x,p.y,p.z]);
       if(!powerOnly&&!world.turbineStopped&&turbineTargets.hear(p,radius,turbine,enemy.state==='dormant'?1.8:1,occluded(turbine)))noteAudibleContact(enemy);
-      if(!world.powerStopped&&powerTargets.hear(p,radius,powerCreature,powerCreature.state==='dormant'?1.5:1,occluded(powerCreature)))noteAudibleContact(powerCreature);
-      if(!powerOnly)for(const sim of world.extraPylons||[])sim.noise(p,radius);
+      if(!turbineOnly&&!world.powerStopped&&powerTargets.hear(p,radius,powerCreature,powerCreature.state==='dormant'?1.5:1,occluded(powerCreature)))noteAudibleContact(powerCreature);
+      if(!powerOnly&&!turbineOnly)for(const sim of [...(world.extraPylons||[]),...(world.extraTurbines||[])])sim.noise(p,radius);
     },
     step(dt, players) {
       const alive=players.filter(p=>p.alive);
@@ -721,9 +721,9 @@ export function createEnemySimulation(world, {powerOnly=false,powerSpawn={x:-185
         if(!world.turbineStopped&&silentSearch(enemy,turbine,alive,dt)&&enemy.state==='dormant')enemy.noise={position:enemy.searchHint.slice(),life:.3};
         updateEnemy(dt);
       }
-      applyTarget(powerTargets,powerCreature,powerCreature,true);
+      if(!turbineOnly){applyTarget(powerTargets,powerCreature,powerCreature,true);
       if(!world.powerStopped&&silentSearch(powerCreature,powerCreature,alive,dt)&&powerCreature.state==='dormant')powerCreature.noise=powerCreature.searchHint.slice();
-      updatePowerCreature(dt);
+      updatePowerCreature(dt);}
       const impact=kind=>(point,radius)=>{
         events.push({kind:kind==='turbine'?'enemyStep':'powerStep',x:point[0],z:point[2],stomp:true});
         for(const p of alive)if(stompHits(p,point,radius,terrainHeight,shedBlocksSight)){
@@ -732,16 +732,18 @@ export function createEnemySimulation(world, {powerOnly=false,powerSpawn={x:-185
         }
       };
       if(!powerOnly&&!world.turbineStopped&&!enemy.lureId&&!enemy.searchOnly)tickStomp(enemy,turbine,'turbine',dt,terrainHeight,shedBlocksSight,impact('turbine'));
-      if(!world.powerStopped&&!powerCreature.lureId&&!powerCreature.searchOnly)tickStomp(powerCreature,powerCreature,'power',dt,terrainHeight,shedBlocksSight,impact('power'));
-      collisionSegments=legColliders(turbine,powerOnly?{state:'dormant'}:enemy,powerCreature,POWER_RIG,terrainHeight).concat(powerOnly?[]:staticLegs);
+      if(!turbineOnly&&!world.powerStopped&&!powerCreature.lureId&&!powerCreature.searchOnly)tickStomp(powerCreature,powerCreature,'power',dt,terrainHeight,shedBlocksSight,impact('power'));
+      collisionSegments=legColliders(turbine,powerOnly?{state:'dormant'}:enemy,powerCreature,POWER_RIG,terrainHeight);
+      if(turbineOnly)collisionSegments=enemy.state==='dormant'?[]:collisionSegments.slice(0,12);
+      else if(!powerOnly)collisionSegments.push(...staticLegs);
       for(const p of alive)if(p.alive)resolveLegCollision(p,collisionSegments,terrainHeight(p.x,p.z));
-      if(!powerOnly)for(const sim of world.extraPylons||[]){sim.step(dt,players);events.push(...sim.events.splice(0));}
+      if(!powerOnly&&!turbineOnly)for(const sim of [...(world.extraPylons||[]),...(world.extraTurbines||[])]){sim.step(dt,players);events.push(...sim.events.splice(0));}
     },
     snapshot() {
       const select = (o, keys) =>
         Object.fromEntries(keys.map((k) => [k, o[k]]));
       return {
-        ...(!powerOnly?{powers:[this.snapshotPower(),...(world.extraPylons||[]).map(s=>s.snapshotPower())]}:{}),
+        ...(!powerOnly&&!turbineOnly?{powers:[this.snapshotPower(),...(world.extraPylons||[]).map(s=>s.snapshotPower())],turbines:[this.snapshotTurbine(),...(world.extraTurbines||[]).map(s=>s.snapshotTurbine())]}:{}),
         turbine: {
           ...select(turbine, ["x", "y", "z"]),
           ...select(enemy, [
@@ -786,6 +788,9 @@ export function createEnemySimulation(world, {powerOnly=false,powerSpawn={x:-185
           })),
         },
       };
+    },
+    snapshotTurbine(){
+      return {...Object.fromEntries(['x','y','z'].map(k=>[k,turbine[k]])),...Object.fromEntries(['state','angle','awake','lift','heading','gait','crouch','lean','bank','targetId','attack','anger','lureId','searchOnly','anchor','vx','vz'].map(k=>[k,enemy[k]])),feet:enemy.feet.map(f=>({position:f.position,progress:f.progress}))};
     },
     snapshotPower(){
       const p=powerCreature;

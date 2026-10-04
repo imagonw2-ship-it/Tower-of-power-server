@@ -1,15 +1,17 @@
 import { advanceFlares } from '../shared/survival.js';
 import { floorHeight,blocked } from '../shared/physics.js';
-import { randomUUID } from "node:crypto";
+import { randomUUID,randomInt } from "node:crypto";
+import { makeLayout } from '../shared/world-layout.js';
 import { createEnemySimulation } from "./enemies.js";
 import { scaleItems } from "./items.js";
 import { tickPlayer } from "./players.js";
 import { pylonCountForPlayers, EXTRA_PYLON_SPAWNS } from '../shared/silent-search.js';
-export function makeWorld(rules) {
+export function makeWorld(rules,seed=randomInt(0,0x7fffffff)) {
   const w = {
     id: randomUUID(),
     schemaVersion: 1,
-    seed: 1,
+    seed,
+    layout:makeLayout(seed),
     phase: 0.43,
     cycle: true,
     turbineStopped: false,
@@ -17,11 +19,12 @@ export function makeWorld(rules) {
     elapsed: 0,
     items: [], flares: [], flareSerial:0, itemSerial:0,
     itemRevision: 0,
-    extraPylons: [],
+    extraPylons: [], extraTurbines: [],
     objectives: { powerCorridor: false },
     rules,
   };
   w.sim = createEnemySimulation(w);
+  w.extraTurbines=w.layout.turbines.slice(1).map(t=>createEnemySimulation(w,{turbineOnly:true,turbineSpawn:t}));
   return w;
 }
 export function startWorld(w, count) {
@@ -64,6 +67,7 @@ export function serializeWorld(w) {
       enemy: w.sim.enemy,
       powerCreature: w.sim.powerCreature,
       extraPylons: w.extraPylons.map(s=>s.powerCreature),
+      extraTurbines:w.extraTurbines.map(s=>({turbine:s.turbine,enemy:s.enemy})),
     },
   };
 }
