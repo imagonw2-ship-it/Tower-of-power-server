@@ -57,7 +57,7 @@ test('two independent WebSocket devices receive nearby voice, isolate other room
   const c={session,json:[],audio:[],ws:new WebSocket(origin.replace('http','ws')+'/ws',{headers:{Origin:origin}})};clients.push(c);
   c.ws.on('message',(b,binary)=>binary?c.audio.push(b):c.json.push(JSON.parse(b)));c.send=m=>c.ws.send(JSON.stringify(m));
   c.wait=type=>until(()=>{const i=c.json.findIndex(m=>m.type===type);return i>=0?c.json.splice(i,1)[0]:null;});
-  await new Promise((resolve,reject)=>{c.ws.once('open',resolve);c.ws.once('error',reject);});c.send({type:'hello',protocol:1,layoutVersion:3,token:session.token});await c.wait('authenticated');return c;
+  await new Promise((resolve,reject)=>{c.ws.once('open',resolve);c.ws.once('error',reject);});c.send({type:'hello',protocol:1,layoutVersion:5,token:session.token});await c.wait('authenticated');return c;
  }
  const a=await device(),b=await device(),c=await device();a.send({type:'host'});const joined=await a.wait('joined');
  b.send({type:'join',code:joined.code});await b.wait('joined');c.send({type:'host'});await c.wait('joined');
@@ -90,12 +90,20 @@ test('pylon population scales 1–8 players, grows for late joins, and preserves
  first.powerCreature.searchOnly=true;assert.notEqual(w.extraPylons[1].powerCreature.searchOnly,true);
  const other=makeWorld(config);assert.equal(other.extraPylons.length,0);
 });
-test('microphone denial is recoverable; muting, pausing and disconnecting release capture tracks',async()=>{
+test('voice survives game menus and only releases capture on mute, background, death, disconnect or leave',async()=>{
  const {run,document}=launch();run(`net.code='VOICE';net.status='CONNECTED';net.socket={readyState:1,bufferedAmount:0};net.send=()=>{};game.mode='playing';
   let released=0;proximityVoice.ensureAudio=async()=>{proximityVoice.node={port:{postMessage(){}}};proximityVoice.context={createMediaStreamSource:()=>({connect(){},disconnect(){}})};};
   navigator.mediaDevices={getUserMedia:async()=>{throw Object.assign(Error('denied'),{name:'NotAllowedError'});}};`);
  await run('proximityVoice.toggle()');assert.equal(run('proximityVoice.enabled'),false);assert.equal(document.getElementById('voiceStatus').textContent,'MIC PERMISSION DENIED');
  run('navigator.mediaDevices.getUserMedia=async()=>({getTracks:()=>[{stop(){released++}}]});');await run('proximityVoice.toggle()');assert.equal(run('proximityVoice.enabled'),true);
- run("game.mode='paused';proximityVoice.update()");assert.equal(run('proximityVoice.enabled'),false);assert.equal(run('released'),1);
- run("game.mode='playing'");await run('proximityVoice.toggle()');run("net.status='CONNECTION LOST';proximityVoice.update()");assert.equal(run('released'),2);
+ run("let voicePackets=0;net.socket.send=()=>{voicePackets++};net.roundStarted=true;net.player={id:'me'};net.snapshots=[{ownerId:'me',players:[{id:'me',alive:true}]}];net.socket.close=()=>{};locked=true;");
+ for(const action of ["setMode('paused')","setMode('playing');openFieldKit()","closeFieldKit();setMode('playing');openFieldPanel()","mainMenu()","openSettings('menu')","setMode('controls')"]){
+  const before=run('voicePackets');run(action+';proximityVoice.update();proximityVoice.transmit(new Float32Array(800).fill(.2))');assert.equal(run('voicePackets'),before+1,action);assert.equal(run('proximityVoice.enabled'),true,action);assert.equal(run('released'),0);assert.equal(run('net.active'),true);
+ }
+ run('mainMenu()');assert.equal(run('isMenuScene()'),false);assert.equal(document.getElementById('play').hidden,true);assert.equal(document.getElementById('resumeWorldMenu').hidden,false);
+ await run('proximityVoice.toggle()');assert.equal(run('released'),1);
+ await run('proximityVoice.toggle()');run("Object.defineProperty(document,'hidden',{value:true,configurable:true});document.dispatchEvent(new Event('visibilitychange'))");assert.equal(run('released'),2);
+ run("Object.defineProperty(document,'hidden',{value:false,configurable:true})");await run('proximityVoice.toggle()');run("net.snapshots[0].players[0].alive=false;proximityVoice.update()");assert.equal(run('released'),3);
+ run('net.snapshots[0].players[0].alive=true');await run('proximityVoice.toggle()');run("net.status='CONNECTION LOST';proximityVoice.update()");assert.equal(run('released'),4);
+ run("net.status='CONNECTED'");await run('proximityVoice.toggle()');run('leaveMultiplayer()');assert.equal(run('released'),5);assert.equal(run('net.active'),false);assert.equal(run('proximityVoice.enabled'),false);
 });

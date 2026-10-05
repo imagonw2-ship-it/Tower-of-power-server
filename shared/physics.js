@@ -1,5 +1,5 @@
 import { spendStamina } from './survival.js';
-import {fieldRoadOffset,collideForest,siteClearing} from './world-layout.js';
+import {fieldRoadOffset,collideForest,siteClearing,bareGround} from './world-layout.js';
 // Rendering-independent world rules, copied from the current game.
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const rawHeight = (x, z) =>
@@ -138,6 +138,7 @@ export function roadOffset(x, z,layout=null) {
   return fieldRoadOffset(x,z,(x - roadX(z)) / Math.sqrt(1 + s * s),layout);
 }
 export function grassCover(x, z,layout=null) {
+  if(bareGround(x,z,layout))return false;
   return Math.abs(roadOffset(x,z,layout))>=4.8 && !siteClearing(x,z,layout) &&
     !(Math.abs(x-shed.x)<4.1 && Math.abs(z-shed.z)<4);
 }

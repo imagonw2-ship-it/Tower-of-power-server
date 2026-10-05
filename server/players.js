@@ -17,6 +17,7 @@ export function makePlayer(account, index) {
     stamina: 100, staminaDelay: 0, exhausted: false,
     alive: true,
     health: 1,
+    godMode:false,infiniteSprint:false,tabletOpen:false,
     inventory: { camera: true, flashlight: false, sodas: 0, flare: false, flares: 0 },
     torch: false,
     heldItem: "camera",
@@ -46,6 +47,7 @@ export function acceptInput(p, m, now) {
     return false;
   p.seq = m.seq;
   p.lastInput = now;
+  if(p.tabletOpen)return true;
   p.input = {
     x: m.x,
     z: m.z,
@@ -63,7 +65,7 @@ export function tickPlayer(p, dt, world, now) {
   p.photo = Math.max(0, p.photo - dt);
   p.cooldown = Math.max(0, p.cooldown - dt);
   p.flareCooldown=Math.max(0,(p.flareCooldown||0)-dt);
-  if (!p.alive || !p.connected || now - p.lastInput > 350) {
+  if (p.tabletOpen || !p.alive || !p.connected || now - p.lastInput > 350) {
     p.input.x = p.input.z = 0;
     p.sprinting = false;
     p.vx = p.vz = 0;
@@ -97,6 +99,7 @@ export function wirePlayer(p) {
     sprinting: p.sprinting,
     stamina:p.stamina, exhausted:p.exhausted,
     alive: p.alive,
+    godMode:p.godMode,infiniteSprint:p.infiniteSprint,tabletOpen:p.tabletOpen,
     connected: p.connected,
     speaking: (p.speakingUntil||0)>Date.now(),
     voiceSlot: p.voiceSlot,

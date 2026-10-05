@@ -1,9 +1,11 @@
+import { LAYOUT_VERSION } from '../shared/world-layout.js';
 import { spawnFlare } from '../shared/survival.js';
 import { blocked } from '../shared/physics.js';
 import { WebSocketServer, WebSocket } from "ws";
 import { acceptInput } from "./players.js";
 import { takeItem, dropItem } from "./items.js";
-import { relayVoice } from './voice.js';
+import { relayVoice,relayMimic } from './voice.js';
+import {hostCommand} from './host-controls.js';
 export function attachNetworking(
   server,
   { auth, rooms, originAllowed, secureUpgrade },
@@ -86,7 +88,7 @@ export function attachNetworking(
           account = auth.verify(m.token);
           if (!account) throw Error("Login expired.");
           ws.token = m.token;
-          ws.layoutVersion = m.layoutVersion === 3 ? 3 : 0;
+          ws.layoutVersion = m.layoutVersion === LAYOUT_VERSION ? LAYOUT_VERSION : 0;
           clearTimeout(deadline);
           send(ws, { type: "authenticated", player: account });
           return;
@@ -98,7 +100,7 @@ export function attachNetworking(
         if (["host", "join", "resume"].includes(m.type)) {
           // Older builds cannot draw the generated roads, towers or forest.
           // Keep login available, but never put them into an invisible world.
-          if (ws.layoutVersion !== 3) throw Object.assign(Error('Update TOWER OF POWER to 12.5.1 or newer to join multiplayer.'), { code: 'UPDATE_REQUIRED' });
+          if (ws.layoutVersion !== LAYOUT_VERSION) throw Object.assign(Error('Update TOWER OF POWER to version 13 or newer to join multiplayer.'), { code: 'UPDATE_REQUIRED' });
           if (room) throw Error("Already in a world.");
           const target =
               m.type === "host"
@@ -126,7 +128,7 @@ export function attachNetworking(
         if (!room || !p) throw Error("Join a world first.");
         if(m.type==='voice'){
           ws.voiceEnabled=m.enabled===true&&p.alive;
-          if(!ws.voiceEnabled)p.speakingUntil=0;
+          if(!ws.voiceEnabled){p.speakingUntil=0;room.world.voiceMemory.forget(p.id);room.world.mimic.forget(p.id);}
           return;
         }
         if (m.type === "leave") {
@@ -158,6 +160,7 @@ export function attachNetworking(
         p.actionSeq = m.id;
         let ok = false,flareResult=null;
         const w = room.world;
+        if(m.action==='host')ok=hostCommand(room,p,m.value);
         if (m.action === "world" && p.id === room.ownerId) {
           const a = m.value;
           if (a && typeof a === "object") {
@@ -168,7 +171,7 @@ export function attachNetworking(
             ok = true;
           }
         }
-        if (room.phase === "playing" && p.alive) {
+        if (room.phase === "playing" && p.alive && !p.tabletOpen) {
           if(m.action==='equip'&&(m.item==='none'||(m.item==='camera'&&p.inventory.camera!==false)||(m.item==='flashlight'&&p.inventory.flashlight)||(m.item==='soda'&&p.inventory.sodas>0)||(m.item==='flare'&&p.inventory.flare))){p.heldItem=m.item;if(m.item!=='flashlight')p.torch=false;ok=true;}
           if(m.action==='drop')ok=dropItem(w,p,m.item);
           if(m.action==='flare'&&p.heldItem==='flare'&&p.inventory.flare&&p.inventory.flares>0&&!(p.flareCooldown>0)&&w.flares.length<16){
@@ -233,6 +236,7 @@ export function attachNetworking(
     last = now;
     while (acc >= 1 / rooms.config.tickHz) {
       rooms.tick(1 / rooms.config.tickHz);
+      for(const r of rooms.rooms.values())relayMimic(r,sockets);
       acc -= 1 / rooms.config.tickHz;
       sendAcc += 1 / rooms.config.tickHz;
     }

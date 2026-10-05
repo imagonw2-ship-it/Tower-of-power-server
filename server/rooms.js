@@ -79,7 +79,8 @@ export class Rooms {
     const r = this.rooms.get(this.membership.get(id)),
       p = r?.players.get(id);
     if (p) {
-      p.connected = false;
+      p.connected = false;p.tabletOpen=false;
+      r.world.voiceMemory.forget(id);r.world.mimic.forget(id);
       p.speakingUntil=0;
       p.disconnectedAt = Date.now();
       p.input.x = p.input.z = 0;
@@ -91,6 +92,7 @@ export class Rooms {
     if (!r) return;
     const p = r.players.get(id);
     if (p) releaseItems(r.world, p);
+    r.world.voiceMemory.forget(id);r.world.mimic.forget(id);
     r.players.delete(id);
     this.membership.delete(id);
     if (r.ownerId === id) r.ownerId = [...r.players.keys()][0] || null;
@@ -136,6 +138,7 @@ export class Rooms {
         turbineStopped: w.turbineStopped,
         powerStopped: w.powerStopped,
         elapsed: w.elapsed,
+        mimic:{active:w.mimic.active},
         flares:w.flares,
         objectives: w.objectives,
         itemRevision: w.itemRevision,

@@ -1,7 +1,7 @@
 // Versioned, deterministic world generation. The server owns the seed; every
 // client builds the same roads, utility corridor and forest from these rules.
 import {FOREST_TREE_TYPES} from './tree-shapes.js';
-export const LAYOUT_VERSION=3;
+export const LAYOUT_VERSION=5;
 export function layoutRandom(seed){let a=seed>>>0;return()=>{a+=0x6D2B79F5;let t=Math.imul(a^a>>>15,a|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 export function seedFromText(value){
   const text=String(value??'').trim().slice(0,40);if(!text)return null;
@@ -103,16 +103,18 @@ export function makeLayout(seed=0){
   link(nearest,entry,'forest');forest.entrance={x:entry.x,z:entry.z};forest.nodeId=entry.id;
   const sites=[...turbines.map(t=>({...t,radius:11.4,kind:0})),...pylons.map((p,i)=>({...p,radius:i===0?46.5:29,kind:1}))];
   const bounds=[Math.min(...nodes.map(n=>n.x),forest.x-forest.radius)-250,Math.min(...nodes.map(n=>n.z),forest.z-forest.radius)-250,Math.max(...nodes.map(n=>n.x),forest.x+forest.radius)+250,Math.max(...nodes.map(n=>n.z),forest.z+forest.radius)+250];
-  return{version:LAYOUT_VERSION,bounds,seed,name:'FIELD '+seed,nodes,edges,roads,turbines,pylons,powerLinks,power:{...pylons[0],name:'POWER CORRIDOR'},pylonStyle:pylons[0].style,forest,sites};
+  const trails=makeDirtTrails(seed,nodes,forest);
+  return{version:LAYOUT_VERSION,bounds,trails,seed,name:'FIELD '+seed,nodes,edges,roads,turbines,pylons,powerLinks,power:{...pylons[0],name:'POWER CORRIDOR'},pylonStyle:pylons[0].style,forest,sites};
 }
 // Compact spatial lookup for GPU road/clearing queries. Eight candidates per
 // cell keep pixel/grass cost independent of the total road count. Exact segment
 // distance is still evaluated in the shader: this is not a blurry road bitmap.
 export function makeLayoutLookup(layout,size=192){
-  const points=layout.nodes,minX=Math.min(...points.map(p=>p.x))-80,minZ=Math.min(...points.map(p=>p.z))-80,maxX=Math.max(...points.map(p=>p.x))+80,maxZ=Math.max(...points.map(p=>p.z))+80;
-  const bounds=[minX,minZ,maxX-minX,maxZ-minZ],pixels=new Uint8Array(size*size*12),data=new Float32Array(256*2*4);
+  const points=[...layout.nodes,...layout.trails.flatMap(t=>[t.a,t.b])],minX=Math.min(...points.map(p=>p.x))-80,minZ=Math.min(...points.map(p=>p.z))-80,maxX=Math.max(...points.map(p=>p.x))+80,maxZ=Math.max(...points.map(p=>p.z))+80;
+  const bounds=[minX,minZ,maxX-minX,maxZ-minZ],pixels=new Uint8Array(size*size*20),data=new Float32Array(256*3*4);
   layout.roads.forEach((s,i)=>data.set([s.a.x,s.a.z,s.b.x,s.b.z],i*4));
   layout.sites.forEach((s,i)=>data.set([s.x,s.z,s.radius,s.kind],(256+i)*4));
+  layout.trails.forEach((s,i)=>data.set([s.a.x,s.a.z,s.b.x,s.b.z],(512+i)*4));
   const ids=new Int32Array(8),distances=new Float64Array(8);
   const closest=(x,z,items,n,metric)=>{ids.fill(-1);distances.fill(Infinity);for(let i=0;i<items.length;i++){const d=metric(items[i],x,z);if(d>=distances[n-1])continue;let at=n-1;while(at>0&&d<distances[at-1]){ids[at]=ids[at-1];distances[at]=distances[at-1];at--;}ids[at]=i;distances[at]=d;}};
   for(let iz=0;iz<size;iz++)for(let ix=0;ix<size;ix++){
@@ -121,6 +123,8 @@ export function makeLayoutLookup(layout,size=192){
     for(let j=0;j<8;j++)pixels[offset+(j%4)+(j>=4?size*size*4:0)]=ids[j]+1;
     closest(x,z,layout.sites,4,(s,x,z)=>(x-s.x)**2+(z-s.z)**2);
     for(let j=0;j<4;j++)pixels[offset+size*size*8+j]=ids[j]+1;
+    closest(x,z,layout.trails,8,(s,x,z)=>segmentDistanceSquared(x,z,s.a,s.b));
+    for(let j=0;j<8;j++)pixels[offset+size*size*12+j%4+(j>=4?size*size*4:0)]=ids[j]+1;
   }
   return{size,bounds,pixels,data};
 }
@@ -129,11 +133,11 @@ const forestCache=new Map();
 export function forestForLayout(layout){
   const l=layout||makeLayout(0),key=l.seed;if(forestCache.has(key))return forestCache.get(key);
   const r=layoutRandom(key^0x72f415),trees=[],cells=new Map(),chunks=new Map(),f=l.forest,clusters=[],clearings=[];
-  for(let i=0;i<4;i++){const a=r()*Math.PI*2,d=f.radius*(.15+r()*.58);clearings.push({x:Math.cos(a)*d,z:Math.sin(a)*d,radius:12+r()*15});}
+  for(let i=0;i<2;i++){const a=r()*Math.PI*2,d=f.radius*(.25+r()*.45);clearings.push({x:Math.cos(a)*d,z:Math.sin(a)*d,radius:8+r()*5});}
   function add(dx,dz,kind){
     const a=Math.atan2(dz,dx),edge=f.radius-10+Math.sin(a*5+key%19)*7+Math.sin(a*9)*4;
-    if(dx*dx+dz*dz>edge*edge||Math.abs(dx+Math.sin(dz*.018)*18)<4.5||clearings.some(c=>(c.x-dx)**2+(c.z-dz)**2<c.radius*c.radius))return;
-    const x=f.x+dx,z=f.z+dz;if(nearestRoad(x,z,l).distance<7.5)return;
+    if(dx*dx+dz*dz>edge*edge||clearings.some(c=>(c.x-dx)**2+(c.z-dz)**2<c.radius*c.radius))return;
+    const x=f.x+dx,z=f.z+dz;if(nearestRoad(x,z,l).distance<7.5||nearestTrail(x,z,l)<3.2)return;
     const gx=Math.floor(x/FOREST_CELL_SIZE),gz=Math.floor(z/FOREST_CELL_SIZE);
     for(let iz=-1;iz<=1;iz++)for(let ix=-1;ix<=1;ix++)for(const t of cells.get((gx+ix)+','+(gz+iz))||[])if((t.x-x)**2+(t.z-z)**2<10.24)return;
     const spec=FOREST_TREE_TYPES[kind],height=spec.minHeight+r()*(spec.maxHeight-spec.minHeight);
@@ -142,16 +146,17 @@ export function forestForLayout(layout){
     const cx=Math.floor(x/48),cz=Math.floor(z/48),chunk=cx+','+cz;
     if(!chunks.has(chunk))chunks.set(chunk,{x:(cx+.5)*48,z:(cz+.5)*48,trees:[]});chunks.get(chunk).trees.push(tree);
   }
-  const target=Math.round(Math.PI*f.radius*f.radius/2800);
+  const target=Math.round(Math.PI*f.radius*f.radius/1600);
   for(let attempt=0;clusters.length<target&&attempt<target*15;attempt++){
     const a=r()*Math.PI*2,d=Math.sqrt(r())*(f.radius-18),x=Math.cos(a)*d,z=Math.sin(a)*d;
-    if(clusters.some(c=>(c.x-x)**2+(c.z-z)**2<22*22))continue;
-    const cluster={x,z,radius:19+r()*21,kind:Math.floor(r()*FOREST_TREE_TYPES.length)};clusters.push(cluster);
-    const amount=28+Math.floor(r()*29);
+    if(clusters.some(c=>(c.x-x)**2+(c.z-z)**2<18*18))continue;
+    const cluster={x,z,radius:24+r()*18,kind:Math.floor(r()*FOREST_TREE_TYPES.length)};clusters.push(cluster);
+    const amount=40+Math.floor(r()*29);
     for(let i=0;i<amount;i++){const angle=r()*Math.PI*2,distance=Math.pow(r(),.75)*cluster.radius;add(x+Math.cos(angle)*distance,z+Math.sin(angle)*distance,r()<.72?cluster.kind:Math.floor(r()*FOREST_TREE_TYPES.length));}
   }
   for(let i=0;i<target*4;i++){const a=r()*Math.PI*2,d=Math.sqrt(r())*(f.radius-12);add(Math.cos(a)*d,Math.sin(a)*d,Math.floor(r()*FOREST_TREE_TYPES.length));}
-  const result={trees,cells,chunks:[...chunks.values()],clusters,clearings};if(forestCache.size>=32)forestCache.delete(forestCache.keys().next().value);forestCache.set(key,result);return result;
+  const {logs,logCells}=makeFallenLogs(l,trees);
+  const result={trees,cells,chunks:[...chunks.values()],clusters,clearings,logs,logCells};if(forestCache.size>=32)forestCache.delete(forestCache.keys().next().value);forestCache.set(key,result);return result;
 }
 export function collideForest(p,layout){
   const f=layout?.forest;if(!f||(p.x-f.x)**2+(p.z-f.z)**2>(f.radius+4)**2)return 0;
@@ -161,5 +166,45 @@ export function collideForest(p,layout){
     const dx=p.x-t.x,dz=p.z-t.z,d=Math.hypot(dx,dz),radius=t.radius+.29;
     if(d<radius){p.x=t.x+(d>.001?dx/d:1)*radius;p.z=t.z+(d>.001?dz/d:0)*radius;}
   }
+  const seen=new Set();
+  for(let iz=-1;iz<=1;iz++)for(let ix=-1;ix<=1;ix++)for(const log of forestForLayout(layout).logCells.get((gx+ix)+','+(gz+iz))||[]){
+    if(seen.has(log))continue;seen.add(log);checks++;
+    const dx=log.b.x-log.a.x,dz=log.b.z-log.a.z,t=Math.max(0,Math.min(1,((p.x-log.a.x)*dx+(p.z-log.a.z)*dz)/(dx*dx+dz*dz))),
+      x=log.a.x+dx*t,z=log.a.z+dz*t,ox=p.x-x,oz=p.z-z,d=Math.hypot(ox,oz),radius=log.radius+.29;
+    if(d<radius){const length=Math.hypot(dx,dz);p.x=x+(d>.001?ox/d:-dz/length)*radius;p.z=z+(d>.001?oz/d:dx/length)*radius;}
+  }
   return checks;
+}
+
+// Bare earth and concealment share the same seeded noise in JS and GLSL.
+export function groundHash(x,z,seed){let h=Math.imul((x|0)^(seed|0),374761393)^Math.imul(z|0,668265263);h^=h>>>13;h=Math.imul(h,1274126177);return((h^(h>>>16))>>>0)/4294967295;}
+export function groundNoise(x,z,seed){const ix=Math.floor(x),iz=Math.floor(z);let u=x-ix,v=z-iz;u=u*u*(3-2*u);v=v*v*(3-2*v);const a=groundHash(ix,iz,seed),b=groundHash(ix+1,iz,seed),c=groundHash(ix,iz+1,seed),d=groundHash(ix+1,iz+1,seed);return(a+(b-a)*u)*(1-v)+(c+(d-c)*u)*v;}
+export function nearestTrail(x,z,l){let d=Infinity;for(const t of l?.trails||[])d=Math.min(d,segmentDistanceSquared(x,z,t.a,t.b));return Math.sqrt(d);}
+export function bareGround(x,z,l){
+  if(!l)return false;
+  const f=l.forest,d=Math.hypot(x-f.x,z-f.z);if(d>=f.radius)return false;
+  return d<f.radius-15||nearestTrail(x,z,l)<1.9;
+}
+function makeDirtTrails(seed,nodes,forest){
+  const r=layoutRandom(seed^0x9347bc),trails=[];
+  function curve(a,b,bend){const dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz),mid={x:(a.x+b.x)*.5-dz/len*bend,z:(a.z+b.z)*.5+dx/len*bend};let previous=a;
+    for(let i=1;i<=8;i++){const t=i/8,q=1-t,p={x:q*q*a.x+2*q*t*mid.x+t*t*b.x,z:q*q*a.z+2*q*t*mid.z+t*t*b.z};trails.push({a:previous,b:p});previous=p;}}
+  curve(forest.entrance,forest,(r()-.5)*65);
+  for(let i=0;i<3;i++){const a=r()*Math.PI*2,d=forest.radius*(.55+r()*.28);curve(forest,{x:forest.x+Math.cos(a)*d,z:forest.z+Math.sin(a)*d},(r()-.5)*95);}
+  return trails;
+}
+function makeFallenLogs(layout,trees){
+  const r=layoutRandom(layout.seed^0x85ac11),f=layout.forest,logs=[],logCells=new Map(),target=Math.round(f.radius/5);
+  for(let attempt=0;logs.length<target&&attempt<target*30;attempt++){
+    const t=trees[Math.floor(r()*trees.length)];if(!t)break;
+    const a={x:t.x+(r()-.5)*16,z:t.z+(r()-.5)*16},angle=r()*Math.PI*2,length=3.5+r()*4.8,radius=.24+r()*.27,b={x:a.x+Math.cos(angle)*length,z:a.z+Math.sin(angle)*length};
+    if([a,b,{x:(a.x+b.x)/2,z:(a.z+b.z)/2}].some(p=>nearestRoad(p.x,p.z,layout).distance<9||nearestTrail(p.x,p.z,layout)<3||Math.hypot(p.x-f.x,p.z-f.z)>f.radius-12))continue;
+    if(trees.some(t=>segmentDistanceSquared(t.x,t.z,a,b)<(t.radius+radius+.65)**2))continue;
+    if(logs.some(l=>segmentDistanceSquared(a.x,a.z,l.a,l.b)<(length+2)**2))continue;
+    const log={a,b,radius,length};logs.push(log);
+    for(let z=Math.floor((Math.min(a.z,b.z)-radius)/8);z<=Math.floor((Math.max(a.z,b.z)+radius)/8);z++)for(let x=Math.floor((Math.min(a.x,b.x)-radius)/8);x<=Math.floor((Math.max(a.x,b.x)+radius)/8);x++){
+      const key=x+','+z;if(!logCells.has(key))logCells.set(key,[]);logCells.get(key).push(log);
+    }
+  }
+  return{logs,logCells};
 }

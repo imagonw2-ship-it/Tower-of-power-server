@@ -35,3 +35,9 @@ The printed suit-card portrait in 12.0 is rendered from the existing uploaded ha
 ## User-supplied tree packs (12.5.1)
 
 `low-poly-trees-free.zip`, `realistic-trees-pack-of-2-free.zip`, and `more-realistic-trees-free.zip` were supplied for this game. Their seven Blender trees and embedded bark, leaf and opacity images are converted by `scripts/prepare_trees.py` and `scripts/pack_tree_assets.py`. The mobile versions share an atlas, retain roots below ground, simplify branches and reduce leaf clusters into two LODs. Original author and license metadata were not supplied with these packs; this project does not label them CC0. The older Kenney credit above applies to the previous pine assets.
+
+## Host tablet and forest eyes (13)
+
+The tablet mesh is converted from the project owner's `the-tablet.zip` / `Planchet2.blend`. Its five original mesh parts are retained. The upload did not include the referenced textures; the runtime uses dark housing materials and an original interactive Fieldlink display. No author or license is inferred for the supplied model. `scripts/export_tablet.py INPUT.blend client/tablet-assets.js` reads its Blender 2.93 SDNA records directly.
+
+The watching-eye photograph is **Eye Shot - 1 - Professionally Edited** by Bernie Thomas / Berniethomas68, released by its author into the public domain: https://commons.wikimedia.org/wiki/File:Eye_Shot_-_1_-_Professionally_Edited.jpg . The original JPEG is bundled in `client/assets/watching-eye.jpg`. The game samples its eye region, darkens the iris and masks the surrounding skin in the shader. There are no runtime image downloads.

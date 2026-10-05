@@ -22,6 +22,7 @@ export function relayVoice(ws,bytes,sockets,now=Date.now()) {
   const rms=Math.sqrt(energy/samples.length);if(rms<.002)return false;
   if(room.phase==='playing'&&now-(ws.voiceNoiseAt||0)>200){room.world.sim.noise(p,Math.min(38,10+rms*240));ws.voiceNoiseAt=now;}
   p.speakingUntil=now+220;
+  if(room.phase==='playing')room.world.voiceMemory?.record(p.id,bytes,room.world.mimic.clock);
   for(const listener of room.players.values()){
     if(listener.id===p.id||!listener.alive||!listener.connected)continue;
     const peer=sockets.get(listener.id);if(!peer||peer.room!==room||peer.readyState!==1||peer.bufferedAmount>16384)continue;
@@ -31,4 +32,18 @@ export function relayVoice(ws,bytes,sockets,now=Date.now()) {
     peer.send(packet,{binary:true});
   }
   return true;
+}
+
+// Use a separate channel and sequence for echoes: old speech packet numbers
+// must not be discarded by the live-speaker replay protection.
+export function relayMimic(room,sockets){
+  const frames=room.world.mimicFrames.splice(0);
+  for(const frame of frames)for(const listener of room.players.values()){
+    if(!listener.alive||!listener.connected)continue;
+    const peer=sockets.get(listener.id);if(!peer||peer.room!==room||peer.readyState!==1||peer.bufferedAmount>16384)continue;
+    const source={...frame,y:listener.y},mix=voiceMix(source,listener,38);if(!mix)continue;
+    const packet=Buffer.alloc(416);packet[0]=87;packet[1]=2;packet.writeUInt16LE(1,2);
+    packet.writeUInt16LE(Math.round(mix.gain*.85*65535),4);packet.writeInt16LE(Math.round(mix.pan*32767),6);packet.set(frame.bytes,8);packet.writeUInt16LE(frame.sequence,10);
+    peer.send(packet,{binary:true});
+  }
 }

@@ -49,7 +49,7 @@ function heldEquipmentMatrix(tool=equipmentMotion.shown){
 }
 function appendHeldEquipment(){
   const tool=equipmentMotion.shown;
-  if(game.mode!=='playing'||game.zoom>=2.5||tool==='none')return;
+  if(game.mode!=='playing'||tablet.progress>0||game.zoom>=2.5||tool==='none')return;
   if(!canEquip(tool))return;
   const model=heldEquipmentMatrix(tool);
   appendPovArm(model,tool);
@@ -57,7 +57,7 @@ function appendHeldEquipment(){
     model,material:5,assetKind:tool==='flashlight'?1:tool==='soda'?2:tool==='flare'?7:6,
     texture:tool==='camera'?cameraItemTexture:tool==='flare'?flareGunTexture:undefined,castShadow:false,receiveTorch:false});
 }
-function torchStrength(){return game.hasFlashlight&&game.torchOn&&equippedTool==='flashlight'&&equipmentMotion.shown==='flashlight'?1-ease(equipmentMotion.lower):0;}
+function torchStrength(){return game.mode!=='fieldPanel'&&game.hasFlashlight&&game.torchOn&&equippedTool==='flashlight'&&equipmentMotion.shown==='flashlight'?1-ease(equipmentMotion.lower):0;}
 function refreshFieldKit(){
   if(!canEquip(equippedTool))equippedTool=canEquip('camera')?'camera':'none';
   document.getElementById('kitDrop').disabled=equippedTool==='none'||game.drinking>0||!!pendingDrop;
@@ -114,7 +114,7 @@ function updateFieldKit(dt){
   document.getElementById('staminaBar').setAttribute('aria-valuenow',String(Math.round(stamina)));
   document.getElementById('staminaBar').classList.toggle('exhausted',!!game.exhausted);
   document.getElementById('touchLesson').hidden=true;
-  const ownsWorld=!net.active||net.snapshots.at(-1)?.ownerId===net.player?.id;worldMenuButton.hidden=!ownsWorld;document.getElementById('touchWorld').hidden=!ownsWorld;document.getElementById('touchSprint').classList.toggle('latched',mobileInput.sprint);document.getElementById('touchSprint').setAttribute('aria-pressed',String(mobileInput.sprint));
+  const ownsWorld=!net.active||net.snapshots.at(-1)?.ownerId===net.player?.id;document.getElementById('touchWorld').hidden=!ownsWorld;document.getElementById('touchSprint').classList.toggle('latched',mobileInput.sprint);document.getElementById('touchSprint').setAttribute('aria-pressed',String(mobileInput.sprint));
   if(game.mode!=='playing'&&game.mode!=='inventory')return;
   if(game.hasFlashlight&&!kitPreviousFlashlight){equipTool('flashlight');game.notice=touchMode?'FLASHLIGHT COLLECTED':'FLASHLIGHT ADDED / OPEN INVENTORY TO SWITCH';game.noticeTime=4;}
   kitPreviousFlashlight=game.hasFlashlight;
@@ -139,6 +139,4 @@ document.addEventListener('keydown',e=>{
   else if(e.code==='KeyR'&&!e.repeat)useEquipment();
   else if(e.code==='KeyG'&&!e.repeat)dropEquipment();
 });
-const kitMenuButton=document.createElement('button');kitMenuButton.textContent='INVENTORY';kitMenuButton.addEventListener('click',openFieldKit);ui.pausePanel.insertBefore(kitMenuButton,document.getElementById('pauseSettings'));
-const worldMenuButton=document.createElement('button');worldMenuButton.textContent='WORLD CONTROLS';worldMenuButton.addEventListener('click',openFieldPanel);ui.pausePanel.insertBefore(worldMenuButton,document.getElementById('returnMenu'));
 addEventListener('tower-back',()=>{if(game.mode==='inventory')closeFieldKit();else if(networkPanelOpen)closeMultiplayer();else if(game.mode==='playing')setMode('paused');else if(game.mode==='fieldPanel')closeFieldPanel();else if(game.mode==='paused')captureMouse();else mainMenu();});

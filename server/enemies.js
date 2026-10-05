@@ -722,7 +722,7 @@ export function createEnemySimulation(world, {powerOnly=false,turbineOnly=false,
       updatePowerCreature(dt);}
       const impact=kind=>(point,radius)=>{
         events.push({kind:kind==='turbine'?'enemyStep':'powerStep',x:point[0],z:point[2],stomp:true});
-        for(const p of alive)if(stompHits(p,point,radius,terrainHeight,shedBlocksSight)){
+        for(const p of alive)if(!p.godMode&&stompHits(p,point,radius,terrainHeight,shedBlocksSight)){
           p.alive=false;p.health=0;p.input.x=p.input.z=0;
           events.push({kind:'caught',id:p.id,x:p.x,z:p.z});
         }

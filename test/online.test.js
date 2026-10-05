@@ -39,7 +39,7 @@ async function until(fn, ms = 5000) {
   }
   throw Error("Timed out waiting for condition");
 }
-async function device(session, agent = "Desktop Chrome", layoutVersion = 3) {
+async function device(session, agent = "Desktop Chrome", layoutVersion = 5) {
   const ws = new WebSocket(origin.replace("http", "ws") + "/ws", {
       headers: { Origin: origin, "User-Agent": agent },
     }),
@@ -193,14 +193,32 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
   await t.test('separate devices share the map seed and reject outdated world renderers', async()=>{
     await until(()=>[host,phone,tablet,chrome].every(c=>c.snapshot?.world.seed===2&&c.snapshot?.enemies.turbines.length===room.world.layout.turbines.length));
     for(const c of [host,phone,tablet,chrome]){
-      assert.equal(c.snapshot.world.layoutVersion,3);
+      assert.equal(c.snapshot.world.layoutVersion,5);
       assert.equal(c.snapshot.enemies.turbines[1].x,room.world.layout.turbines[1].x);
       assert.equal(c.snapshot.enemies.turbines[1].z,room.world.layout.turbines[1].z);
     }
-    const legacy=await device(await api('guest',{}),'Older APK',0),before=app.rooms.rooms.size;
+    const legacy=await device(await api('guest',{}),'12.5.1 APK',3),before=app.rooms.rooms.size;
     legacy.send({type:'host'});assert.equal((await legacy.wait('error')).code,'UPDATE_REQUIRED');
-    legacy.send({type:'join',code});assert.match((await legacy.wait('error')).message,/12\.5/);
+    legacy.send({type:'join',code});assert.match((await legacy.wait('error')).message,/version 13/);
     assert.equal(app.rooms.rooms.size,before);assert.equal(room.players.size,4);
+  });
+  await t.test('real guest messages cannot use host abilities, and the tablet is visible but not equippable',async()=>{
+    const start={x:hostPlayer.x,z:hostPlayer.z,y:hostPlayer.y,yaw:hostPlayer.yaw,pitch:hostPlayer.pitch};
+    for(const value of [{command:'god',enabled:true},{command:'sprint',enabled:true},{command:'tablet',enabled:true},{command:'teleport',destination:'forest'},{command:'mimic'}])assert.equal((await action(phone,'host',{value})).ok,false);
+    assert.equal((await action(host,'equip',{item:'tablet'})).ok,false);
+    assert.equal((await action(host,'drop',{item:'tablet'})).ok,false);
+    assert.equal((await action(host,'host',{value:{command:'tablet',enabled:true}})).ok,true);
+    await until(()=>phone.snapshot?.players.find(p=>p.id===hostPlayer.id)?.tabletOpen===true);
+    input(host,{x:1,z:1,yaw:1,pitch:1,godMode:true,infiniteSprint:true});await delay(120);
+    assert.ok(Math.hypot(hostPlayer.x-start.x,hostPlayer.z-start.z)<.01);assert.equal(hostPlayer.godMode,false);
+    for(const command of ['god','sprint'])assert.equal((await action(host,'host',{value:{command,enabled:true}})).ok,true);
+    await until(()=>phone.snapshot?.players.find(p=>p.id===hostPlayer.id)?.godMode===true);
+    assert.equal((await action(host,'host',{value:{command:'teleport',destination:'forest'}})).ok,true);
+    assert.ok(Math.hypot(hostPlayer.x-room.world.layout.forest.x,hostPlayer.z-room.world.layout.forest.z)<room.world.layout.forest.radius);
+    assert.equal((await action(host,'host',{value:{command:'mimic'}})).ok,true);assert.ok(room.world.mimic.active);
+    await action(host,'host',{value:{command:'clearMimic'}});
+    for(const command of ['god','sprint','tablet'])await action(host,'host',{value:{command,enabled:false}});
+    Object.assign(hostPlayer,start);input(host);
   });
   await t.test(
     "fixed-step movement appears on another device; impossible inputs ignored",
