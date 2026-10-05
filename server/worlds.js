@@ -1,3 +1,4 @@
+import {MimicMemory,ForestMimic} from '../shared/forest-haunts.js';
 import { advanceFlares } from '../shared/survival.js';
 import { floorHeight,blocked } from '../shared/physics.js';
 import { randomUUID,randomInt } from "node:crypto";
@@ -23,6 +24,7 @@ export function makeWorld(rules,seed=randomInt(0,0x7fffffff)) {
     objectives: { powerCorridor: false },
     rules,
   };
+  w.voiceMemory=new MimicMemory();w.mimic=new ForestMimic(w.layout);w.mimicFrames=[];
   w.sim = createEnemySimulation(w,{turbineSpawn:w.layout.turbines[0],powerSpawn:w.layout.pylons[0]});
   w.extraTurbines=w.layout.turbines.slice(1).map(t=>createEnemySimulation(w,{turbineOnly:true,turbineSpawn:t}));
   return w;
@@ -43,6 +45,9 @@ export function tickWorld(w, players, dt, now) {
   for (const p of players) tickPlayer(p, dt, w, now);
   w.flares=advanceFlares(w.flares,dt,floorHeight,blocked);
   w.sim.step(dt, players);
+  for(const p of players)if(!p.alive||!p.connected){w.voiceMemory.forget(p.id);w.mimic.forget(p.id);}
+  w.mimicFrames.push(...w.mimic.step(dt,players,w.voiceMemory));
+  if(w.mimicFrames.length>5)w.mimicFrames.splice(0,w.mimicFrames.length-5);
   if (
     players.some(
       (p) => p.alive && p.connected && Math.hypot(p.x-w.layout.power.x,p.z-w.layout.power.z) < 95,
