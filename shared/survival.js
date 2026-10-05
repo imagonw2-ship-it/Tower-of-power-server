@@ -1,5 +1,6 @@
 // Identical resource and lure rules in the browser and authoritative server.
 export function spendStamina(p,wantsSprint,dt){
+  if(p.infiniteSprint){p.stamina=100;p.staminaDelay=0;p.exhausted=false;return !!wantsSprint;}
   p.stamina=Number.isFinite(p.stamina)?p.stamina:100;
   p.staminaDelay=Math.max(0,(p.staminaDelay||0)-dt);
   if(p.exhausted&&p.stamina>=24)p.exhausted=false;
