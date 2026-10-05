@@ -177,6 +177,11 @@ function closeMultiplayer() {
   syncUI();
   refreshNetworkUI();
 }
+document.getElementById('resumeWorldMenu').addEventListener('click',()=>{
+  if(!net.roundStarted){openMultiplayer();return;}
+  sound.start();setMode('paused');captureMouse();
+});
+document.getElementById('leaveWorldMenu').addEventListener('click',()=>leaveMultiplayer());
 function leaveMultiplayer() {
   net.leave();
   netUI.onlineRoster.hidden = true;
@@ -407,6 +412,7 @@ function updateNetworkFrame(dt) {
   game.hasFlashlight = p.inventory.flashlight;
   game.sodas = p.inventory.sodas;
   game.hasFlare=!!p.inventory.flare;game.flares=p.inventory.flares||0;game.flareTaken=true;
+  game.godMode=!!p.godMode;game.infiniteSprint=!!p.infiniteSprint;
   game.stamina=p.stamina??100;game.exhausted=!!p.exhausted;
   game.boostTime = p.boost;
   game.torchOn = p.torch;

@@ -138,6 +138,20 @@ function avatarHold(poses,pitch=0,lowering=0){
   const hx=lowdir.map(v=>-v),hz=norm([0,1,0].map((v,k)=>v-lowdir[k]*lowdir[1])),hy=cross(hz,hx);
   for(let k=0;k<3;k++){poses[h][k]=hx[k];poses[h][4+k]=hy[k];poses[h][8+k]=hz[k];}
 }
+function avatarHoldTablet(poses){
+  const pos=m=>Array.from(m.slice(12,15));
+  for(const side of ['l','r']){
+    const sign=side==='l'?1:-1,ids=['upperarm_','lowerarm_','hand_'].map(n=>AVATAR_ASSET.bones.indexOf(n+side));
+    const a=pos(poses[ids[0]]),b=pos(poses[ids[1]]),c=pos(poses[ids[2]]),wrist=[sign*.295,1.11,.40];
+    const upper=b.map((v,k)=>v-a[k]),lower=c.map((v,k)=>v-b[k]),ul=Math.hypot(...upper),ll=Math.hypot(...lower);
+    const delta=wrist.map((v,k)=>v-a[k]),d=Math.min(Math.hypot(...delta),(ul+ll)*.995),axis=norm(delta),pole=[sign*.5,-.6,-.1],bend=norm(pole.map((v,k)=>v-axis[k]*dot(pole,axis)));
+    const along=(ul*ul-ll*ll+d*d)/(2*d),out=Math.sqrt(Math.max(0,ul*ul-along*along)),elbow=a.map((v,k)=>v+axis[k]*along+bend[k]*out);
+    poses[ids[0]]=avatarAim(poses[ids[0]],upper,elbow.map((v,k)=>v-a[k]));
+    poses[ids[1]]=avatarAim(poses[ids[1]],lower,wrist.map((v,k)=>v-elbow[k]));
+    poses[ids[2]]=avatarAim(poses[ids[2]],lower,[0,.1,.9]);
+    for(let k=0;k<3;k++){poses[ids[1]][12+k]=elbow[k];poses[ids[2]][12+k]=wrist[k];}
+  }
+}
 function appendHeadCensor(root,skin){
   if(headCensorCount>=8)return;
   const model=multiply(root,skin),m=multiply(viewProjection,model);
@@ -163,8 +177,8 @@ function appendHazmat(p,clock){
   let a=avatarCache.get(p.id);if(!a){a={last:-1,renderTime:clock,motion:createToolMotion(p.heldItem||'camera'),pose:new Float32Array(avatarBoneCount*7),sample:new Float32Array(avatarBoneCount*7),bones:new Float32Array(32*16),matrices:[],held:false};avatarCache.set(p.id,a);}
   const speed=Math.hypot(p.vx||0,p.vz||0),clip=p.crouching?(speed>.2?'crouch':'crouchIdle'):speed>.2?(p.sprinting?'run':'walk'):'idle';
   advanceToolMotion(a.motion,p.heldItem||'camera',clamp(clock-a.renderTime,0,.1));a.renderTime=clock;
-  const held=a.motion.shown;
-  if(clock-a.last>1/(distance>60?12:30)||a.last<0||held!==a.held){
+  const held=p.tabletOpen?'none':a.motion.shown;
+  if(clock-a.last>1/(distance>60?12:30)||a.last<0||held!==a.held||a.tabletOpen!==p.tabletOpen){
     avatarSample(clip,clock,a.sample);
     const blend=a.last<0||clock<a.last?1:1-Math.exp(-Math.min(.1,clock-a.last)*18);
     for(let i=0;i<avatarBoneCount;i++){
@@ -172,15 +186,17 @@ function appendHazmat(p,clock){
       for(let k=0;k<7;k++)a.pose[o+k]=lerp(a.pose[o+k],a.sample[o+k]*(k>=3?sign:1),blend);
       a.matrices[i]=avatarMatrix(a.pose.subarray(o,o+3),a.pose.subarray(o+3,o+7));
     }
-    if(held!=='none')avatarHold(a.matrices,p.pitch||0,a.motion.lower);
+    if(p.tabletOpen)avatarHoldTablet(a.matrices);
+    else if(held!=='none')avatarHold(a.matrices,p.pitch||0,a.motion.lower);
     for(let i=0;i<avatarBoneCount;i++)a.bones.set(multiply(a.matrices[i],AVATAR_ASSET.inverseBind[i]),i*16);
-    a.last=clock;a.held=held;
+    a.last=clock;a.held=held;a.tabletOpen=p.tabletOpen;
   }
   const root=multiply(transform(p.x,shedFloor(p.x,p.z),p.z),rotateY(p.yaw+Math.PI)),shadow=distance<32;
   for(const part of avatarParts)objectDraws.push({mesh:part.name==='ClassASuitGear_low'&&gripMeshes[held]?gripMeshes[held]:part.mesh,model:root,bones:a.bones,texture:part.texture,material:5,assetKind:5,castShadow:shadow});
   const head=AVATAR_ASSET.bones.indexOf('head');
   appendHeadCensor(root,a.bones.subarray(head*16,head*16+16));
   appendSuitCard(p,root,a.bones,distance);
+  if(p.tabletOpen&&distance<60){const model=multiply(root,multiply(transform(0,1.17,.40),rotateY(Math.PI)));for(const part of tablet.meshes)objectDraws.push({mesh:part.mesh,model,material:5,assetKind:11,castShadow:shadow,tablet:true});}
   if(held!=='none'&&distance<60){
     const h=a.matrices[AVATAR_ASSET.bones.indexOf('hand_r')],grip=multiply(root,multiply(h,itemGripMatrix(held)));
     const mesh=held==='flashlight'?flashlightMesh:held==='soda'?sodaMesh:held==='flare'?flareGunMesh:cameraItemMesh;

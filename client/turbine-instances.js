@@ -20,7 +20,7 @@ function updateOtherTurbines(dt){
     updateEnemy(dt);
     if(!world.turbineStopped&&!enemy.lureId)tickStomp(enemy,turbine,'turbine',dt,terrainHeight,shedBlocksSight,(point,radius)=>{
       sound.enemyStep(Math.hypot(player.x-point[0],player.z-point[2])*.42);game.shake=Math.max(game.shake,1);
-      if(stompHits({...player,alive:true},point,radius,terrainHeight,shedBlocksSight)){sound.caught();setMode('lost');}
+      if(!game.godMode&&stompHits({...player,alive:true},point,radius,terrainHeight,shedBlocksSight)){sound.caught();setMode('lost');}
     });
   });
 }
