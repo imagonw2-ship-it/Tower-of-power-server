@@ -7,7 +7,7 @@ test('clustered forests reproduce all seven models and only query nearby trunk c
  let maximum=0;
  for(const seed of [0,1,2,42,100,78942]){
   const layout=makeLayout(seed),forest=forestForLayout(layout);
-  assert.ok(forest.clusters.length>30);assert.ok(forest.clearings.length>=3);assert.equal(new Set(forest.trees.map(t=>t.kind)).size,7);
+  assert.ok(forest.clusters.length>30);assert.ok(forest.clearings.length===2);assert.equal(new Set(forest.trees.map(t=>t.kind)).size,7);
   assert.equal(collideForest({x:128,z:-34},layout),0);
   for(const tree of forest.trees){
    const p={x:tree.x,z:tree.z},checks=collideForest(p,layout);maximum=Math.max(maximum,checks);

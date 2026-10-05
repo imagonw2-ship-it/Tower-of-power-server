@@ -30,7 +30,7 @@ function uiEnvironment(fetcher) {
     elements.set(id,x); return x;
   }
   for(const m of markup.matchAll(/id="([^"]+)"/g))element(m[1]);
-  element('multiplayerOpen');
+  for(const id of ['multiplayerOpen','resumeWorldMenu','leaveWorldMenu'])element(id);
   Object.assign(e.context, {document:{getElementById:id=>elements.get(id),createElement:()=>element('new'),activeElement:null},
     ui:{pausePanel:element('pausePanel'),menu:element('menu')},game:{mode:'menu'},sound:{start(){}},canvas:{},
     syncUI(){},mainMenu(){},setMode(){}});
