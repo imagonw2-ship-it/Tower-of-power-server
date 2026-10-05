@@ -1,3 +1,27 @@
+## Version 13: whispers in the woods
+
+- Dirt patches and trails are restricted to the forest. More overlapping tree clusters and two small clearings make the woods denser; mobile LOD ranges are reduced to keep rendering bounded.
+- Rare dark eyes appear on nearby trees, watch the player, and disappear shortly after being noticed. They respect scene depth and are separate from the mimic.
+- A formless forest mimic can echo recent player speech from a different position. It spawns by chance or from the host tablet, and has no combat body in this release. Voice is microphone opt-in: at most eight clips of 2.4 seconds live in room memory for 90 seconds; mute, death, disconnect and leaving erase that player's clips. Audio is never saved to accounts or disk. Solo microphone capture supports the same encounter.
+- The uploaded tablet is a real first-person model, held in both hands. Its projected screen has Travel, Threats, Player and World pages. Looking and movement are locked until it is put away; the host can teleport, summon/dismiss a mimic, wake giants, toggle god mode and infinite sprint, and adjust the existing world controls. Other players see the host holding the tablet.
+- Tablet commands are authorized by the server. Guests cannot obtain it by equipping, picking up or dropping an item. Inventory and World Controls entries are removed from the pause menu; normal Field Kit controls remain.
+- Android versionCode 26 / versionName 13 preserves the package and signing certificate. Multiplayer requires layout capability 5; existing accounts need no migration.
+
+Open the host tablet with M or its on-screen button. M, Escape, Android Back or the screen's close button puts it away. A microphone must be enabled before the mimic has speech to repeat.
+
+Validation: 94 automated checks pass, including real WebSocket host/guest permissions, account persistence, mimic buffering, god mode, forest collisions and native GLES shaders. Browser captures verify the two-hand tablet in first and third person, mobile screen controls, dense forest and the photographic tree eye. The signed APK contains the exact tested HTML. A physical Android device was not available for this build.
+
+## Version 12.5.2: woodland floor and uninterrupted voice
+
+- Seeded dirt patches and winding trails break up the open fields. Forest ground uses leaf litter and sparse tufts instead of dense field grass. Bare paths and forest floor no longer count as grass concealment, consistently on the client and server.
+- Clustered crowns darken the ground and nearby objects with a compact canopy map, alongside the existing cutout leaf shadows. Bare fallen logs have bark, growth rings, tapered ends, terrain contact and nearby collision checks. They stay clear of roads, trails and standing trunks.
+- Proximity voice stays enabled through pause, inventory, world controls, settings and the main menu. The main menu keeps the multiplayer room connected and offers Return to World and Leave World. Muting, leaving, disconnecting, death and putting the app in the background still stop microphone capture.
+- Preserves the 12.5.1 forest models and small, clear suit ID cards. Android versionCode 25 / versionName 12.5.2 retains the existing package and signing certificate. Multiplayer requires layout capability 4 so all devices agree on logs and grass cover. Account data needs no migration.
+
+Validation: all 87 automated checks pass, including actual HTTP/WebSocket voice relay, microphone lifecycle and transmission through game menus, log grounding/collisions, seeded trail lookup, multiplayer compatibility, and native GLES shader compilation. Real WebGL checks cover woodland lighting, fallen logs, dirt trails, suit cards and wall occlusion. The signed APK embeds the exact tested browser client and matches the 12.5.1 signing certificate. Physical Android performance and microphone behavior remain unverified.
+
+The 12.5.2 changes are included in version 13.
+
 ## Version 12.5.1: deep woods and clear suit IDs
 
 - The three supplied tree packs replace the old pine meshes with seven textured trees, original foliage opacity and two detail levels. Seeded clusters, clearings and uneven edges create a denser forest. Roads stay clear and the forest compass marker remains available.

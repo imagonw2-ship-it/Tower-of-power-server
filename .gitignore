@@ -8,3 +8,6 @@ android/build/
 android/local.properties
 test/results/
 *.apk
+
+# Extracted build workspace; canonical wrapper source is the tracked ZIP.
+/android/
