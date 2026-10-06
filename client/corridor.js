@@ -69,6 +69,7 @@ function activePylon(index){return index===0?powerCreature:(net.active?networkPy
 function staticPylonColliders(){return corridorColliders.slice(1+(net.active?networkPylons.length:0)).flat();}
 const networkPylonPalettes=[];
 function appendPowerObjects(){
+  if(inForest())return;
   if(isMenuScene())return;
   appendInfrastructure();
   const p=powerCreature,distance=Math.hypot(player.x-p.x,player.z-p.z);

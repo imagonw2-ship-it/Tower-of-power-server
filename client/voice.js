@@ -38,7 +38,7 @@ class ProximityVoice {
       const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
       if(generation!==this.generation||!this.canSpeak()){stream.getTracks().forEach(t=>t.stop());return;}
       this.stream=stream;this.input=this.context.createMediaStreamSource(stream);this.input.connect(this.node);this.enabled=true;
-      this.node.port.postMessage({type:'capture',enabled:true});this.net.send({type:'voice',enabled:true});this.label.textContent='MIC ON · MIMICS LISTEN';
+      this.node.port.postMessage({type:'capture',enabled:true});this.net.send({type:'voice',enabled:true});this.label.textContent='MIC ON';
       for(const track of stream.getTracks())track.onended=()=>this.stop();
     }catch(e){if(generation===this.generation)this.label.textContent=e.name==='NotAllowedError'?'MIC PERMISSION DENIED':e.message||'VOICE UNAVAILABLE';}
     finally{this.pending=false;this.refresh();}
@@ -73,10 +73,10 @@ class ProximityVoice {
     this.node.port.postMessage({type:'packet',id,samples,gain:view.getUint16(4,true)/65535,pan:view.getInt16(6,true)/32767},[samples.buffer]);
   }
   update(){
-    document.getElementById('voiceHud').hidden=!this.net.active&&!['playing','paused','inventory','fieldPanel'].includes(game.mode);
+    document.getElementById('voiceHud').hidden=game.mode!=='playing'||networkPanelOpen||isMenuScene();
     if((this.enabled||this.pending)&&!this.canSpeak())this.stop();
     if(this.net.active&&!this.net.connected){this.node?.port.postMessage({type:'clear'});this.latest.clear();}
-    if(this.enabled&&!this.pending)this.label.textContent='MIC ON · MIMICS LISTEN';
+    if(this.enabled&&!this.pending)this.label.textContent='MIC ON';
   }
 }
 const proximityVoice=new ProximityVoice(net);

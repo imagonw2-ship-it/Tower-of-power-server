@@ -11,11 +11,11 @@ function resetOtherTurbines(){
     const instance={body:{...spawn,y:terrainHeight(spawn.x,spawn.z)},state:{},meshes:old[i]?.meshes||[makeLegMesh(),makeLegMesh(),makeLegMesh()],style:spawn.style};
     inTurbine(instance,resetEnemy);return instance;
   });
-  for(let i=otherTurbines.length;i<old.length;i++)for(const m of old[i].meshes)disposeFieldMesh(m);
+  for(let i=otherTurbines.length;i<old.length;i++)for(const m of old[i].meshes||[])disposeFieldMesh(m);
 }
 function extraTurbineNoise(radius){for(const t of otherTurbines)inTurbine(t,()=>emitTurbineNoise(radius));}
 function updateOtherTurbines(dt){
-  if(isMenuScene()||net.active||game.mode!=='playing')return;
+  if(inForest()||isMenuScene()||net.active||game.mode!=='playing')return;
   for(const t of otherTurbines)inTurbine(t,()=>{
     updateEnemy(dt);
     if(!world.turbineStopped&&!enemy.lureId)tickStomp(enemy,turbine,'turbine',dt,terrainHeight,shedBlocksSight,(point,radius)=>{
@@ -25,7 +25,7 @@ function updateOtherTurbines(dt){
   });
 }
 function collideOtherTurbines(){
-  if(isMenuScene())return;
+  if(inForest()||isMenuScene())return;
   for(const t of otherTurbines){
     if(t.state.state==='dormant'){
       const dx=player.x-t.body.x,dz=player.z-t.body.z,d=Math.hypot(dx,dz);

@@ -1,8 +1,8 @@
 // Built once per seed. A small canopy map supplies broad sky occlusion below
 // clustered crowns; the existing cutout shadow maps still draw leaf shadows.
 let canopyMap=null,canopyTexture=null,fallenLogBatches=[];
-function buildCanopyMap(layout,size=192){
-  const forest=forestForLayout(layout),f=layout.forest,extent=f.radius+40,bounds=[f.x-extent,f.z-extent,extent*2,extent*2];
+function buildCanopyMap(layout,size=192,stream=null,region=null){
+  const forest=stream||forestForLayout(layout),f=layout.forest,extent=f.radius+40,bounds=region||[f.x-extent,f.z-extent,extent*2,extent*2];
   const density=new Float32Array(size*size),height=new Float32Array(size*size),pixels=new Uint8Array(size*size*4),spread=[.36,.32,.36,.32,.28,.35,.32];
   for(const t of forest.trees){
     const radius=t.height*spread[t.kind],cx=(t.x-bounds[0])/bounds[2]*size,cz=(t.z-bounds[1])/bounds[3]*size,rr=radius/bounds[2]*size;
@@ -14,8 +14,8 @@ function buildCanopyMap(layout,size=192){
   for(let i=0;i<density.length;i++){pixels[i*4]=Math.round(255*(1-Math.exp(-density[i])));pixels[i*4+1]=Math.round(Math.min(1,height[i]/Math.max(.001,density[i])/32)*255);pixels[i*4+3]=255;}
   return{size,bounds,pixels};
 }
-function uploadWoodland(){
-  canopyMap=buildCanopyMap(activeLayout);canopyTexture??=gl.createTexture();
+function uploadWoodland(stream=null,region=null){
+  canopyMap=buildCanopyMap(activeLayout,192,stream,region);canopyTexture??=gl.createTexture();
   gl.activeTexture(gl.TEXTURE0+11);gl.bindTexture(gl.TEXTURE_2D,canopyTexture);
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,canopyMap.size,canopyMap.size,0,gl.RGBA,gl.UNSIGNED_BYTE,canopyMap.pixels);
   for(const param of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER])gl.texParameteri(gl.TEXTURE_2D,param,gl.LINEAR);
@@ -23,7 +23,7 @@ function uploadWoodland(){
   for(const b of fallenLogBatches)disposeFieldMesh(b.mesh);fallenLogBatches=[];
 }
 function fallenLogGeometry(log,g=infraGeometry()){
-  const ground=(x,z)=>dropSurface(x,z,terrainHeight,shed,terrainHeight),a=[log.a.x,ground(log.a.x,log.a.z)+log.radius,log.a.z],b=[log.b.x,ground(log.b.x,log.b.z)+log.radius*.82,log.b.z],
+  const ground=(x,z)=>dropSurface(x,z,terrainHeight,inForest()?null:shed,terrainHeight),a=[log.a.x,ground(log.a.x,log.a.z)+log.radius,log.a.z],b=[log.b.x,ground(log.b.x,log.b.z)+log.radius*.82,log.b.z],
     axis=norm(b.map((v,i)=>v-a[i])),side=norm(cross(axis,[0,1,0])),up=cross(side,axis),rings=[],sides=12;
   let lift=0;
   for(let j=0;j<=4;j++){
