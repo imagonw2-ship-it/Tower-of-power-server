@@ -1,3 +1,4 @@
+import {createForestLevel,tickForestLevel,biomeOf,forestTerrainHeight} from '../shared/forest-level.js';
 import {MimicMemory,ForestMimic} from '../shared/forest-haunts.js';
 import { advanceFlares } from '../shared/survival.js';
 import { floorHeight,blocked } from '../shared/physics.js';
@@ -11,7 +12,7 @@ export function makeWorld(rules,seed=randomInt(0,0x7fffffff)) {
   const w = {
     id: randomUUID(),
     schemaVersion: 1,
-    seed,
+    seed,forestLevel:createForestLevel(seed),meadowLoaded:true,
     layout:makeLayout(seed),
     phase: 0.43,
     cycle: true,
@@ -41,16 +42,21 @@ export function growPylons(w,count){
 export function tickWorld(w, players, dt, now) {
   if (!w.started) return;
   w.elapsed += dt;
-  if (w.cycle) w.phase = (w.phase + dt / 720) % 1;
+
   for (const p of players) tickPlayer(p, dt, w, now);
-  w.flares=advanceFlares(w.flares,dt,floorHeight,blocked);
-  w.sim.step(dt, players);
+  const meadow=players.filter(p=>p.alive&&p.connected&&biomeOf(p)==='meadow');w.meadowLoaded=meadow.length>0;
+  if(w.meadowLoaded&&w.cycle)w.phase=(w.phase+dt/720)%1;
+  tickForestLevel(w.forestLevel,players,dt);
+  w.flares=[...advanceFlares(w.flares.filter(f=>biomeOf(f)==='meadow'),dt,floorHeight,blocked),...advanceFlares(w.flares.filter(f=>biomeOf(f)==='forest'),dt,forestTerrainHeight,()=>false)];
+  if(w.meadowLoaded)w.sim.step(dt,meadow);
   for(const p of players)if(!p.alive||!p.connected){w.voiceMemory.forget(p.id);w.mimic.forget(p.id);}
+  const alive=new Set(players.filter(p=>p.alive).map(p=>p.id));
   w.mimicFrames.push(...w.mimic.step(dt,players,w.voiceMemory));
+  for(const p of players)if(alive.has(p.id)&&!p.alive)w.sim.events.push({kind:"caught",id:p.id,x:p.x,z:p.z,biome:biomeOf(p)});
   if(w.mimicFrames.length>5)w.mimicFrames.splice(0,w.mimicFrames.length-5);
   if (
     players.some(
-      (p) => p.alive && p.connected && Math.hypot(p.x-w.layout.power.x,p.z-w.layout.power.z) < 95,
+      (p) => p.alive && p.connected && biomeOf(p)==='meadow' && Math.hypot(p.x-w.layout.power.x,p.z-w.layout.power.z) < 95,
     )
   )
     w.objectives.powerCorridor = true;
@@ -59,7 +65,7 @@ export function serializeWorld(w) {
   return {
     schemaVersion: w.schemaVersion,
     id: w.id,
-    seed: w.seed,
+    seed: w.seed,forestLevel:w.forestLevel,
     phase: w.phase,
     cycle: w.cycle,
     turbineStopped: w.turbineStopped,

@@ -1,11 +1,13 @@
+import {sameBiome,biomeOf} from '../shared/forest-level.js';
 import {validVoicePacket, decodeVoice} from '../shared/voice-codec.js';
 import {blocked} from '../shared/physics.js';
 
 export function voiceMix(speaker,listener,range=42) {
+  if(!sameBiome(speaker,listener))return null;
   const dx=speaker.x-listener.x,dz=speaker.z-listener.z,d=Math.hypot(dx,dz);
   if(d>=range)return null;
   let gain=Math.pow(1-Math.max(0,d-3)/(range-3),1.5);
-  if(blocked([speaker.x,speaker.y,speaker.z],[listener.x,listener.y,listener.z]))gain*=.3;
+  if(biomeOf(speaker)==='meadow'&&blocked([speaker.x,speaker.y,speaker.z],[listener.x,listener.y,listener.z]))gain*=.3;
   return {gain,pan:d>.01?Math.max(-.9,Math.min(.9,(dx*Math.cos(listener.yaw)-dz*Math.sin(listener.yaw))/d)) : 0};
 }
 export function relayVoice(ws,bytes,sockets,now=Date.now()) {
@@ -20,7 +22,7 @@ export function relayVoice(ws,bytes,sockets,now=Date.now()) {
   // but arbitrary JSON cannot claim to make another player emit sound.
   const samples=decodeVoice(bytes);let energy=0;for(const v of samples)energy+=v*v;
   const rms=Math.sqrt(energy/samples.length);if(rms<.002)return false;
-  if(room.phase==='playing'&&now-(ws.voiceNoiseAt||0)>200){room.world.sim.noise(p,Math.min(38,10+rms*240));ws.voiceNoiseAt=now;}
+  if(room.phase==='playing'&&biomeOf(p)==='meadow'&&now-(ws.voiceNoiseAt||0)>200){room.world.sim.noise(p,Math.min(38,10+rms*240));ws.voiceNoiseAt=now;}
   p.speakingUntil=now+220;
   if(room.phase==='playing')room.world.voiceMemory?.record(p.id,bytes,room.world.mimic.clock);
   for(const listener of room.players.values()){
@@ -39,7 +41,7 @@ export function relayVoice(ws,bytes,sockets,now=Date.now()) {
 export function relayMimic(room,sockets){
   const frames=room.world.mimicFrames.splice(0);
   for(const frame of frames)for(const listener of room.players.values()){
-    if(!listener.alive||!listener.connected)continue;
+    if(!listener.alive||!listener.connected||(!frame.solo&&listener.id===frame.sourceId))continue;
     const peer=sockets.get(listener.id);if(!peer||peer.room!==room||peer.readyState!==1||peer.bufferedAmount>16384)continue;
     const source={...frame,y:listener.y},mix=voiceMix(source,listener,38);if(!mix)continue;
     const packet=Buffer.alloc(416);packet[0]=87;packet[1]=2;packet.writeUInt16LE(1,2);
