@@ -1307,7 +1307,8 @@
         c=mix(c,asphalt,pavement);
         vec3 n=normalize(cross(dFdx(v_world),dFdy(v_world)));if(n.y<0.)n=-n;
         vec4 surface=texture(u_surfaceMaps,vec3(uv,2.));
-        n=mappedNormal(v_world,n,uv,surface.rgb,pavement*.65);
+        // Use the terrain normal: the packed asphalt normal map creates tiled dark bands.
+        // Cast shadows and the asphalt color/roughness still apply below.
         vec2 yard=v_world.xz-u_powerOrigin;
         float pad=(1.-smoothstep(32.5,32.75,abs(yard.x)))*(1.-smoothstep(30.5,30.75,abs(yard.y)));
         vec2 joint=abs(mod(yard+vec2(4.5,7.5),vec2(9.,15.))-vec2(4.5,7.5));
