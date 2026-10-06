@@ -138,7 +138,7 @@ export class Rooms {
         turbineStopped: w.turbineStopped,
         powerStopped: w.powerStopped,
         elapsed: w.elapsed,
-        mimic:{active:w.mimic.active},
+        mimic:w.mimic.snapshot(),forestLevel:{...w.forestLevel},meadowLoaded:w.meadowLoaded,
         flares:w.flares,
         objectives: w.objectives,
         itemRevision: w.itemRevision,

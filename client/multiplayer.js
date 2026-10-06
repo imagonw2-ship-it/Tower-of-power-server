@@ -99,6 +99,7 @@ const net = new TowerNetwork({
         }
         continue;
       }
+      if(!sameBiome(e,player))continue;
       if(e.kind === "flare"){if(e.id!==net.player?.id&&d<70)sound.noise(.15,.16/(1+d*.05),800);continue;}
       if (d > 250) continue;
       if (e.kind === "powerStep") sound.powerStep(d);
@@ -356,6 +357,7 @@ function snapshotPair() {
   };
 }
 function poseBetween(a, b, t) {
+  if(!sameBiome(a,b))return {...b};
   const o = { ...b };
   for (const k of [
     "x",
@@ -399,6 +401,7 @@ function updateNetworkFrame(dt) {
   const latest = net.snapshots.at(-1),
     p = latest.players.find((p) => p.id === net.player.id);
   if (!p) return;
+  if(p.teleportSeq!==player.teleportSeq||!sameBiome(p,player)){Object.assign(player,{x:p.x,y:p.y,z:p.z,yaw:p.yaw,pitch:p.pitch,biome:biomeOf(p),teleportSeq:p.teleportSeq});tablet.yaw=p.yaw;game.fadeIn=.96;}
   if (net.connected) {
     const age = clamp((performance.now() - latest.received) / 1000, 0, 0.1),
       x = p.x + p.vx * age,
@@ -412,6 +415,8 @@ function updateNetworkFrame(dt) {
   game.hasFlashlight = p.inventory.flashlight;
   game.sodas = p.inventory.sodas;
   game.hasFlare=!!p.inventory.flare;game.flares=p.inventory.flares||0;game.flareTaken=true;
+  game.slow=p.slow||0;game.frozen=p.frozen||0;
+  if(latest.world.forestLevel)Object.assign(forestLevel,latest.world.forestLevel);
   game.godMode=!!p.godMode;game.infiniteSprint=!!p.infiniteSprint;
   game.stamina=p.stamina??100;game.exhausted=!!p.exhausted;
   game.boostTime = p.boost;
@@ -443,7 +448,7 @@ function updateNetworkFrame(dt) {
   }
   networkPylons=(q.b.enemies.powers||[]).slice(1).map((p,i)=>poseBetween(q.a.enemies.powers?.[i+1]||p,p,q.t));
   updatePylonRig();
-  if (enemy.state === "running" || powerCreature.state === "running") {
+  if (!inForest()&&(enemy.state === "running" || powerCreature.state === "running")) {
     const d = Math.min(
       Math.hypot(player.x - turbine.x, player.z - turbine.z),
       Math.hypot(player.x - powerCreature.x, player.z - powerCreature.z),
@@ -459,9 +464,9 @@ function appendNetworkObjects() {
   for(const i of net.items)if(!i.holder&&!i.consumed)appendWorldItem(i,net.snapshots.at(-1)?.world.elapsed||0);
   const q = snapshotPair();
   if (!q) return;
-  const present=new Set(q.b.players.map(p=>p.id));for(const id of avatarCache.keys())if(!present.has(id)){avatarCache.delete(id);const card=suitCards.get(id);if(card){gl.deleteTexture(card.texture);suitCards.delete(id);}}
+  const present=new Set([...q.b.players.map(p=>p.id),q.b.world.mimic?.id]);for(const id of avatarCache.keys())if(!present.has(id)){avatarCache.delete(id);const card=suitCards.get(id);if(card){gl.deleteTexture(card.texture);suitCards.delete(id);}}
   for(const cur of q.b.players){
-    if(cur.id===net.player.id||!cur.alive)continue;
+    if(cur.id===net.player.id||!cur.alive||!cur.connected||!sameBiome(cur,player))continue;
     const prev=q.a.players.find(p=>p.id===cur.id)||cur,p=poseBetween(prev,cur,q.t);
     appendHazmat(p,net.snapshots.at(-1).world.elapsed);
     if (p.photo > 0 && Math.hypot(p.x - player.x, p.z - player.z) < 35)

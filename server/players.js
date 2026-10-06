@@ -1,3 +1,4 @@
+import {biomeOf,moveForestActor,tickForestBoundary} from '../shared/forest-level.js';
 import { spendStamina } from '../shared/survival.js';
 import { movePlayer, floorHeight, footstepRadius } from "../shared/physics.js";
 export function makePlayer(account, index) {
@@ -17,7 +18,7 @@ export function makePlayer(account, index) {
     stamina: 100, staminaDelay: 0, exhausted: false,
     alive: true,
     health: 1,
-    godMode:false,infiniteSprint:false,tabletOpen:false,
+    godMode:false,infiniteSprint:false,tabletOpen:false,biome:"meadow",teleportSeq:0,slow:0,frozen:0,
     inventory: { camera: true, flashlight: false, sodas: 0, flare: false, flares: 0 },
     torch: false,
     heldItem: "camera",
@@ -60,18 +61,21 @@ export function acceptInput(p, m, now) {
 }
 export function tickPlayer(p, dt, world, now) {
   p.boost = Math.max(0, p.boost - dt);
+  p.slow=Math.max(0,(p.slow||0)-dt);p.frozen=Math.max(0,(p.frozen||0)-dt);
+  if(tickForestBoundary(p,world.layout,world.forestLevel,dt))Object.assign(p.input,{x:0,z:0,yaw:p.yaw,pitch:p.pitch});
   p.drinking = Math.max(0, p.drinking - dt);
   if(p.heldItem==="soda"&&p.inventory.sodas===0&&p.drinking===0)p.heldItem="none";
   p.photo = Math.max(0, p.photo - dt);
   p.cooldown = Math.max(0, p.cooldown - dt);
   p.flareCooldown=Math.max(0,(p.flareCooldown||0)-dt);
-  if (p.tabletOpen || !p.alive || !p.connected || now - p.lastInput > 350) {
+  if (p.tabletOpen || p.frozen>0 || !p.alive || !p.connected || now - p.lastInput > 350) {
     p.input.x = p.input.z = 0;
     p.sprinting = false;
     p.vx = p.vz = 0;
     spendStamina(p,false,dt);
     return;
   }
+  if(biomeOf(p)==="forest"){moveForestActor(p,p.input,dt,world.seed);return;}
   const obstacles = [];
   if (world.sim.enemy.state === "dormant")
     obstacles.push({ x: world.sim.turbine.x, z: world.sim.turbine.z, r: 8.1 });
@@ -85,7 +89,7 @@ export function tickPlayer(p, dt, world, now) {
 }
 export function wirePlayer(p) {
   return {
-    id: p.id,
+    id: p.id,biome:biomeOf(p),teleportSeq:p.teleportSeq,slow:p.slow,frozen:p.frozen,
     username: p.username,
     guest: p.guest || false,
     x: p.x,

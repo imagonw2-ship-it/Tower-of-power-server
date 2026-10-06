@@ -173,6 +173,7 @@ function appendHeadCensor(root,skin){
   headCensorDepths[headCensorCount++]=Math.max(0,depth-.0000005);
 }
 function appendHazmat(p,clock){
+  if(!sameBiome(p,player))return;
   const distance=Math.hypot(p.x-player.x,p.z-player.z);if(distance>150)return;
   let a=avatarCache.get(p.id);if(!a){a={last:-1,renderTime:clock,motion:createToolMotion(p.heldItem||'camera'),pose:new Float32Array(avatarBoneCount*7),sample:new Float32Array(avatarBoneCount*7),bones:new Float32Array(32*16),matrices:[],held:false};avatarCache.set(p.id,a);}
   const speed=Math.hypot(p.vx||0,p.vz||0),clip=p.crouching?(speed>.2?'crouch':'crouchIdle'):speed>.2?(p.sprinting?'run':'walk'):'idle';
@@ -194,8 +195,8 @@ function appendHazmat(p,clock){
   const root=multiply(transform(p.x,shedFloor(p.x,p.z),p.z),rotateY(p.yaw+Math.PI)),shadow=distance<32;
   for(const part of avatarParts)objectDraws.push({mesh:part.name==='ClassASuitGear_low'&&gripMeshes[held]?gripMeshes[held]:part.mesh,model:root,bones:a.bones,texture:part.texture,material:5,assetKind:5,castShadow:shadow});
   const head=AVATAR_ASSET.bones.indexOf('head');
-  appendHeadCensor(root,a.bones.subarray(head*16,head*16+16));
-  appendSuitCard(p,root,a.bones,distance);
+  if(!p.isMimic)appendHeadCensor(root,a.bones.subarray(head*16,head*16+16));
+  if(!p.isMimic)appendSuitCard(p,root,a.bones,distance);
   if(p.tabletOpen&&distance<60){const model=multiply(root,multiply(transform(0,1.17,.40),rotateY(Math.PI)));for(const part of tablet.meshes)objectDraws.push({mesh:part.mesh,model,material:5,assetKind:11,castShadow:shadow,tablet:true});}
   if(held!=='none'&&distance<60){
     const h=a.matrices[AVATAR_ASSET.bones.indexOf('hand_r')],grip=multiply(root,multiply(h,itemGripMatrix(held)));

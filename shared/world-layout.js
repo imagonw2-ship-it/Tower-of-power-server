@@ -1,7 +1,7 @@
 // Versioned, deterministic world generation. The server owns the seed; every
 // client builds the same roads, utility corridor and forest from these rules.
 import {FOREST_TREE_TYPES} from './tree-shapes.js';
-export const LAYOUT_VERSION=5;
+export const LAYOUT_VERSION=6;
 export function layoutRandom(seed){let a=seed>>>0;return()=>{a+=0x6D2B79F5;let t=Math.imul(a^a>>>15,a|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 export function seedFromText(value){
   const text=String(value??'').trim().slice(0,40);if(!text)return null;
@@ -146,12 +146,12 @@ export function forestForLayout(layout){
     const cx=Math.floor(x/48),cz=Math.floor(z/48),chunk=cx+','+cz;
     if(!chunks.has(chunk))chunks.set(chunk,{x:(cx+.5)*48,z:(cz+.5)*48,trees:[]});chunks.get(chunk).trees.push(tree);
   }
-  const target=Math.round(Math.PI*f.radius*f.radius/1600);
+  const target=Math.round(Math.PI*f.radius*f.radius/1300);
   for(let attempt=0;clusters.length<target&&attempt<target*15;attempt++){
     const a=r()*Math.PI*2,d=Math.sqrt(r())*(f.radius-18),x=Math.cos(a)*d,z=Math.sin(a)*d;
     if(clusters.some(c=>(c.x-x)**2+(c.z-z)**2<18*18))continue;
     const cluster={x,z,radius:24+r()*18,kind:Math.floor(r()*FOREST_TREE_TYPES.length)};clusters.push(cluster);
-    const amount=40+Math.floor(r()*29);
+    const amount=52+Math.floor(r()*34);
     for(let i=0;i<amount;i++){const angle=r()*Math.PI*2,distance=Math.pow(r(),.75)*cluster.radius;add(x+Math.cos(angle)*distance,z+Math.sin(angle)*distance,r()<.72?cluster.kind:Math.floor(r()*FOREST_TREE_TYPES.length));}
   }
   for(let i=0;i<target*4;i++){const a=r()*Math.PI*2,d=Math.sqrt(r())*(f.radius-12);add(Math.cos(a)*d,Math.sin(a)*d,Math.floor(r()*FOREST_TREE_TYPES.length));}

@@ -1,3 +1,4 @@
+import {biomeOf} from '../shared/forest-level.js';
 import { LAYOUT_VERSION } from '../shared/world-layout.js';
 import { spawnFlare } from '../shared/survival.js';
 import { blocked } from '../shared/physics.js';
@@ -100,7 +101,7 @@ export function attachNetworking(
         if (["host", "join", "resume"].includes(m.type)) {
           // Older builds cannot draw the generated roads, towers or forest.
           // Keep login available, but never put them into an invisible world.
-          if (ws.layoutVersion !== LAYOUT_VERSION) throw Object.assign(Error('Update TOWER OF POWER to version 13 or newer to join multiplayer.'), { code: 'UPDATE_REQUIRED' });
+          if (ws.layoutVersion !== LAYOUT_VERSION) throw Object.assign(Error('Update TOWER OF POWER to version 14 or newer to join multiplayer.'), { code: 'UPDATE_REQUIRED' });
           if (room) throw Error("Already in a world.");
           const target =
               m.type === "host"
@@ -165,9 +166,9 @@ export function attachNetworking(
           const a = m.value;
           if (a && typeof a === "object") {
             if (Number.isFinite(a.phase))
-              w.phase = Math.max(0, Math.min(0.999, a.phase));
+              (biomeOf(p)==='forest'?w.forestLevel:w).phase = Math.max(0, Math.min(0.999, a.phase));
             for (const k of ["cycle", "turbineStopped", "powerStopped"])
-              if (typeof a[k] === "boolean") w[k] = a[k];
+              if (typeof a[k] === "boolean") (k==='cycle'&&biomeOf(p)==='forest'?w.forestLevel:w)[k] = a[k];
             ok = true;
           }
         }
@@ -177,8 +178,8 @@ export function attachNetworking(
           if(m.action==='flare'&&p.heldItem==='flare'&&p.inventory.flare&&p.inventory.flares>0&&!(p.flareCooldown>0)&&w.flares.length<16){
             p.inventory.flares--;p.flareCooldown=1.2;
             const launcher=w.items.find(i=>i.kind==='flare'&&i.holder===p.id);if(launcher)launcher.ammo=p.inventory.flares;
-            flareResult=spawnFlare(p,'flare-'+(++w.flareSerial),blocked);w.flares.push(flareResult);
-            w.sim.events.push({kind:'flare',id:p.id,x:p.x,z:p.z});ok=true;
+            flareResult={...spawnFlare(p,'flare-'+(++w.flareSerial),biomeOf(p)==='forest'?()=>false:blocked),biome:biomeOf(p)};w.flares.push(flareResult);
+            w.sim.events.push({kind:'flare',id:p.id,x:p.x,z:p.z,biome:biomeOf(p)});ok=true;
           }
           if (m.action === "pickup") ok = takeItem(w, p, m.itemId);
           if (m.action === "torch" && p.inventory.flashlight) {

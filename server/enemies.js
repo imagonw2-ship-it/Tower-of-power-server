@@ -694,6 +694,7 @@ export function createEnemySimulation(world, {powerOnly=false,turbineOnly=false,
       if(!powerOnly&&!turbineOnly)for(const sim of [...(world.extraPylons||[]),...(world.extraTurbines||[])])sim.collide(p);
     },
     noise(p, radius) {
+      if(p.biome==='forest')return;
       const occluded = body => shedBlocksSight([body.x,terrainHeight(body.x,body.z)+1.6,body.z],[p.x,p.y,p.z]);
       if(!powerOnly&&!world.turbineStopped&&turbineTargets.hear(p,radius,turbine,enemy.state==='dormant'?1.8:1,occluded(turbine)))noteAudibleContact(enemy);
       if(!turbineOnly&&!world.powerStopped&&powerTargets.hear(p,radius,powerCreature,powerCreature.state==='dormant'?1.5:1,occluded(powerCreature)))noteAudibleContact(powerCreature);
@@ -703,7 +704,7 @@ export function createEnemySimulation(world, {powerOnly=false,turbineOnly=false,
       const alive=players.filter(p=>p.alive);
       const applyTarget=(tracker,body,state,power)=>{
         const previousLure=state.lureId;
-        if(applyFlareLure(state,body,world.flares||[],dt,power)){tracker.step(dt,alive,body);Object.assign(player,{x:9999,y:0,z:9999});return;}
+        if(applyFlareLure(state,body,(world.flares||[]).filter(f=>f.biome!=='forest'),dt,power)){tracker.step(dt,alive,body);Object.assign(player,{x:9999,y:0,z:9999});return;}
         if(previousLure)tracker.reset();
         const target=tracker.step(dt,alive,body,t=>Math.hypot(t.x-shed.x,t.z-shed.z)>=8),old=state.targetId;
         state.targetId=target.id;state.heardVelocity=target.velocity;

@@ -1,3 +1,4 @@
+import {sameBiome,biomeOf,forestTerrainHeight} from '../shared/forest-level.js';
 import { shed, blocked, floorHeight, terrainHeight } from "../shared/physics.js";
 import { droppedItemPose } from '../shared/dropped-items.js';
 export const starterCount = (rule, count) =>
@@ -27,7 +28,7 @@ export function scaleItems(world, count, rules) {
 export function takeItem(world, p, id) {
   if (!p.alive) return false;
   const item = world.items.find((i) => i.id === id && !i.holder);
-  if (!item || item.consumed || ((item.kind === "camera" && p.inventory.camera!==false)||(item.kind === "flashlight" && p.inventory.flashlight)||(item.kind === "flare"&&p.inventory.flare)))
+  if (!item || !sameBiome(item,p) || item.consumed || ((item.kind === "camera" && p.inventory.camera!==false)||(item.kind === "flashlight" && p.inventory.flashlight)||(item.kind === "flare"&&p.inventory.flare)))
     return false;
   const eye = [p.x, p.y, p.z],
     target = [item.x, item.y + (item.kind === "soda" ? 0.1 : 0), item.z],
@@ -43,7 +44,7 @@ export function takeItem(world, p, id) {
       (s, v, i) => s + ((v - eye[i]) * dir[i]) / Math.max(d, 0.001),
       0,
     ) < 0.82 ||
-    blocked(eye, target)
+    biomeOf(p)==='meadow'&&blocked(eye, target)
   )
     return false;
   item.holder = p.id;
@@ -62,12 +63,12 @@ export function dropItem(world,p,kind){
   if(!item&&kind==='camera'){if(world.items.length>=512)return false;world.itemSerial=(world.itemSerial||0)+1;item={id:'camera-'+world.itemSerial,kind,holder:p.id};world.items.push(item);}
   if(!item)return false;
   if(kind==='flare'){item.ammo=p.inventory.flares;p.inventory.flares=0;}if(kind==='soda')p.inventory.sodas--;else p.inventory[kind]=false;
-  Object.assign(item,droppedItemPose(p,kind,world.elapsed,floorHeight,blocked,shed,terrainHeight),{holder:null});p.heldItem='none';p.torch=false;world.itemRevision++;return true;
+  Object.assign(item,droppedItemPose(p,kind,world.elapsed,biomeOf(p)==='forest'?forestTerrainHeight:floorHeight,biomeOf(p)==='forest'?()=>false:blocked,biomeOf(p)==='forest'?null:shed,terrainHeight),{holder:null,biome:biomeOf(p)});p.heldItem='none';p.torch=false;world.itemRevision++;return true;
 }
 export function releaseItems(world, p) {
   for (const i of world.items)
     if (i.holder === p.id && !i.consumed) {
-      i.holder = null;
+      Object.assign(i,droppedItemPose(p,i.kind,world.elapsed,biomeOf(p)==='forest'?forestTerrainHeight:floorHeight,biomeOf(p)==='forest'?()=>false:blocked,biomeOf(p)==='forest'?null:shed,terrainHeight),{holder:null,biome:biomeOf(p)});
       world.itemRevision++;
     }
   p.inventory = { camera:false, flashlight: false, sodas: 0, flare: false, flares: 0 };

@@ -13,7 +13,7 @@ function buildFlareModels(){
 function fireFlare(){
   if(game.mode!=='playing'||!locked||!game.hasFlare||game.flares<=0||game.flareCooldown>0)return;
   if(net.active&&!net.connected)return;
-  const f=spawnFlare({...player,id:net.player?.id},'local-flare-'+(++flareSerial),shedBlocksSight),m=heldEquipmentMatrix('flare');
+  const f={...spawnFlare({...player,id:net.player?.id},'local-flare-'+(++flareSerial),shedBlocksSight),biome:biomeOf(player)},m=heldEquipmentMatrix('flare');
   const muzzle=[0,.024,-.274],at=[0,1,2].map(k=>m[k]*muzzle[0]+m[4+k]*muzzle[1]+m[8+k]*muzzle[2]+m[12+k]);
   if(!shedBlocksSight([player.x,player.y,player.z],at))[f.x,f.y,f.z]=at;
   if(net.active){if(!net.action('flare'))return;predictedFlare={...f,requestId:net.actionSeq};}
@@ -29,11 +29,11 @@ function confirmFlareShot(result){
 }
 function flareShotSound(){sound.noise(.14,.20,800);sound.tone(470,140,.32,.10,'triangle');game.shake=Math.max(game.shake,.1);}
 function activeFlares(){
-  if(!net.active)return localFlares;
+  if(!net.active)return localFlares.filter(f=>sameBiome(f,player));
   const snapshot=net.snapshots.at(-1),extra=Math.min(.15,Math.max(0,(performance.now()-(snapshot?.received??performance.now()))/1000));
   const list=(snapshot?.world.flares||[]).map(f=>({...f,x:f.x+(f.landed?0:f.vx*extra),y:f.y+(f.landed?0:f.vy*extra-3.5*extra*extra),z:f.z+(f.landed?0:f.vz*extra),life:Math.max(0,f.life-extra)}));
   if(predictedFlare){if(list.some(f=>f.id===predictedFlare.id)||predictedFlare.age>1.5)predictedFlare=null;else list.push(predictedFlare);}
-  return list;
+  return list.filter(f=>sameBiome(f,player));
 }
 function flareBillboard(x,y,z,size){return new Float32Array([right[0]*size,right[1]*size,right[2]*size,0,up[0]*size,up[1]*size,up[2]*size,0,-forward[0],-forward[1],-forward[2],0,x,y,z,1]);}
 function updateFlareSystem(dt){
@@ -41,13 +41,13 @@ function updateFlareSystem(dt){
   game.flareCooldown=Math.max(0,(game.flareCooldown||0)-dt);
   muzzleFlash=Math.max(0,muzzleFlash-dt);
   if(predictedFlare)advanceFlares([predictedFlare],dt,shedFloor,shedBlocksSight);
-  if(!net.active)localFlares=advanceFlares(localFlares,dt,shedFloor,shedBlocksSight);
+  if(!net.active){const active=localFlares.filter(f=>sameBiome(f,player)),inactive=localFlares.filter(f=>!sameBiome(f,player));localFlares=[...inactive,...advanceFlares(active,dt,shedFloor,shedBlocksSight)];}
   flareAudioClock-=dt;
   if(flareAudioClock<=0){flareAudioClock=.24;const f=activeFlares().find(f=>Math.hypot(f.x-player.x,f.z-player.z)<32);if(f)sound.noise(.27,.055/(1+Math.hypot(f.x-player.x,f.z-player.z)*.12),2300,'highpass');}
 }
 function appendFlareObjects(){
   flareLights.fill(0);if(isMenuScene())return;
-  if(!net.active&&!game.flareTaken)objectDraws.push({mesh:flareGunMesh,model:multiply(transform(...flarePosition()),rotateZ(Math.PI/2)),material:5,assetKind:7,texture:flareGunTexture});
+  if(!inForest()&&!net.active&&!game.flareTaken)objectDraws.push({mesh:flareGunMesh,model:multiply(transform(...flarePosition()),rotateZ(Math.PI/2)),material:5,assetKind:7,texture:flareGunTexture});
   const flares=activeFlares().slice().sort((a,b)=>Math.hypot(a.x-player.x,a.z-player.z)-Math.hypot(b.x-player.x,b.z-player.z));
   const ids=new Set(flares.map(f=>f.id));for(const id of flareTrails.keys())if(!ids.has(id))flareTrails.delete(id);
   if(muzzleFlash>0){const m=heldEquipmentMatrix('flare'),p=[0,1,2].map(k=>m[4+k]*.024-m[8+k]*.274+m[12+k]);objectDraws.push({mesh:flareGlowMesh,model:flareBillboard(...p,.13*muzzleFlash/.11),material:6,flareSprite:true,castShadow:false});}

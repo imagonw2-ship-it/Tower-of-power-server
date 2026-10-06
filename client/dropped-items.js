@@ -3,7 +3,7 @@ function dropEquipment(){
   const kind=equippedTool;
   if(!['playing','inventory'].includes(game.mode)||kind==='none'||!canEquip(kind)||game.drinking>0||pendingDrop)return;
   if(net.active){if(!net.connected)return;pendingDrop={kind,at:performance.now()};net.action('drop',{item:kind});refreshFieldKit();return;}
-  const item={id:'drop-'+(++localDropSerial),kind,...droppedItemPose(player,kind,time,shedFloor,shedBlocksSight,shed,terrainHeight)};
+  const item={id:'drop-'+(++localDropSerial),kind,biome:biomeOf(player),...droppedItemPose(player,kind,time,shedFloor,shedBlocksSight,inForest()?null:shed,terrainHeight)};
   if(kind==='flare'){item.ammo=game.flares;game.flares=0;game.hasFlare=false;}else if(kind==='flashlight'){game.hasFlashlight=false;kitPreviousFlashlight=false;}else if(kind==='camera')game.hasCamera=false;else game.sodas--;
   localDroppedItems.push(item);equippedTool='none';game.torchOn=false;advanceToolMotion(equipmentMotion,'none',0);sound.noise(.08,.06,700);refreshFieldKit();
 }
@@ -13,6 +13,7 @@ function takeLocalDroppedItem(item){
   equipTool(item.kind);game.notice='ITEM COLLECTED';game.noticeTime=1.5;sound.noise(.08,.12,1400);
 }
 function appendWorldItem(item,clock){
+  if(!sameBiome(item,player))return;
   const kind=item.kind,age=Math.max(0,clock-(item.dropAt||0)),y=item.dropped?Math.max(item.y,(item.dropFromY??item.y)-4.9*age*age):item.y;
   const rotation=kind==='flashlight'||kind==='flare'||(kind==='soda'&&item.dropped)?rotateZ(Math.PI/2):kind==='camera'?rotateX(Math.PI/2):identity();
   let model=multiply(multiply(transform(item.x,y,item.z),rotateY(item.yaw||0)),rotation);

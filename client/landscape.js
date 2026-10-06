@@ -30,27 +30,27 @@ function selectLayout(seed){
 function disposeFieldMesh(mesh){if(!mesh)return;gl.deleteVertexArray(mesh.vao);if(mesh.buffer)gl.deleteBuffer(mesh.buffer);if(mesh.indexBuffer)gl.deleteBuffer(mesh.indexBuffer);}
 function buildForest(){
   if(forestBuiltSeed===activeLayout.seed)return;
-  const forest=forestForLayout(activeLayout);forestChunks=forest.chunks;
+  const forest=inForest()?streamForest:forestForLayout(activeLayout);if(!forest)return;forestChunks=forest.chunks;
   if(!forestBatches.length){
     forestTexture=importedTexture(TREE_TEXTURE,5);
     for(let kind=0;kind<TREE_ASSETS.length;kind++)for(let lod=0;lod<2;lod++){
       const mesh=unpackModel(TREE_ASSETS[kind].lods[lod]),buffer=gl.createBuffer();
       gl.bindVertexArray(mesh.vao);gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
       for(let i=0;i<2;i++){gl.enableVertexAttribArray(5+i);gl.vertexAttribPointer(5+i,4,gl.FLOAT,false,32,i*16);gl.vertexAttribDivisor(5+i,1);}
-      gl.bindVertexArray(null);forestBatches.push({kind,lod,mesh,buffer,count:0,values:null});
+      gl.bindVertexArray(null);const branches=infraGeometry();for(let i=0;i<(lod===0?7:4);i++){const a=i*2.399+kind,y=.22+i*.075,r=.10+(i%3)*.018,start=[0,y,0],end=[Math.cos(a)*r,y+.045,Math.sin(a)*r];corridorBeam(branches,start,end,.004,[1,1,1],5);corridorBeam(branches,end,[end[0]*1.3,end[1]+.06,end[2]*1.3],.002,[1,1,1],4);}const branchMesh=mesh3D(branches);gl.bindVertexArray(branchMesh.vao);gl.bindBuffer(gl.ARRAY_BUFFER,buffer);for(let i=0;i<2;i++){gl.enableVertexAttribArray(5+i);gl.vertexAttribPointer(5+i,4,gl.FLOAT,false,32,i*16);gl.vertexAttribDivisor(5+i,1);}gl.bindVertexArray(null);forestBatches.push({kind,lod,mesh,branchMesh,buffer,count:0,values:null});
     }
   }
-  for(const b of forestBatches){b.values=new Float32Array(forest.trees.length*8);gl.bindBuffer(gl.ARRAY_BUFFER,b.buffer);gl.bufferData(gl.ARRAY_BUFFER,b.values.byteLength,gl.DYNAMIC_DRAW);}
+  for(const b of forestBatches){if(!b.values||b.values.length<forest.trees.length*8){b.values=new Float32Array(forest.trees.length*8);gl.bindBuffer(gl.ARRAY_BUFFER,b.buffer);gl.bufferData(gl.ARRAY_BUFFER,b.values.byteLength,gl.DYNAMIC_DRAW);}}
   forestBuiltSeed=activeLayout.seed;forestRefreshX=Infinity;
 }
 function appendForest(){
   if(isMenuScene())return;
-  const f=activeLayout.forest,range=settings.quality==='low'?140:210;
-  if(Math.hypot(player.x-f.x,player.z-f.z)>f.radius+range)return;
-  buildForest();appendFallenLogs();
+  const f=activeLayout.forest,range=forestDrawRange();
+  if(!inForest()&&Math.hypot(player.x-f.x,player.z-f.z)>f.radius+range)return;
+  buildForest();if(inForest())appendForestDetails();else appendFallenLogs();
   if((player.x-forestRefreshX)**2+(player.z-forestRefreshZ)**2>16||forestRefreshQuality!==settings.quality){
     for(const b of forestBatches)b.count=0;
-    const near=settings.quality==='low'?20:38;
+    const near=settings.quality==='low'?16:30;
     for(const c of forestChunks){
       if((player.x-c.x)**2+(player.z-c.z)**2>(range+38)**2)continue;
       for(const t of c.trees){
@@ -62,5 +62,5 @@ function appendForest(){
     for(const b of forestBatches)if(b.count){gl.bindBuffer(gl.ARRAY_BUFFER,b.buffer);gl.bufferSubData(gl.ARRAY_BUFFER,0,b.values.subarray(0,b.count*8));}
     forestRefreshX=player.x;forestRefreshZ=player.z;forestRefreshQuality=settings.quality;
   }
-  for(const b of forestBatches)if(b.count)objectDraws.push({mesh:b.mesh,model:identity(),material:5,assetKind:8,texture:forestTexture,treeInstances:b.count,castShadow:b.lod===0,forest:true});
+  for(const b of forestBatches)if(b.count){objectDraws.push({mesh:b.mesh,model:identity(),material:5,assetKind:8,texture:forestTexture,treeInstances:b.count,castShadow:b.lod===0,forest:true});objectDraws.push({mesh:b.branchMesh,model:identity(),material:5,assetKind:10,texture:forestTexture,treeInstances:b.count,castShadow:false,forest:true});}
 }
