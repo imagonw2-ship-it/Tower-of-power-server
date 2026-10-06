@@ -1,3 +1,14 @@
+## Version 14: borrowed faces
+
+- The mimic copies another connected player's body, equipment, and authenticated voice clips. It follows behind, mirrors crouching, lures, briefly faces its target, then charges with the same movement, stamina and collision rules used by players. Its missing face censor and chest ID distinguish it. In solo play it can use the local player's voice.
+- Entering the tree line activates a separate, usually nighttime forest. Dense deterministic chunks stream without meadow boundaries; additional branches, fallen wood, leaf steps and distant calls fill the level. The compass loses its signal. Two marked posts at the entry lead back to the meadow.
+- Meadow simulation pauses when its last living connected player leaves, and meadow geometry unloads for the forest client. Players, drops, flares, voice and hazards stay in their level. A rare photographic eye appears in a black square on a trunk and vanishes quickly when noticed.
+- The host's two-handed tablet eases the view toward the held device and restores it on closing. Its original tactical interface has Deploy, Entities, Operator, World, and multiplayer Players pages. Hosts can bring players, send them to another player, and apply god mode, unlimited sprint, speed, slow or freeze effects.
+- Microphone information and the menu microphone icon are hidden. Existing opt-in voice behavior and bounded in-memory recording remain unchanged. The tablet is never an inventory item.
+- Android versionCode 27 / versionName 14 retains the package and signing certificate. Multiplayer requires layout capability 6. Account data requires no migration.
+
+Validation is limited to 24 focused checks plus browser rendering checks. Physical Android performance and microphone behavior still require testing on a device.
+
 ## Version 13: whispers in the woods
 
 - Dirt patches and trails are restricted to the forest. More overlapping tree clusters and two small clearings make the woods denser; mobile LOD ranges are reduced to keep rendering bounded.
