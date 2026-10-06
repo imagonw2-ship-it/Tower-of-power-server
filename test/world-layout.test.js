@@ -11,7 +11,7 @@ function reachable(count,edges){const found=new Set([0]),queue=[0];for(const n o
 test('2,000 seeds create distinct connected networks with roads to every landmark',()=>{
  const forms=new Set(),sizes=new Set(),counts=new Set();
  for(let seed=0;seed<2000;seed++){
-  const l=makeLayout(seed);assert.deepEqual(l,makeLayout(seed));assert.equal(l.version,5);
+  const l=makeLayout(seed);assert.deepEqual(l,makeLayout(seed));assert.equal(l.version,6);
   reachable(l.nodes.length,l.edges);reachable(l.pylons.length,l.powerLinks);
   assert.ok(l.roads.length>20&&l.roads.length<128);assert.equal(l.roads.length,l.edges.length);
   assert.ok(l.turbines.length>=1&&l.turbines.length<=4);assert.ok(l.pylons.length>=6&&l.pylons.length<=11);
@@ -34,7 +34,7 @@ test('world seeds round-trip by number or phrase, and rooms keep separate layout
  const rooms=new Rooms(),a=rooms.create({id:'a'},'the quiet forest'),b=rooms.create({id:'b'},'8');
  assert.equal(a.world.seed,seed);assert.equal(b.world.seed,8);assert.notDeepEqual(a.world.layout,b.world.layout);
  assert.throws(()=>rooms.create({id:'c'},{}),/seed/);assert.throws(()=>rooms.create({id:'c'},'x'.repeat(41)),/seed/);
- assert.equal(rooms.snapshot(a).world.layoutVersion,5);assert.equal(serializeWorld(a.world).seed,seed);
+ assert.equal(rooms.snapshot(a).world.layoutVersion,6);assert.equal(serializeWorld(a.world).seed,seed);
 });
 test('GPU spatial lookup retains exact road edges and intersections across generated worlds',()=>{
  for(let seed=0;seed<20;seed++){

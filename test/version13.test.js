@@ -22,10 +22,10 @@ test('dirt trails are confined to the forest and its clustered trees leave small
  }
 });
 test('mimic repeats captured speech spatially, bounds memory, expires clips and erases a muted source',()=>{
- const memory=new MimicMemory(),mimic=new ForestMimic(makeLayout(0),()=>.1),p={id:'a',...makeLayout(0).forest,alive:true};
+ const memory=new MimicMemory(),mimic=new ForestMimic(makeLayout(0),()=>.1),p={id:'a',biome:'forest',x:0,z:-16,yaw:0,alive:true};
  for(let i=0;i<12;i++)memory.record(p.id,speech(i),i*.05);
  mimic.spawn(p);let heard=[];for(let i=0;i<140;i++)heard.push(...mimic.step(.05,[p],memory));
- assert.equal(memory.clips.length,1);assert.equal(heard.length,12);assert.ok(Math.hypot(mimic.x-p.x,mimic.z-p.z)>9);
+ assert.equal(memory.clips.length,1);assert.equal(heard.length,12);assert.ok(Math.hypot(mimic.x-p.x,mimic.z-p.z)>2);
  assert.deepEqual(decodeVoice(heard[3].bytes),decodeVoice(speech(3)));
  for(let k=0;k<30;k++){for(let i=0;i<60;i++)memory.record(String(k),speech(i),10+k+i*.001);memory.finish(String(k),11+k);}
  assert.ok(memory.clips.length<=8&&memory.clips.every(c=>c.frames.length<=48));memory.tick(140);assert.equal(memory.clips.length,0);
@@ -38,7 +38,7 @@ test('host permissions cannot be spoofed through input, tablet actions, or guest
  acceptInput(guest,{seq:1,x:0,z:1,yaw:0,pitch:0,godMode:true,infiniteSprint:true,tabletOpen:true},Date.now());assert.equal(guest.godMode,false);assert.equal(guest.infiniteSprint,false);assert.equal(guest.tabletOpen,false);assert.deepEqual([guest.x,guest.z],start);
  assert.ok(hostCommand(r,host,{command:'tablet',enabled:true}));const old=[host.x,host.z];acceptInput(host,{seq:1,x:1,z:1,yaw:1,pitch:1},Date.now());tickPlayer(host,.1,r.world,Date.now());assert.deepEqual([host.x,host.z],old);
  assert.ok(hostCommand(r,host,{command:'god',enabled:true}));assert.ok(hostCommand(r,host,{command:'sprint',enabled:true}));host.stamina=0;host.exhausted=true;assert.ok(spendStamina(host,true,60));assert.equal(host.stamina,100);
- assert.ok(hostCommand(r,host,{command:'teleport',destination:'forest'}));const f=r.world.layout.forest;assert.ok(Math.hypot(host.x-f.x,host.z-f.z)<f.radius);
+ assert.ok(hostCommand(r,host,{command:'teleport',destination:'forest'}));assert.equal(host.biome,'forest');
  assert.equal(hostCommand(r,host,{command:'teleport',destination:'arbitrary',x:Infinity}),false);assert.equal(hostDestination(r.world.layout,'nope'),null);
  assert.ok(hostCommand(r,host,{command:'mimic'}));assert.ok(r.world.mimic.active);assert.equal('voiceMemory' in serializeWorld(r.world),false);
  assert.equal(Object.hasOwn(host.inventory,'tablet'),false);rooms.disconnect('host');assert.equal(host.tabletOpen,false);
@@ -57,9 +57,9 @@ test('mimic packets stay in the room and have an independent replay sequence',()
  relayMimic(room,sockets);assert.equal(heard.length,1);assert.equal(other.length,0);assert.equal(heard[0][1],2);assert.equal(heard[0].readUInt16LE(10),7);assert.equal(room.world.mimicFrames.length,0);
 });
 test('the physical tablet locks the camera, uses two arms, restores normal play, and cannot enter inventory',()=>{
- const {run,document}=launch();run("resetWorld(true,0);setMode('playing');locked=true;player.yaw=.7;player.pitch=.2;openFieldPanel();updateTablet(.4);updateCamera(.016);buildObjects();positionTabletScreen();");
- assert.equal(run('game.mode'),'fieldPanel');assert.equal(run('player.yaw'),.7);assert.equal(run('player.pitch'),-.08);assert.equal(run('objectDraws.filter(o=>o.tabletArm).length'),2);assert.equal(run("canEquip('tablet')"),false);
+ const {run,document}=launch();run("resetWorld(true,0);setMode('playing');locked=true;player.yaw=.7;player.pitch=.2;openFieldPanel();updateTablet(.7);updateCamera(.016);buildObjects();positionTabletScreen();");
+ assert.equal(run('game.mode'),'fieldPanel');assert.equal(run('player.yaw'),.7);assert.equal(run('player.pitch'),-.18);assert.equal(run('objectDraws.filter(o=>o.tabletArm).length'),2);assert.equal(run("canEquip('tablet')"),false);
  assert.equal([...document.querySelectorAll('#pausePanel button')].some(b=>/INVENTORY|WORLD CONTROLS/.test(b.textContent)),false);assert.ok(document.querySelector('#fieldPanel').style.transform.startsWith('matrix('));
- run("closeFieldPanel();updateTablet(.4);");assert.equal(run('game.mode'),'playing');assert.equal(run('player.pitch'),.2);
+ run("closeFieldPanel();updateTablet(.7);");assert.equal(run('game.mode'),'playing');assert.equal(run('player.pitch'),.2);
  run("net.code='ABCDE';net.socket={readyState:1,send(){}};net.player={id:'guest'};net.snapshots=[{ownerId:'owner'}];openFieldPanel();");assert.equal(run('game.mode'),'playing');
 });

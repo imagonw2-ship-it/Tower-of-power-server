@@ -39,7 +39,7 @@ async function until(fn, ms = 5000) {
   }
   throw Error("Timed out waiting for condition");
 }
-async function device(session, agent = "Desktop Chrome", layoutVersion = 5) {
+async function device(session, agent = "Desktop Chrome", layoutVersion = 6) {
   const ws = new WebSocket(origin.replace("http", "ws") + "/ws", {
       headers: { Origin: origin, "User-Agent": agent },
     }),
@@ -193,13 +193,13 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
   await t.test('separate devices share the map seed and reject outdated world renderers', async()=>{
     await until(()=>[host,phone,tablet,chrome].every(c=>c.snapshot?.world.seed===2&&c.snapshot?.enemies.turbines.length===room.world.layout.turbines.length));
     for(const c of [host,phone,tablet,chrome]){
-      assert.equal(c.snapshot.world.layoutVersion,5);
+      assert.equal(c.snapshot.world.layoutVersion,6);
       assert.equal(c.snapshot.enemies.turbines[1].x,room.world.layout.turbines[1].x);
       assert.equal(c.snapshot.enemies.turbines[1].z,room.world.layout.turbines[1].z);
     }
     const legacy=await device(await api('guest',{}),'12.5.1 APK',3),before=app.rooms.rooms.size;
     legacy.send({type:'host'});assert.equal((await legacy.wait('error')).code,'UPDATE_REQUIRED');
-    legacy.send({type:'join',code});assert.match((await legacy.wait('error')).message,/version 13/);
+    legacy.send({type:'join',code});assert.match((await legacy.wait('error')).message,/version 14/);
     assert.equal(app.rooms.rooms.size,before);assert.equal(room.players.size,4);
   });
   await t.test('real guest messages cannot use host abilities, and the tablet is visible but not equippable',async()=>{
