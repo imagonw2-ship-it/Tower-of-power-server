@@ -102,7 +102,7 @@ export function movePlayer(p, input, dt, obstacles = [], collideLegs = () => {},
   p.yaw = input.yaw;
   p.pitch = input.pitch;
   const speed =
-    (p.crouching ? 1.35 : p.sprinting ? 6.6 : 3) * (p.boost > 0 ? 1.4 : 1);
+    (p.crouching ? 1.35 : p.sprinting ? 6.6 : 3) * (p.boost > 0 ? 1.4 : 1) * (p.slow>0?.5:1);
   const dx = (x * Math.cos(p.yaw) - z * Math.sin(p.yaw)) * speed * dt,
     dz = (-x * Math.sin(p.yaw) - z * Math.cos(p.yaw)) * speed * dt,
     steps = Math.max(1, Math.ceil(Math.hypot(dx,dz) / .16));

@@ -1,7 +1,7 @@
 import { itemSupportPoints } from './item-shapes.js';
 export const itemRestHeight={flashlight:.0542,soda:.0352,camera:.0188,flare:.0308};
 export function dropSurface(x,z,floor,shed,ground=floor){
-  const a=x-shed.x,b=z-shed.z;
+  const a=shed?x-shed.x:Infinity,b=shed?z-shed.z:Infinity;
   if((a>=-2.5&&a<=-.44&&b>=-.19&&b<=.79)||(a>=1.45&&a<=2.55&&b>=-1.135&&b<=-.135))return shed.y+1.06;
   if(a>=1.36&&a<=2.6&&b>=-2.45&&b<=-1.32)return shed.y+1.12;
   if(Math.abs(a)<3.05&&Math.abs(b)<2.8)return floor(x,z);
