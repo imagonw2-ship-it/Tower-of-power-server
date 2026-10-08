@@ -16,12 +16,13 @@ function advanceToolMotion(m,target,dt,inventory=false){
   }
 }
 function resetEquipmentMotion(){Object.assign(equipmentMotion,createToolMotion('camera'));torchPreferred=true;}
-function canEquip(tool){return tool==='none'||(tool==='camera'&&game.hasCamera!==false)||(tool==='flashlight'&&game.hasFlashlight)||(tool==='soda'&&(game.sodas>0||game.drinking>0))||(tool==='flare'&&game.hasFlare);}
+function canEquip(tool){return tool==='none'||(tool==='camera'&&game.hasCamera!==false)||(tool==='flashlight'&&game.hasFlashlight)||(tool==='soda'&&(game.sodas>0||game.drinking>0))||(tool==='flare'&&game.hasFlare)||(tool==='gun'&&game.hasGun);}
 function setTorch(on){if(net.active)net.action('torch',{on});else game.torchOn=on;}
 function equipTool(tool){
   if(!canEquip(tool))return false;
   const changed=tool!==equippedTool;
   if(equippedTool==='flashlight'&&changed)torchPreferred=game.torchOn;
+  if(changed){game.gunReload=0;gunMotion.aiming=false;gunMotion.reload=0;}
   equippedTool=tool;if(net.active)net.action('equip',{item:tool});
   if(tool==='flashlight'&&changed)setTorch(torchPreferred);
   else if(tool!=='flashlight'&&game.torchOn)setTorch(false);
@@ -49,8 +50,9 @@ function heldEquipmentMatrix(tool=equipmentMotion.shown){
 }
 function appendHeldEquipment(){
   const tool=equipmentMotion.shown;
-  if(game.mode!=='playing'||tablet.progress>0||game.zoom>=2.5||tool==='none')return;
+  if(game.mode!=='playing'||tablet.progress>0||backpack.progress>0||game.zoom>=2.5||tool==='none')return;
   if(!canEquip(tool))return;
+  if(tool==='gun'){appendHeldGun();return;}
   const model=heldEquipmentMatrix(tool);
   appendPovArm(model,tool);
   objectDraws.push({mesh:tool==='flashlight'?flashlightMesh:tool==='soda'?sodaMesh:tool==='flare'?flareGunMesh:cameraItemMesh,
@@ -61,7 +63,8 @@ function torchStrength(){return game.mode!=='fieldPanel'&&game.hasFlashlight&&ga
 function refreshFieldKit(){
   if(!canEquip(equippedTool))equippedTool=canEquip('camera')?'camera':'none';
   document.getElementById('kitDrop').disabled=equippedTool==='none'||game.drinking>0||!!pendingDrop;
-  document.getElementById('kitSodas').textContent=game.sodas;document.getElementById('kitFlares').textContent=game.flares||0;
+  document.getElementById('kitSodas').textContent=game.sodas;document.getElementById('kitFlares').textContent=game.flares||0;document.getElementById('kitRounds').textContent=(game.ammo||0)+' / '+(game.reserve||0);
+  const inv=localInventory(),capacity=inventoryCapacity(inv),used=inventoryUsed(inv);document.getElementById('kitCapacity').textContent=used+' / '+capacity;document.getElementById('bagTitle').textContent=game.hasBackpack?'FIELD PACK':'SUIT POCKETS';
   for(const card of kitCards){
     const tool=card.dataset.tool,available=canEquip(tool),selected=tool===equippedTool;
     const owned=tool==='soda'?game.sodas>0:available;
@@ -69,27 +72,33 @@ function refreshFieldKit(){
     card.querySelector('.kitTag').textContent=selected?'IN HAND':'EQUIP';
     if(tool==='flashlight')card.querySelector('.kitDetail').textContent=available?(game.torchOn?'Light is on':'Light is off'):'Find it in the shed';
   }
-  const ownedCount=kitCards.filter(card=>!card.hidden).length;
-  document.querySelectorAll('.kitEmpty').forEach((slot,i)=>{slot.hidden=i>=9-ownedCount;});
-  const names={none:'EMPTY HAND',camera:'CAMERA',flashlight:'FLASHLIGHT',soda:'SODA',flare:'FLARE GUN'},actions={none:'EMPTY HAND',camera:'PHOTO',flashlight:game.torchOn?'LIGHT OFF':'LIGHT ON',soda:'DRINK',flare:'FIRE FLARE'};
+  document.querySelectorAll('.kitEmpty').forEach((slot,i)=>{slot.hidden=i>=capacity-used;});
+  const names={none:'EMPTY HAND',camera:'CAMERA',flashlight:'FLASHLIGHT',soda:'SODA',flare:'FLARE GUN',gun:'GLOCK 17'},actions={none:'EMPTY HAND',camera:'PHOTO',flashlight:game.torchOn?'LIGHT OFF':'LIGHT ON',soda:'DRINK',flare:'FIRE FLARE',gun:game.ammo>0?'FIRE':'RELOAD'};
   document.getElementById('equippedName').textContent=names[equippedTool];
   document.getElementById('handName').textContent=names[equippedTool];document.getElementById('handHint').textContent=equippedTool==='none'?'':'UNEQUIP';document.getElementById('handSlot').setAttribute('aria-label',equippedTool==='none'?'Empty hand':'Unequip '+names[equippedTool]);document.getElementById('touchUse').hidden=equippedTool==='none';
   if(!fieldKit.hidden)refreshItemPreviews();
   document.getElementById('touchUseLabel').textContent=actions[equippedTool];
   document.getElementById('touchUseIcon').setAttribute('href','#icon-'+equippedTool);
   document.getElementById('touchUse').setAttribute('aria-label',actions[equippedTool]);
-  document.getElementById('kitStatus').textContent=net.active?'Your online world keeps moving.':'Select an item to equip it.';
+  document.getElementById('kitStatus').textContent=used>=capacity?'FULL · Drop an item to make room':game.hasBackpack?'12 SLOTS · PACK EQUIPPED':'6 SLOTS · Find a backpack for more space';
   document.getElementById('touchCrouch').classList.toggle('latched',game.crouching);
   document.getElementById('touchCrouch').setAttribute('aria-pressed',String(game.crouching));
 }
 function openFieldKit(){
   if(!['playing','paused'].includes(game.mode))return;
-  kitReturn=game.mode;setMode('inventory');fieldKit.hidden=false;refreshFieldKit();
+  if(game.hasBackpack)sound.noise(.22,.11,550);
+  kitReturn=game.mode;backpack.yaw=player.yaw;backpack.pitch=player.pitch;backpack.zoom=game.zoomTarget;backpack.closing=false;backpack.progress=0;
+  fieldKit.classList.toggle('physical',!!game.hasBackpack);fieldKit.style.transform='';fieldKit.style.opacity=game.hasBackpack?'0':'1';fieldKit.style.pointerEvents=game.hasBackpack?'none':'auto';
+  game.gunReload=0;if(net.active)net.action('inventory',{open:true});setMode('inventory');fieldKit.hidden=false;refreshFieldKit();
   if(document.pointerLockElement===canvas)document.exitPointerLock();
   document.getElementById('kitClose').focus({preventScroll:true});
 }
 function closeFieldKit(){
   if(game.mode!=='inventory')return;
+  if(game.hasBackpack&&backpack.progress>0){backpack.closing=true;sound.noise(.23,.09,2700,'highpass');return;}finishCloseFieldKit();
+}
+function finishCloseFieldKit(){
+  resetBackpack();fieldKit.style.pointerEvents='auto';if(net.active)net.action('inventory',{open:false});
   fieldKit.hidden=true;setMode(kitReturn==='paused'?'paused':'playing');
   if(game.mode==='playing')captureMouse();
 }
@@ -99,6 +108,7 @@ function useEquipment(){
   if(equippedTool==='camera')takePhoto();
   else if(equippedTool==='soda')drinkSoda();
   else if(equippedTool==='flare')fireFlare();
+  else if(equippedTool==='gun')fireGun();
   else if(equippedTool==='flashlight'&&game.hasFlashlight){
     toggleFlashlight();
   }
@@ -130,13 +140,13 @@ document.getElementById('kitClose').addEventListener('click',closeFieldKit);
 document.getElementById('desktopKit').addEventListener('click',openFieldKit);
 document.getElementById('touchKit').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();openFieldKit();});
 document.getElementById('touchUse').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();useEquipment();});
-document.getElementById('touchAim').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();const levels=[1,2,4,6];const next=levels.find(v=>v>game.zoomTarget+.1)||1;changeZoom(next/game.zoomTarget);});
+document.getElementById('touchAim').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(equippedTool==='gun'){toggleGunAim();return;}const levels=[1,2,4,6];const next=levels.find(v=>v>game.zoomTarget+.1)||1;changeZoom(next/game.zoomTarget);});
 document.addEventListener('keydown',e=>{
   if(['INPUT','TEXTAREA','SELECT'].includes(e.target?.tagName))return;
   if((e.code==='KeyI'||e.code==='Tab')&&!e.repeat&&['playing','paused','inventory'].includes(game.mode)){
     e.preventDefault();if(game.mode==='inventory')closeFieldKit();else openFieldKit();
   }else if(e.code==='Escape'&&game.mode==='inventory'){e.preventDefault();closeFieldKit();}
-  else if(e.code==='KeyR'&&!e.repeat)useEquipment();
+  else if(e.code==='KeyR'&&!e.repeat){if(equippedTool==='gun')reloadGun();else useEquipment();}
   else if(e.code==='KeyG'&&!e.repeat)dropEquipment();
 });
 addEventListener('tower-back',()=>{if(game.mode==='inventory')closeFieldKit();else if(networkPanelOpen)closeMultiplayer();else if(game.mode==='playing')setMode('paused');else if(game.mode==='fieldPanel')closeFieldPanel();else if(game.mode==='paused')captureMouse();else mainMenu();});

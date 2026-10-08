@@ -3,6 +3,7 @@
 let itemPreviewProgram=null,itemPreviewTarget=null;
 const itemPreviewCache=new Map();
 function itemAppearance(kind){
+  if(kind==='gun')return {mesh:gunPreviewMesh,parts:gunParts,texture:gunTexture,kind:3};
   return {mesh:kind==='flashlight'?flashlightMesh:kind==='soda'?sodaMesh:kind==='flare'?flareGunMesh:cameraItemMesh,
     texture:kind==='camera'?cameraItemTexture:kind==='flare'?flareGunTexture:null,kind:kind==='soda'?2:kind==='flashlight'?1:3};
 }
@@ -44,13 +45,13 @@ function renderItemPreview(kind){
     const target=itemPreviewTarget,asset=itemAppearance(kind),u=itemPreviewProgram.uniforms;
     gl.bindFramebuffer(gl.FRAMEBUFFER,target.framebuffer);gl.viewport(0,0,target.width,target.height);
     gl.disable(gl.BLEND);gl.enable(gl.DEPTH_TEST);gl.depthMask(true);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-    const bounds=asset.mesh.bounds,center=bounds.min.map((v,k)=>(v+bounds.max[k])*.5);
-    const rotation=multiply(rotateX(.16),rotateY(kind==='flare'?-.80:kind==='camera'?2.55:-.55));
+    const bounds=asset.parts?{min:[0,1,2].map(k=>Math.min(...asset.parts.map(p=>p.mesh.bounds.min[k]))),max:[0,1,2].map(k=>Math.max(...asset.parts.map(p=>p.mesh.bounds.max[k])))}:asset.mesh.bounds,center=bounds.min.map((v,k)=>(v+bounds.max[k])*.5);
+    const rotation=multiply(rotateX(.16),rotateY(kind==='gun'?-.9:kind==='flare'?-.80:kind==='camera'?2.55:-.55));
     const extent=bounds.max.map((v,k)=>v-bounds.min[k]),radius=Math.hypot(...extent)*.5;
     const model=multiply(rotation,transform(-center[0],-center[1],-center[2]));
     const half=radius*1.12,projection=new Float32Array([1/(half*4/3),0,0,0,0,1/half,0,0,0,0,-1/(radius*3),0,0,0,0,1]);
     gl.useProgram(itemPreviewProgram.p);gl.uniformMatrix4fv(u.u_model,false,model);gl.uniformMatrix4fv(u.u_vp,false,projection);gl.uniform1f(u.u_kind,asset.kind);
-    gl.bindTexture(gl.TEXTURE_2D,asset.texture||pylonTexture);gl.uniform1i(u.u_texture,0);gl.bindVertexArray(asset.mesh.vao);gl.drawElements(gl.TRIANGLES,asset.mesh.count,gl.UNSIGNED_INT,0);
+    gl.bindTexture(gl.TEXTURE_2D,asset.texture||pylonTexture);gl.uniform1i(u.u_texture,0);for(const part of asset.parts||[{mesh:asset.mesh}]){gl.bindVertexArray(part.mesh.vao);gl.drawElements(gl.TRIANGLES,part.mesh.count,gl.UNSIGNED_INT,0);}
     const pixels=new Uint8Array(target.width*target.height*4),data=ctx.createImageData(target.width,target.height);
     gl.readPixels(0,0,target.width,target.height,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
     for(let y=0;y<target.height;y++)data.data.set(pixels.subarray((target.height-1-y)*target.width*4,(target.height-y)*target.width*4),y*target.width*4);

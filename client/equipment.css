@@ -68,7 +68,7 @@ body.playing #staminaBar{display:block}#staminaFill{display:block;width:100%;hei
 body:not(.playing) .voiceVolumeLabel{display:flex}body:not(.playing) #voiceHud{top:auto;bottom:18px}
 @media(max-height:420px){#voiceHud{top:108px}#voiceStatus{max-width:95px;font-size:8px}}
 
-/* Model cards keep an invariant nine-slot grid; unowned tools have no card. */
+/* Owned tools use model cards; free slots track actual carrying capacity. */
 .kitCard[hidden],.kitEmpty[hidden]{display:none!important}
 .kitSlot .itemPreview{display:block;width:100%;height:auto;min-height:0;max-height:calc(100% - 30px);object-fit:contain;pointer-events:none;filter:drop-shadow(0 6px 4px #0007)}
 .kitCard strong,#handName{font:500 11px/1.1 system-ui;flex-shrink:0}
@@ -85,3 +85,39 @@ body.touch .kitSheet footer{display:none}
 #touchControls svg,#voiceHud svg{stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;filter:none}
 #touchControls .touchBtn{border:1px solid #ffffff30!important;background:linear-gradient(145deg,#ffffff09,#ffffff02)!important}
 #touchControls .touchBtn.latched{border-color:#ffffff70!important;background:#ffffff0d!important}
+
+/* The owned pack contains the inventory. Its HTML follows the physical opening. */
+#fieldKit.physical{inset:auto;left:0;top:0;width:640px;height:640px;padding:0;transform-origin:0 0;display:block;background:#10130eeb;backdrop-filter:none;border:2px solid #837d5c66;box-shadow:inset 0 0 40px #000d;color:#dedfcb}
+#fieldKit.physical:before{display:none}
+#fieldKit.physical .kitSheet{box-sizing:border-box;width:640px;height:640px;max-height:none;padding:20px;font:18px/1.3 monospace;overflow:hidden}
+#fieldKit.physical header{margin:0 0 12px;padding:0 0 10px;gap:12px;justify-content:space-between}
+#fieldKit.physical h2{font:600 23px/1.2 monospace;letter-spacing:1px}
+#kitCapacity{font:16px monospace;color:#b6bba0;white-space:nowrap}
+#fieldKit.physical #kitClose{width:60px;height:58px;font:36px system-ui;flex-shrink:0}
+#fieldKit.physical .kitLayout{display:flex;flex-direction:column;gap:12px;height:505px}
+#fieldKit.physical .kitHand{box-sizing:border-box;width:100%;display:flex;align-items:center;gap:12px;padding:8px 10px;height:88px;background:#ffffff04;border:1px solid #c8c8ac20}
+#fieldKit.physical h3{font:18px monospace;background:transparent;color:#959c81;clip-path:none;padding:0;margin:0;text-align:left}
+#fieldKit.physical .kitHand h3{width:105px;font-size:16px}
+#fieldKit.physical #handSlot{display:grid;grid-template-columns:100px 1fr;width:auto;flex:1;aspect-ratio:auto;height:68px;min-height:0;margin:0;border:0;padding:0!important;gap:0;background:transparent}
+#fieldKit.physical #handPreview{grid-row:span 2;width:90px;height:64px;max-height:none}
+#fieldKit.physical #handName{font:24px monospace;text-align:left}
+#fieldKit.physical #handHint{font:13px monospace;text-align:left}
+#fieldKit.physical #kitDrop{width:94px;height:56px;margin:0;padding:8px!important;font-size:16px;gap:5px}
+#fieldKit.physical .kitBag{padding:0;width:100%;min-height:0;flex:1;display:flex;flex-direction:column}
+#fieldKit.physical .kitBag h3{margin-bottom:9px;font-size:16px}
+#fieldKit.physical .kitPockets{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;overflow:auto;min-height:0;padding-right:3px;scrollbar-width:thin;scrollbar-color:#858b69 #161b13}
+#fieldKit.physical .kitSlot{height:104px;min-height:104px;aspect-ratio:auto;gap:2px;padding:5px!important;border-color:#c2c2a533;background:#01030070}
+#fieldKit.physical .kitSlot .itemPreview{height:65px;width:110px;max-height:65px;min-height:0}
+#fieldKit.physical .kitCard strong{font:26px/1.05 monospace}
+#fieldKit.physical .kitTag{display:none}
+#fieldKit.physical .kitCard b{font:18px monospace;top:4px;right:4px}
+#fieldKit.physical #kitCapacity{font-size:22px}
+#fieldKit.physical .kitSheet footer{display:flex;margin-top:10px;font:13px monospace;color:#a5ac91}
+#fieldKit.physical .kitKeyTip{display:none}
+#fieldKit.physical button:focus-visible{outline:2px solid #b8c388;outline-offset:-2px}
+#gunReadout{position:fixed;bottom:max(29px,env(safe-area-inset-bottom));right:220px;z-index:43;display:flex;align-items:center;gap:12px;color:#e1e5de;font:10px monospace;letter-spacing:1px;text-shadow:0 2px 5px #000;pointer-events:none}
+#gunReadout b{font:18px monospace}#gunReload{pointer-events:auto;min-width:74px;min-height:42px;margin:0;padding:7px 10px;border:1px solid #fff3;border-radius:8px;background:#0002;color:#eee;font:9px monospace;letter-spacing:.3px}#gunReload:disabled{opacity:.4}
+body:not(.touch) #gunReadout{right:30px;bottom:25px}
+@media(max-height:430px){#gunReadout{right:195px;bottom:21px;gap:7px}#gunReadout>span{display:none}#gunReadout b{font-size:14px}}
+
+#fieldKit.physical header{min-height:96px}#fieldKit.physical #kitClose{width:106px;height:96px;font-size:42px}#fieldKit.physical .kitLayout{height:463px}#fieldKit.physical .kitSlot{height:130px;min-height:130px}#fieldKit.physical .kitSlot .itemPreview{height:80px;max-height:80px}#fieldKit.physical #handSlot{min-height:68px;height:68px}#fieldKit.physical #handPreview{height:64px;max-height:64px}

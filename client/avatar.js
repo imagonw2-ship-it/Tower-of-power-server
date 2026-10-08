@@ -33,7 +33,7 @@ function appendRemoteTorch(grip,strength,distance){
 }
 // All props share the same palm frame. Each origin is adjusted to its actual grip,
 // rather than putting the asset's center at the wrist.
-const itemGripAnchors={camera:[.059,-.003,.008],flashlight:[-.0005,-.17,.001],soda:[0,.079,0],flare:[0,-.105,.039]};
+const itemGripAnchors={camera:[.059,-.003,.008],flashlight:[-.0005,-.17,.001],soda:[0,.079,0],flare:[0,-.105,.039],gun:[0,-.046,.009]};
 const itemPalm=[-.078,-.030,.002];
 // Fit the already curled glove to the actual handle cross-section. The larger
 // first-person torch needs its own clearance; the wrist and sleeve stay fixed.
@@ -42,13 +42,14 @@ function fitGripSurface(hand,kind,scale=1){
   const a=itemGripAnchors[kind],p=[(hand[1]-itemPalm[1])/scale+a[0],(hand[2]-itemPalm[2])/scale+a[1],(hand[0]-itemPalm[0])/scale+a[2]];
   let cx=0,cz=0,rx=.0357,rz=.0357,lo=.018,hi=.172;
   if(kind==='flashlight'){cx=-.0005;cz=.001;rx=rz=.0305;lo=-.29;hi=-.06;}
+  else if(kind==='gun'){cz=.009+(-.046-p[1])*.27;rx=.018;rz=.024;lo=-.10;hi=.009;}
   else if(kind==='flare'){cz=.041+(-.111-p[1])*.36;rx=.0165;rz=.031;lo=-.158;hi=-.061;}
   else if(kind==='camera'){cx=.060;cz=.001;rx=.015;rz=.019;lo=-.032;hi=.034;}
   if(p[1]<lo||p[1]>hi)return hand;
   let dx=p[0]-cx,dz=p[2]-cz,r=Math.hypot(dx/rx,dz/rz);
   if(r<.001){dx=rx;dz=0;r=1;}
   const target=kind==='camera'?Math.max(Math.abs(dx/rx),Math.abs(dz/rz)):r;
-  if((kind==='soda'||kind==='flare')&&hand[0]<-.045){
+  if((kind==='soda'||kind==='flare'||kind==='gun')&&hand[0]<-.045){
     // Close the distal pads around the can/handle. The old 12 mm correction
     // left the thumb sticking out and the fingers short of the narrow grip.
     const curl=clamp((-.045-hand[0])/.035,0,1);
@@ -73,6 +74,7 @@ function buildAvatars(){
   povArmMesh=unpackModel(POV_ARM_ASSET);povArmTexture=textures.suit;
   const gear=AVATAR_ASSET.meshes.find(m=>m.name==='ClassASuitGear_low');
   for(const [kind,patch] of Object.entries(GRIP_ASSET.poses)){gripMeshes[kind]=unpackModel(posedGripRecord(gear,patch.gear,kind));povGripMeshes[kind]=unpackModel(posedGripRecord(POV_ARM_ASSET,patch.arm,kind,kind==='flashlight'?1.3:1));}
+  const gp=GRIP_ASSET.poses.flare;gripMeshes.gun=unpackModel(posedGripRecord(gear,gp.gear,'gun'));povGripMeshes.gun=unpackModel(posedGripRecord(POV_ARM_ASSET,gp.arm,'gun'));
   for(const [name,clip] of Object.entries(AVATAR_ASSET.clips))avatarClips[name]={...clip,values:new Float32Array(Uint8Array.from(atob(clip.data),c=>c.charCodeAt(0)).buffer)};
   cameraItemMesh=unpackModel(CAMERA_ASSET);cameraItemTexture=importedTexture(CAMERA_ASSET.texture,5);
 }
@@ -104,7 +106,20 @@ function appendPovArm(item,kind){
     if(i<2)for(let k=0;k<3;k++)pose[12+k]=joints[i][k];
     povArmBones.set(multiply(pose,AVATAR_ASSET.inverseBind[ids[i]]),i*16);
   }
-  objectDraws.push({mesh:povGripMeshes[kind]||povArmMesh,model:identity(),bones:povArmBones,texture:povArmTexture,material:5,assetKind:5,castShadow:false,receiveTorch:false,povArm:true});
+  objectDraws.push({mesh:povGripMeshes[kind]||povArmMesh,model:identity(),bones:new Float32Array(povArmBones),texture:povArmTexture,material:5,assetKind:5,castShadow:false,receiveTorch:false,povArm:true});
+}
+function appendLeftPovArm(item,kind){
+  const mirror=identity(),n=right,d=dot(n,cameraPosition);
+  for(let j=0;j<3;j++)for(let i=0;i<3;i++)mirror[j*4+i]=(i===j?1:0)-2*n[i]*n[j];
+  for(let i=0;i<3;i++)mirror[12+i]=2*d*n[i];
+  appendPovArm(multiply(mirror,multiply(item,transform(itemGripAnchors[kind][0]*2,0,0,-1,1,1))),kind);
+  const arm=objectDraws.at(-1);arm.model=mirror;arm.leftArm=true;
+}
+function avatarSupportGun(poses){
+  const ids=['upperarm_l','lowerarm_l','hand_l'].map(n=>AVATAR_ASSET.bones.indexOf(n)),r=poses[AVATAR_ASSET.bones.indexOf('hand_r')],a=Array.from(poses[ids[0]].slice(12,15)),b=Array.from(poses[ids[1]].slice(12,15)),c=Array.from(poses[ids[2]].slice(12,15)),wrist=[r[12]+.065,r[13]-.015,r[14]+.025];
+  const upper=b.map((v,k)=>v-a[k]),lower=c.map((v,k)=>v-b[k]),ul=Math.hypot(...upper),ll=Math.hypot(...lower),delta=wrist.map((v,k)=>v-a[k]),d=Math.min(Math.hypot(...delta),(ul+ll)*.99),axis=norm(delta),pole=[.7,-.6,0],bend=norm(pole.map((v,k)=>v-axis[k]*dot(pole,axis))),along=(ul*ul-ll*ll+d*d)/(2*d),out=Math.sqrt(Math.max(0,ul*ul-along*along)),elbow=a.map((v,k)=>v+axis[k]*along+bend[k]*out);
+  poses[ids[0]]=avatarAim(poses[ids[0]],upper,elbow.map((v,k)=>v-a[k]));poses[ids[1]]=avatarAim(poses[ids[1]],lower,wrist.map((v,k)=>v-elbow[k]));poses[ids[2]]=avatarAim(poses[ids[2]],lower,wrist.map((v,k)=>v-elbow[k]));
+  for(let k=0;k<3;k++){poses[ids[1]][12+k]=elbow[k];poses[ids[2]][12+k]=wrist[k];}
 }
 function avatarMatrix(p,q){
   const n=Math.hypot(...q)||1,x=q[0]/n,y=q[1]/n,z=q[2]/n,w=q[3]/n;
@@ -178,8 +193,8 @@ function appendHazmat(p,clock){
   let a=avatarCache.get(p.id);if(!a){a={last:-1,renderTime:clock,motion:createToolMotion(p.heldItem||'camera'),pose:new Float32Array(avatarBoneCount*7),sample:new Float32Array(avatarBoneCount*7),bones:new Float32Array(32*16),matrices:[],held:false};avatarCache.set(p.id,a);}
   const speed=Math.hypot(p.vx||0,p.vz||0),clip=p.crouching?(speed>.2?'crouch':'crouchIdle'):speed>.2?(p.sprinting?'run':'walk'):'idle';
   advanceToolMotion(a.motion,p.heldItem||'camera',clamp(clock-a.renderTime,0,.1));a.renderTime=clock;
-  const held=p.tabletOpen?'none':a.motion.shown;
-  if(clock-a.last>1/(distance>60?12:30)||a.last<0||held!==a.held||a.tabletOpen!==p.tabletOpen){
+  const held=p.tabletOpen||p.inventoryOpen?'none':a.motion.shown;
+  if(clock-a.last>1/(distance>60?12:30)||a.last<0||held!==a.held||a.tabletOpen!==(p.tabletOpen||p.inventoryOpen)){
     avatarSample(clip,clock,a.sample);
     const blend=a.last<0||clock<a.last?1:1-Math.exp(-Math.min(.1,clock-a.last)*18);
     for(let i=0;i<avatarBoneCount;i++){
@@ -187,12 +202,14 @@ function appendHazmat(p,clock){
       for(let k=0;k<7;k++)a.pose[o+k]=lerp(a.pose[o+k],a.sample[o+k]*(k>=3?sign:1),blend);
       a.matrices[i]=avatarMatrix(a.pose.subarray(o,o+3),a.pose.subarray(o+3,o+7));
     }
-    if(p.tabletOpen)avatarHoldTablet(a.matrices);
-    else if(held!=='none')avatarHold(a.matrices,p.pitch||0,a.motion.lower);
+    if(p.tabletOpen||p.inventoryOpen)avatarHoldTablet(a.matrices);
+    else if(held!=='none'){avatarHold(a.matrices,(p.pitch||0)+(p.gunFlash||0)*.7,a.motion.lower);if(held==='gun')avatarSupportGun(a.matrices);}
     for(let i=0;i<avatarBoneCount;i++)a.bones.set(multiply(a.matrices[i],AVATAR_ASSET.inverseBind[i]),i*16);
-    a.last=clock;a.held=held;a.tabletOpen=p.tabletOpen;
+    a.last=clock;a.held=held;a.tabletOpen=p.tabletOpen||p.inventoryOpen;
   }
-  const root=multiply(transform(p.x,shedFloor(p.x,p.z),p.z),rotateY(p.yaw+Math.PI)),shadow=distance<32;
+  let root=multiply(transform(p.x,shedFloor(p.x,p.z),p.z),rotateY(p.yaw+Math.PI));const shadow=distance<32;
+  if(p.isMimic&&p.alive===false){const fall=ease(clamp((p.deathTime||0)/.65,0,1));root=multiply(root,multiply(transform(0,.13*fall,0),rotateX(-fall*1.48)));}
+  if(p.inventory?.backpack&&distance<60){const open=p.inventoryOpen;const model=multiply(root,open?multiply(transform(0,.72,.45),rotateY(Math.PI)):multiply(transform(0,.73,-.26),rotateY(Math.PI)));appendBackpackModel(model,open?1:0,shadow);}
   for(const part of avatarParts)objectDraws.push({mesh:part.name==='ClassASuitGear_low'&&gripMeshes[held]?gripMeshes[held]:part.mesh,model:root,bones:a.bones,texture:part.texture,material:5,assetKind:5,castShadow:shadow});
   const head=AVATAR_ASSET.bones.indexOf('head');
   if(!p.isMimic)appendHeadCensor(root,a.bones.subarray(head*16,head*16+16));
@@ -200,6 +217,7 @@ function appendHazmat(p,clock){
   if(p.tabletOpen&&distance<60){const model=multiply(root,multiply(transform(0,1.17,.40),rotateY(Math.PI)));for(const part of tablet.meshes)objectDraws.push({mesh:part.mesh,model,material:5,assetKind:11,castShadow:shadow,tablet:true});}
   if(held!=='none'&&distance<60){
     const h=a.matrices[AVATAR_ASSET.bones.indexOf('hand_r')],grip=multiply(root,multiply(h,itemGripMatrix(held)));
+    if(held==='gun'){appendGun(grip,{flash:p.gunFlash||0,reload:p.gunReload>0?1-p.gunReload/GUN_RELOAD_SECONDS:0,ammo:p.inventory?.ammo??17,shadow});return;}
     const mesh=held==='flashlight'?flashlightMesh:held==='soda'?sodaMesh:held==='flare'?flareGunMesh:cameraItemMesh;
     objectDraws.push({mesh,model:grip,material:5,texture:held==='camera'?cameraItemTexture:held==='flare'?flareGunTexture:undefined,assetKind:held==='camera'?6:held==='flashlight'?1:held==='flare'?7:2,castShadow:shadow});
     if(p.torch&&held==='flashlight'&&distance<60)appendRemoteTorch(grip,1-ease(a.motion.lower),distance);

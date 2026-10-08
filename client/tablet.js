@@ -12,6 +12,7 @@ function hostAction(command,options={}){
     if(options.destination==='forest')enterForest(player,activeLayout,forestLevel);else Object.assign(player,target,{biome:'meadow',levelCooldown:3});if(inForest())collideEndlessForest(player,activeLayout.seed);else collideForest(player,activeLayout);player.y=shedFloor(player.x,player.z)+game.eyeHeight;updateForestLevelClient(0);
     tablet.yaw=player.yaw;tablet.pitch=0;keys.clear();game.vx=game.vz=0;
   }else if(command==='mimic'){const solo={...player,id:'solo',username:'YOU',heldItem:equippedTool,alive:true};if(!localMimic.spawn(solo,[solo],localVoiceMemory)){tabletMessage('ENTER THE FOREST FIRST');return false;}}
+  else if(command==='item'){if(!summonLocalItem(options.kind)){tabletMessage('ITEM LIMIT REACHED');return false;}}
   else if(command==='clearMimic')localMimic.clear();
   else if(command==='wake'){world.turbineStopped=world.powerStopped=false;emitNoise(10000);}
   else if(command!=='tablet')return false;
@@ -90,3 +91,5 @@ function refreshTabletPlayers(){
 document.getElementById('bringPlayer').addEventListener('click',()=>hostAction('playerTeleport',{targetId:tablet.selectedPlayer,destinationId:net.player?.id}));
 document.getElementById('sendPlayer').addEventListener('click',()=>hostAction('playerTeleport',{targetId:tablet.selectedPlayer,destinationId:document.getElementById('playerDestination').value}));
 for(const b of document.querySelectorAll('[data-player-effect]'))b.addEventListener('click',()=>hostAction('playerEffect',{targetId:tablet.selectedPlayer,effect:b.dataset.playerEffect,enabled:b.getAttribute('aria-pressed')!=='true'}));
+
+for(const b of document.querySelectorAll('[data-spawn-item]'))b.addEventListener('click',()=>{if(hostAction('item',{kind:b.dataset.spawnItem}))tabletMessage(b.querySelector('b').textContent.toUpperCase()+' · SUMMONED NEAR YOU');});

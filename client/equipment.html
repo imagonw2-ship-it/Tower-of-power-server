@@ -11,18 +11,18 @@
 <symbol id="icon-run" viewBox="0 0 24 24"><path d="m6 12 6-6 6 6m-12 7 6-6 6 6"/></symbol><symbol id="icon-world" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16M9 3v6M16 9v6M8 15v6"/></symbol><symbol id="icon-flare" viewBox="0 0 24 24"><path d="M3 7h16v5h-9l1 9H6l-1-9H3zM10 12v4h4v-4"/></symbol>
 <symbol id="icon-mic" viewBox="0 0 24 24"><rect x="8.5" y="2.5" width="7" height="12" rx="3.5"/><path d="M5.5 10.5v1a6.5 6.5 0 0 0 13 0v-1M12 18v3M9 21h6"/></symbol>
 <symbol id="icon-mic-off" viewBox="0 0 24 24"><path d="M9 5a3.5 3.5 0 0 1 6.5 1v5M8.5 9v2a3.5 3.5 0 0 0 5 3M5.5 10.5v1a6.5 6.5 0 0 0 11 4.5M18.5 10.5v1M12 18v3M9 21h6M3 3l18 18"/></symbol>
-</defs></svg>
+<symbol id="icon-gun" viewBox="0 0 24 24"><path d="M3 5h17v5h-8l-1 10H6l1-10H3zM12 10v4h3v-4M17 5V3"/></symbol></defs></svg>
 <section id="fieldKit" role="dialog" aria-modal="true" aria-labelledby="kitTitle" hidden>
  <div class="kitSheet">
-  <header><h2 id="kitTitle">Inventory</h2><button id="kitClose" aria-label="Close inventory">×</button></header>
+  <header><h2 id="kitTitle">FIELD INVENTORY</h2><span id="kitCapacity">1 / 6</span><button id="kitClose" aria-label="Close inventory">×</button></header>
   <div class="kitLayout">
    <section class="kitHand"><h3>MAIN HAND</h3><button id="handSlot" class="kitSlot" aria-label="Empty hand"><canvas id="handPreview" class="itemPreview" width="256" height="192" aria-hidden="true"></canvas><strong id="handName">Camera</strong><span id="handHint">UNEQUIP</span></button><button id="kitDrop"><svg><use href="#icon-drop"/></svg><span>DROP</span></button></section>
-   <section class="kitBag"><h3>BACKPACK</h3><div class="kitPockets" role="group" aria-label="Backpack">
+   <section class="kitBag"><h3 id="bagTitle">SUIT POCKETS</h3><div class="kitPockets" role="group" aria-label="Inventory slots">
     <button class="kitCard kitSlot" data-tool="camera" draggable="true" aria-pressed="true"><canvas class="itemPreview" data-preview="camera" width="256" height="192" aria-hidden="true"></canvas><strong>Camera</strong><span class="kitDetail">Flash photograph</span><span class="kitTag">IN HAND</span></button>
     <button class="kitCard kitSlot" data-tool="flashlight" hidden draggable="true" aria-pressed="false"><canvas class="itemPreview" data-preview="flashlight" width="256" height="192" aria-hidden="true"></canvas><strong>Flashlight</strong><span class="kitDetail">Find in shed</span><span class="kitTag">EQUIP</span></button>
     <button class="kitCard kitSlot" data-tool="soda" hidden draggable="true" aria-pressed="false"><canvas class="itemPreview" data-preview="soda" width="256" height="192" aria-hidden="true"></canvas><strong>Soda <b id="kitSodas">0</b></strong><span class="kitDetail">Speed boost</span><span class="kitTag">EQUIP</span></button>
-    <button class="kitCard kitSlot" data-tool="flare" hidden draggable="true" aria-pressed="false"><canvas class="itemPreview" data-preview="flare" width="256" height="192" aria-hidden="true"></canvas><strong>Flare gun <b id="kitFlares">0</b></strong><span class="kitDetail">Noise distraction</span><span class="kitTag">EQUIP</span></button><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div>
-   </div></section>
+    <button class="kitCard kitSlot" data-tool="flare" hidden draggable="true" aria-pressed="false"><canvas class="itemPreview" data-preview="flare" width="256" height="192" aria-hidden="true"></canvas><strong>Flare gun <b id="kitFlares">0</b></strong><span class="kitDetail">Noise distraction</span><span class="kitTag">EQUIP</span></button><button class="kitCard kitSlot" data-tool="gun" hidden draggable="true" aria-pressed="false"><canvas class="itemPreview" data-preview="gun" width="256" height="192" aria-hidden="true"></canvas><strong>Glock 17 <b id="kitRounds">17 / 34</b></strong><span class="kitDetail">Mimic defense</span><span class="kitTag">EQUIP</span></button><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div>
+   <div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div><div class="kitSlot kitEmpty" aria-hidden="true"></div></div></section>
   </div>
   <footer><span id="kitStatus">Select an item to equip it.</span><span class="kitKeyTip">I / ESC TO CLOSE</span></footer>
  </div>
@@ -32,3 +32,5 @@
 
 <div id="staminaBar" role="progressbar" aria-label="Stamina" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><span id="staminaFill"></span></div>
 <div id="voiceHud" hidden><button id="voiceToggle" aria-label="Enable proximity microphone" aria-pressed="false"><svg><use id="voiceIcon" href="#icon-mic-off"/></svg></button><span id="voiceStatus" role="status">MIC OFF</span><label class="voiceVolumeLabel">Voice <input id="voiceVolume" type="range" min="0" max="1" step=".05" value=".85" aria-label="Nearby voice volume"></label></div>
+
+<div id="gunReadout" hidden><span>G17</span><b id="gunAmmo">00 / 00</b><button id="gunReload"><span id="gunReloadLabel">R · RELOAD</span></button></div>

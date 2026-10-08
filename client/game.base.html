@@ -100,7 +100,7 @@
       <button id="controlsOpen">CONTROLS</button>
     </nav>
     <p id="worldMenuNotice" hidden>Your online world and voice chat stay active.</p>
-    <p class="menuFoot"><strong id="releaseLabel">VERSION 15 · DEEP WOODS</strong><br>HEADPHONES RECOMMENDED</p>
+    <p class="menuFoot"><strong id="releaseLabel">VERSION 16 · FIELD EQUIPMENT</strong><br>HEADPHONES RECOMMENDED</p>
   </main>
   <section id="settingsPanel" class="panel settings" hidden aria-label="Settings">
     <h2>SETTINGS</h2>
@@ -200,7 +200,7 @@
     pylonMesh=unpackModel(IMPORTED_MODELS.pylon);pylonLODMesh=unpackModel(IMPORTED_MODELS.pylonLOD);
     pylonTexture=importedTexture(IMPORTED_TEXTURES.pylon,5);importNormalTexture=importedTexture(IMPORTED_TEXTURES.flashlight,6,true);
     for(let i=0;i<9;i++)pylonBones.set(identity(),i*16);
-    buildPowerCorridor();buildInfrastructure();buildAvatars();buildFlareModels();buildTablet();buildForestHaunts();
+    buildPowerCorridor();buildInfrastructure();buildAvatars();buildFlareModels();buildGun();buildBackpack();buildTablet();buildForestHaunts();
   }
   const rigGLSL=`
     layout(location=4) in vec4 a_skin;
@@ -1054,7 +1054,7 @@
     game.hasFlashlight=true;game.flashlightTaken=true;game.torchOn=true;game.notice='FLASHLIGHT ACQUIRED';game.noticeTime=3.5;syncUI();
     sound.noise(.08,.3,1400);sound.tone(520,260,.10,.035,'triangle');
   }
-  function changeZoom(amount){if(game.mode!=='playing'||!locked)return;game.zoomTarget=clamp(game.zoomTarget*amount,1,6);}
+  function changeZoom(amount){if(game.mode!=='playing'||!locked)return;if(equippedTool==='gun'){gunMotion.aiming=amount>1;game.zoom=game.zoomTarget=1;return;}game.zoomTarget=clamp(game.zoomTarget*amount,1,6);}
   function canPickupFlashlight(){
     const p=flashlightPosition();return !game.flashlightTaken&&!game.hasFlashlight&&Math.hypot(player.x-p[0],player.z-p[2])<2.35&&!shedBlocksSight([player.x,player.y,player.z],p);
   }
@@ -1677,7 +1677,7 @@
   function resetWorld(playable,seed=null){
     player.biome="meadow";restoreMeadowGeometry();clearSuitCards();selectLayout(playable?(seed??(net.active?net.snapshots.at(-1)?.world.seed:(seedFromText(document.getElementById('singleplayerSeed').value)??Math.floor(Math.random()*0x7fffffff)))??0):0);
     avatarCache.clear();networkPylons=[];localDroppedItems=[];localDropSerial=0;pendingDrop=null;localFlares=[];flareSerial=0;cameraDynamics=createBodyCamera();
-    equippedTool='camera';kitPreviousFlashlight=false;resetEquipmentMotion();resetForestHaunts();resetForestLevel();tablet.progress=0;tablet.closing=false;game.godMode=false;game.infiniteSprint=false;
+    equippedTool='camera';kitPreviousFlashlight=false;resetEquipmentMotion();resetGun();resetBackpack();resetForestHaunts();resetForestLevel();tablet.progress=0;tablet.closing=false;game.godMode=false;game.infiniteSprint=false;
     turbine.x=playable?activeLayout.turbines[0].x:-35;turbine.z=playable?activeLayout.turbines[0].z:-250;turbine.y=terrainHeight(turbine.x,turbine.z);
     resetEnemy();resetPowerCreature();resetOtherTurbines();buildPowerCorridor();Object.assign(world,{phase:.43,cycle:true,turbineStopped:false,powerStopped:false});updateEnvironment(0);
     Object.assign(player,playable?{x:128,z:-34,yaw:-.015,pitch:-.025}:{x:0,z:6,yaw:0,pitch:-.01});
@@ -1939,7 +1939,7 @@
       objectDraws.push({mesh:shedWoodMesh,model,material:1},{mesh:shedMetalMesh,model,material:2},{mesh:shedDetailMesh,model});
       if(!game.sodaTaken)objectDraws.push({mesh:sodaMesh,model:transform(...sodaPosition()),material:5,assetKind:2});
       if(!game.flashlightTaken){const p=flashlightPosition();objectDraws.push({mesh:flashlightMesh,model:restingFlashlightMatrix(p),material:5,assetKind:1});}
-      }appendHeldEquipment();appendTablet();appendWatchingEye();
+      }appendHeldEquipment();appendBackpack();appendTablet();appendWatchingEye();
     }
   }
 
@@ -1989,8 +1989,8 @@
     // A chest-mounted camera settles after each footfall instead of following a perfect sine.
     const footPlant=Math.pow(Math.max(0,Math.cos(bob.phase*2)),6)*.009*bob.blend*amplitude*style;
     bob.vertical+=Math.sin(bob.phase*3+.6)*.004*bob.blend*style-footPlant;
-    if(tablet.progress>0){const fade=1-ease(tablet.progress);bob.vertical*=fade;bob.lateral*=fade;bob.roll*=fade;}
-    const yaw=player.yaw+cameraDynamics.yawLag+jitter*.009,pitch=player.pitch+cameraDynamics.pitch+cameraDynamics.pitchLag+Math.sin(bob.phase*2)*.0018*bob.blend+Math.sin(time*51.3)*shake*.013;
+    if(tablet.progress>0||backpack.progress>0){const fade=1-ease(Math.max(tablet.progress,backpack.progress));bob.vertical*=fade;bob.lateral*=fade;bob.roll*=fade;}
+    const yaw=player.yaw+cameraDynamics.yawLag+jitter*.009,pitch=player.pitch+(reducedMotion?0:gunMotion.kick*.018)+cameraDynamics.pitch+cameraDynamics.pitchLag+Math.sin(bob.phase*2)*.0018*bob.blend+Math.sin(time*51.3)*shake*.013;
     const roll=bob.roll+cameraDynamics.lean+Math.sin(time*39.2)*shake*.013;
     player.y=ground+game.eyeHeight;
     const sy=Math.sin(yaw),cy=Math.cos(yaw),sp=Math.sin(pitch),cp=Math.cos(pitch),cr=Math.cos(roll),sr=Math.sin(roll);
@@ -2000,7 +2000,7 @@
     cameraPosition.set([player.x+cy*bob.lateral+jitter*.028,player.y+bob.vertical+cameraDynamics.vertical+(reducedMotion||game.mode==='fieldPanel'?0:Math.sin(cameraDynamics.breath)*.004*(1-bob.blend))+Math.sin(time*61)*shake*.045,player.z-sy*bob.lateral]);
     const x=cameraPosition[0],y=cameraPosition[1],z=cameraPosition[2];
     view.set([right[0],up[0],-forward[0],0,right[1],up[1],-forward[1],0,right[2],up[2],-forward[2],0,-(right[0]*x+right[1]*y+right[2]*z),-(up[0]*x+up[1]*y+up[2]*z),forward[0]*x+forward[1]*y+forward[2]*z,1]);
-    const targetTan=Math.tan((65+style*5+Math.min(1,cameraDynamics.speed/6.6)*(7+style*3))*Math.PI/360)/game.zoom;cameraTan=lerp(cameraTan+(targetTan-cameraTan)*(1-Math.exp(-5*dt)),TAN_HALF_FOV,ease(tablet.progress));
+    const targetTan=Math.tan((65+style*5+Math.min(1,cameraDynamics.speed/6.6)*(7+style*3))*Math.PI/360)/game.zoom;cameraTan=lerp(cameraTan+(targetTan-cameraTan)*(1-Math.exp(-5*dt)),TAN_HALF_FOV,ease(Math.max(tablet.progress,backpack.progress)));
     projection[0]=1/(cameraTan*canvas.width/canvas.height);projection[5]=1/cameraTan;
     viewProjection.set(multiply(projection,view));
   }
@@ -2050,6 +2050,7 @@
     if(game.mode!=='playing'||!locked)return;
     const candidates=pickupCandidates(),item=typeof itemId==='string'?candidates.find(i=>i.id===itemId):candidates[0];if(!item)return;
     if(net.active){if(net.connected)net.action('pickup',{itemId:item.id});return;}
+    if(!canTakeEquipment(localInventory(),item.kind)){game.notice="INVENTORY FULL";game.noticeTime=2;return;}
     if(item.dropped){takeLocalDroppedItem(item);return;}
     if(item.kind==='flashlight'){pickupFlashlight();return;}
     if(item.kind==='flare'){game.hasFlare=true;game.flareTaken=true;game.flares=3;equipTool('flare');game.notice='FLARE GUN / 3 SIGNALS';game.noticeTime=3;return;}
@@ -2159,11 +2160,11 @@
     gl.uniform1i(u.u_censorCount,headCensorCount);gl.uniform4fv(u['u_censorRects[0]']??null,headCensorRects);gl.uniform1fv(u['u_censorDepths[0]']??null,headCensorDepths);gl.uniform2f(u.u_texel,1/canvas.width,1/canvas.height);
     gl.uniform1f(u.u_time,time);gl.uniform1f(u.u_vhs,cameraTapeAmount());gl.uniform1f(u.u_bodycam,cameraStyleAmount());gl.uniform1f(u.u_lens,cameraLensStrength());gl.uniform1f(u.u_exposure,lerp(1,cameraDynamics.exposure,cameraStyleAmount()));gl.uniform2f(u.u_motion,cameraDynamics.turnX,cameraDynamics.turnY);gl.uniform1f(u.u_intro,game.intro);gl.uniform1f(u.u_flash,flash);
     gl.uniform1f(u.u_bloom,settings.bloom?1:0);gl.uniform1f(u.u_lost,game.mode==='lost'?1:0);gl.uniform1f(u.u_fade,game.mode==='loading'?1:game.fadeIn);
-    gl.uniform1f(u.u_threat,inForest()?(visibleMimic()?.state==='charge'?1:0):enemy.state==='dormant'&&powerCreature.state==='dormant'?0:1);gl.drawArrays(gl.TRIANGLES,0,3);drawSuitCards();positionTabletScreen();
+    gl.uniform1f(u.u_threat,inForest()?(visibleMimic()?.state==='charge'?1:0):enemy.state==='dormant'&&powerCreature.state==='dormant'?0:1);gl.drawArrays(gl.TRIANGLES,0,3);drawSuitCards();positionTabletScreen();positionBackpackInventory();
   }
   function frame(now){
     if(!running)return;const elapsed=previousTime?(now-previousTime)/1000:0;const dt=document.hidden?0:Math.min(elapsed,.05);previousTime=now;time+=dt;
-    updateGame(dt);updateEnvironment(dt);updateSurvival(dt);updateTablet(dt);updateCamera(dt);updateForestHaunts(dt);updateEnemy(dt);updatePowerCreature(dt);updateEnemyCombat(dt);updateOtherTurbines(dt);updateEquipment(dt);updateFieldKit(dt);buildObjects();updateLight();updateTorchLight();sound.update();
+    updateGame(dt);updateEnvironment(dt);updateSurvival(dt);updateTablet(dt);updateBackpack(dt);updateGun(dt);updateCamera(dt);updateForestHaunts(dt);updateEnemy(dt);updatePowerCreature(dt);updateEnemyCombat(dt);updateOtherTurbines(dt);updateEquipment(dt);updateFieldKit(dt);buildObjects();updateLight();updateTorchLight();sound.update();
     gl.activeTexture(gl.TEXTURE0+8);gl.bindTexture(gl.TEXTURE_2D,null);
     gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,null);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,null);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,null);
     if(settings.shadows!=='off'){

@@ -63,6 +63,7 @@ const net = new TowerNetwork({
     refreshNetworkUI();
   },
   action: (m, request) => {
+    if(m.action==='shoot'||m.action==='reload')confirmGunAction(m);
     if(m.action==='flare')confirmFlareShot(m);
     if (!m.ok) {
       if(m.action==='drop')pendingDrop=null;
@@ -75,7 +76,7 @@ const net = new TowerNetwork({
     if (m.action === "pickup") {
       const i = net.items.find((i) => i.id === request?.itemId);
       game.notice =
-        i?.kind === "flashlight" ? "FLASHLIGHT ACQUIRED" : i?.kind === "flare" ? "FLARE GUN ACQUIRED" : i?.kind === "camera" ? "CAMERA ACQUIRED" : "SODA ACQUIRED";
+        i?.kind === "backpack" ? "BACKPACK EQUIPPED · 12 SLOTS" : i?.kind === "gun" ? "GLOCK 17 ACQUIRED" : i?.kind === "flashlight" ? "FLASHLIGHT ACQUIRED" : i?.kind === "flare" ? "FLARE GUN ACQUIRED" : i?.kind === "camera" ? "CAMERA ACQUIRED" : "SODA ACQUIRED";
       game.noticeTime = 3;
       sound.noise(0.08, 0.3, 1400);
     }
@@ -100,6 +101,7 @@ const net = new TowerNetwork({
         continue;
       }
       if(!sameBiome(e,player))continue;
+      if(e.kind==='gunshot'){if(e.id!==net.player?.id&&d<100)gunSound(.8/(1+d*.08));continue;}
       if(e.kind === "flare"){if(e.id!==net.player?.id&&d<70)sound.noise(.15,.16/(1+d*.05),800);continue;}
       if (d > 250) continue;
       if (e.kind === "powerStep") sound.powerStep(d);
@@ -411,6 +413,8 @@ function updateNetworkFrame(dt) {
     player.x = lerp(player.x, x, blend);
     player.z = lerp(player.z, z, blend);
   }
+  game.hasGun=!!p.inventory.gun;game.hasBackpack=!!p.inventory.backpack;
+  if(p.actionSeq>=(gunMotion.latestAction||0)){game.ammo=p.inventory.ammo||0;game.reserve=p.inventory.reserve||0;game.gunReload=p.gunReload||0;}
   game.hasCamera=p.inventory.camera!==false;
   game.hasFlashlight = p.inventory.flashlight;
   game.sodas = p.inventory.sodas;

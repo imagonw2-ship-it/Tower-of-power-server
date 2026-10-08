@@ -5,6 +5,7 @@ class ProximityAudioProcessor extends AudioWorkletProcessor {
     this.port.onmessage=({data:m})=>{
       if(m.type==='capture'){this.capture=m.enabled;this.at=0;this.phase=0;this.sum=0;this.count=0;}
       if(m.type==='clear')this.peers.clear();
+      if(m.type==='forget')this.peers.delete(m.id);
       if(m.type==='packet'){
         let p=this.peers.get(m.id);if(!p){p={queue:[],cursor:0,ready:false,gain:0,pan:0,last:currentTime};this.peers.set(m.id,p);}
         if(p.queue.length>=5){p.queue.shift();p.cursor=0;}
