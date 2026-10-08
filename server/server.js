@@ -72,7 +72,7 @@ export function createApp(options = {}) {
         return;
       }
       if (req.url === "/health") {
-        reply(200, { ok: true, protocol: 1, release: "14", features: ["shared-drops", "proximity-voice", "scaled-pylons", "silent-search", "seeded-worlds", "forest", "procedural-roads", "connected-pylon-graph", "forest-navigation", "suit-id-cards", "clustered-forests", "clear-suit-ids", "forest-only-dirt", "tree-watchers", "voice-mimics", "host-tablet", "host-abilities", "player-mimic", "endless-forest", "host-player-controls"], rooms: rooms.rooms.size });
+        reply(200, { ok: true, protocol: 1, release: "15", features: ["shared-drops", "proximity-voice", "scaled-pylons", "silent-search", "seeded-worlds", "forest", "procedural-roads", "connected-pylon-graph", "forest-navigation", "suit-id-cards", "clustered-forests", "clear-suit-ids", "forest-only-dirt", "tree-watchers", "voice-mimics", "host-tablet", "host-abilities", "player-mimic", "endless-forest", "host-player-controls", "forest-terrain", "forest-day-night", "mimic-navigation", "body-camera"], rooms: rooms.rooms.size });
         return;
       }
       if (
