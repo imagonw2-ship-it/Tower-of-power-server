@@ -43,3 +43,9 @@ The tablet mesh is converted from the project owner's `the-tablet.zip` / `Planch
 The watching-eye photograph is **Eye Shot - 1 - Professionally Edited** by Bernie Thomas / Berniethomas68, released by its author into the public domain: https://commons.wikimedia.org/wiki/File:Eye_Shot_-_1_-_Professionally_Edited.jpg . The original JPEG is bundled in `client/assets/watching-eye.jpg`. The game samples its eye region, darkens the iris and masks the surrounding skin in the shader. There are no runtime image downloads.
 
 Version 14 renders the existing public-domain eye photograph in an opaque black square. The tactical tablet UI is original; it uses no Bodycam assets.
+
+## Gun and military backpack (16)
+
+The project owner supplied `glock-17-pistol-low-poly-game-ready-3d-model.zip` (source `model.glb`) and `military-backpack-02.zip` (source `Backpack-Outdoor-02.fbx`). The runtime retains their original color textures, with reduced resolution and simplified backpack geometry. Original author and redistribution license metadata were not supplied; no license or authorship is inferred.
+
+The gun frame, slide and magazine and the backpack body and opening flap are packaged by `scripts/prepare_equipment.py`. The FBX conversion uses ufbx (https://github.com/ufbx/ufbx); UV-preserving geometry simplification uses meshoptimizer (https://github.com/zeux/meshoptimizer). These are build-time tools, not runtime downloads. The existing user-provided hazmat hands are reused. Recoil, aiming, reload, bag-opening animations, sounds and the projected inventory are original game code; no Bodycam assets or animations are included.

@@ -1,3 +1,17 @@
+## Version 16: field equipment
+
+The supplied Glock 17 has a two-handed grip, aim transition, walking sway, sprint lowering, recoil, moving slide and magazine reload. It carries 17 rounds with 34 in reserve. Bullets damage only mimics: two body hits or one head hit. Terrain, trees and forest obstacles block shots. The server validates ammunition, shot timing and hits; dead mimics stop moving, attacking and replaying voices.
+
+The supplied military backpack increases capacity from 6 to 12 slots on pickup. The existing inventory button (I/Tab on desktop) brings it around from the player's back, opens its flap and settles the camera onto the inventory inside. Closing puts it away smoothly. Other players see the worn pack and opening pose. It has no separate control or equip slot and does not appear on the starter table.
+
+Hosts can summon the gun, backpack and existing equipment through the tablet's new Items page. Summoned pickups are shared in multiplayer and follow the same capacity and reach rules as other items. Guests cannot issue summon commands.
+
+Desktop: left click fires, right click aims, R reloads. Touch: use the existing Use and Aim controls; tap the ammunition readout to reload, or press Use with an empty magazine. Open the host tablet with M or its existing button, choose Items, summon a pickup, then collect it.
+
+Android versionCode 31 / versionName 16 preserves the package and signing certificate. Multiplayer capability is 8; all players need version 16. Existing accounts require no migration. The forest terrain, day/night cycle, mimic movement, body camera and material/shadow fixes from version 15 are retained.
+
+Validation: 28 focused checks, comprising 22 automated gameplay, two-client networking and native shader checks, plus 6 real WebGL render/interaction scenes including the backpack at phone size. Physical Android performance and handling still need device feedback.
+
 ## Version 15: deep woods
 
 The forest now has its own rolling hills, gullies and small rock ledges, with mossy boulders, ferns, stumps, fallen branches, mushrooms and leaf litter. Deterministic terrain triangles keep feet, props and server collision aligned. Steep uphill faces block movement; rocks and trunks are shared obstacles. Forest details stream in bounded chunks and use shorter draw ranges on phones.
