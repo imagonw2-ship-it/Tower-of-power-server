@@ -200,7 +200,7 @@ test("real HTTP/WebSocket cross-device multiplayer and durable accounts", async 
     }
     const legacy=await device(await api('guest',{}),'12.5.1 APK',3),before=app.rooms.rooms.size;
     legacy.send({type:'host'});assert.equal((await legacy.wait('error')).code,'UPDATE_REQUIRED');
-    legacy.send({type:'join',code});assert.match((await legacy.wait('error')).message,/version 15/);
+    legacy.send({type:'join',code});assert.match((await legacy.wait('error')).message,/version 16/);
     assert.equal(app.rooms.rooms.size,before);assert.equal(room.players.size,4);
   });
   await t.test('real guest messages cannot use host abilities, and the tablet is visible but not equippable',async()=>{

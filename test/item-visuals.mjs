@@ -38,7 +38,7 @@ try{
  await page.screenshot({path:resolve(output,'inventory-phone.png')});
  await page.evaluate(()=>{game.hasFlashlight=false;game.hasFlare=false;game.sodas=0;equippedTool='camera';refreshFieldKit();});
  assert.equal(await page.locator('.kitCard:visible').count(),1);
- assert.equal(await page.locator('.kitEmpty:visible').count(),8);
+ assert.equal(await page.locator('.kitEmpty:visible').count(),5);
  await page.screenshot({path:resolve(output,'inventory-uncollected.png')});
  await page.setViewportSize({width:1280,height:640});
  await page.evaluate(()=>{closeFieldKit();resize();game.hasFlare=true;game.flares=3;equippedTool='flare';Object.assign(equipmentMotion,createToolMotion('flare'));frame(qaTime+=16);fireFlare();frame(qaTime+=1);});

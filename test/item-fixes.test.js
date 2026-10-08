@@ -32,7 +32,7 @@ test('inventory exposes only owned items and returns the slot when the last soda
  run("equipTool('soda');drinkSoda();refreshFieldKit();");assert.equal(visible().includes('soda'),false);
  run("game.drinking=0;equipTool('flare');dropEquipment();");assert.equal(visible().includes('flare'),false);
  run('takeLocalDroppedItem(localDroppedItems[0]);');assert.equal(visible().includes('flare'),true);
- assert.equal([...document.querySelectorAll('.kitEmpty')].filter(e=>!e.hidden).length+visible().length,9);
+ assert.equal([...document.querySelectorAll('.kitEmpty')].filter(e=>!e.hidden).length+visible().length,6);
 });
 test('flare starts at the rendered muzzle and its transparent pass follows solid geometry',()=>{
  let bound=null;const calls=[];
