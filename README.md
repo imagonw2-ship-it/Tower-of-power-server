@@ -1,3 +1,17 @@
+## Version 15: deep woods
+
+The forest now has its own rolling hills, gullies and small rock ledges, with mossy boulders, ferns, stumps, fallen branches, mushrooms and leaf litter. Deterministic terrain triangles keep feet, props and server collision aligned. Steep uphill faces block movement; rocks and trunks are shared obstacles. Forest details stream in bounded chunks and use shorter draw ranges on phones.
+
+An occupied forest completes a gradual day–night cycle in ten minutes, including warmer dawn/dusk lighting and daytime birds. It still starts mostly at night and pauses its clock while empty. Hosts can pause or adjust the cycle from the tablet.
+
+Mimics pause when watched, flank, wait for players to follow a lure, plan around obstacles and lead a moving target during a charge. Losing sight of a quiet target sends them to their last known position to search. Crouching, stamina, collision, copied appearance, speaker ownership and the brief attack warning are preserved.
+
+The adjustable Body Camera setting adds restrained turn inertia, footstep settling, wider moving FOV, lens curvature, edge color separation, subtle turn blur and gradual exposure adaptation. Reduced-motion preferences disable the new movement and blur; pickup labels and clear suit IDs follow the lens correctly. The original two-handed tablet transition still settles to a fixed view.
+
+Android versionCode 30 / versionName 15 retains the package and signing certificate. Multiplayer terrain capability is now 7; all players need version 15 for the same ground and collision. Accounts require no migration.
+
+Validation: focused terrain, AI, camera, multiplayer and native shader checks plus browser rendering. Physical Android frame rate and motion feel still need device feedback.
+
 ## Version 14: borrowed faces
 
 - The mimic copies another connected player's body, equipment, and authenticated voice clips. It follows behind, mirrors crouching, lures, briefly faces its target, then charges with the same movement, stamina and collision rules used by players. Its missing face censor and chest ID distinguish it. In solo play it can use the local player's voice.
