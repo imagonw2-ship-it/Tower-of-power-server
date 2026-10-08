@@ -42,10 +42,10 @@ function appendSuitCard(player,root,bones,distance){
   suitCardDraws.push({texture:card.texture,model,m,inv,bounds,distance});
 }
 function cardCameraWarp(uv){
-  const x=uv[0]-.5,y=uv[1]-.5,curve=1+(x*x+y*y)*.062*settings.vhs,v=.5+y*curve;
+  const x=uv[0]-.5,y=uv[1]-.5,curve=1+(x*x+y*y)*cameraLensStrength(),v=.5+y*curve;
   let u=.5+x*curve;const n=Math.sin(Math.floor(v*240)*127.1+Math.floor(time*24)*311.7)*43758.5453,line=n-Math.floor(n);
   const d=Math.abs(v-(time*.055-Math.floor(time*.055))),t=clamp((d-.002)/.013,0,1),roll=1-t*t*(3-2*t);
-  u+=(line-.5)*.004*settings.vhs+roll*Math.sin(time*4)*.015*settings.vhs+Math.sin(v*19+time*.8)*.0014*settings.vhs;
+  u+=(line-.5)*.004*cameraTapeAmount()+roll*Math.sin(time*4)*.015*cameraTapeAmount()+Math.sin(v*19+time*.8)*.0014*cameraTapeAmount();
   return[u,v];
 }
 function suitCardWarpOffset(m){

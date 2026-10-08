@@ -1,6 +1,9 @@
 // Uploaded signal launcher, with soft circular emissive flare particles.
 let flareGunTexture,flareGunMesh,flareGlowMesh,localFlares=[],flareSerial=0,flareAudioClock=0;
-let cameraDynamics={lean:0,pitch:0,speed:0,breath:0};
+let cameraDynamics=createBodyCamera();
+function cameraStyleAmount(){return isMenuScene()?0:settings.bodycam*(1-ease(tablet.progress));}
+function cameraTapeAmount(){return settings.vhs*(1-cameraStyleAmount()*.55);}
+function cameraLensStrength(){return .062*cameraTapeAmount()+.23*cameraStyleAmount();}
 let predictedFlare=null,muzzleFlash=0;
 const flareTrails=new Map();
 const flareLights=new Float32Array(8);

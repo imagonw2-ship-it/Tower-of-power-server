@@ -100,7 +100,7 @@
       <button id="controlsOpen">CONTROLS</button>
     </nav>
     <p id="worldMenuNotice" hidden>Your online world and voice chat stay active.</p>
-    <p class="menuFoot"><strong id="releaseLabel">VERSION 14 · WHISPERS IN THE WOODS</strong><br>HEADPHONES RECOMMENDED</p>
+    <p class="menuFoot"><strong id="releaseLabel">VERSION 15 · DEEP WOODS</strong><br>HEADPHONES RECOMMENDED</p>
   </main>
   <section id="settingsPanel" class="panel settings" hidden aria-label="Settings">
     <h2>SETTINGS</h2>
@@ -110,6 +110,7 @@
     <label>DYNAMIC SHADOWS<select id="shadows"><option value="off">OFF</option><option value="medium">MEDIUM</option><option value="high">HIGH</option></select></label>
     <label>BLOOM<input id="bloom" type="checkbox"></label>
     <label>VHS AMOUNT<input id="vhs" type="range" min="0" max="1" step="0.05"></label>
+    <label>BODY CAMERA<input id="bodycam" type="range" min="0" max="1" step="0.05"></label>
     <label>CAMERA SHAKE<input id="shake" type="range" min="0" max="1" step="0.05"></label>
     <h3>AUDIO</h3>
     <label>MASTER<input id="master" type="range" min="0" max="1" step="0.05"></label>
@@ -359,10 +360,10 @@
   turbine.y = terrainHeight(turbine.x, turbine.z);
   const bob = { phase: 0, blend: 0, strafe: 0, vertical: 0, lateral: 0, roll: 0 };
   let grassRings = [[.16,280,0,21.5,0],[.55,220,20,59,127],[1.4,170,57,116,311]];
-  const defaults={quality:'medium',shadows:'medium',bloom:true,vhs:.80,shake:.8,master:.65,ambience:.65,effects:.8,muted:false};
+  const defaults={quality:'medium',shadows:'medium',bloom:true,vhs:.80,bodycam:.7,shake:.8,master:.65,ambience:.65,effects:.8,muted:false};
   const settings={...defaults};
   try{const saved=JSON.parse(localStorage.getItem('tower-of-power-settings')||localStorage.getItem('stillwind-settings')||'{}');for(const k of Object.keys(defaults))if(typeof saved[k]===typeof defaults[k])settings[k]=saved[k];}catch(e){}
-  for(const k of ['vhs','shake','master','ambience','effects'])settings[k]=Math.max(0,Math.min(1,settings[k]));
+  for(const k of ['vhs','bodycam','shake','master','ambience','effects'])settings[k]=Math.max(0,Math.min(1,settings[k]));
   if(!['low','medium','high'].includes(settings.quality))settings.quality='medium';
   if(!['off','medium','high'].includes(settings.shadows))settings.shadows='medium';
   const game={mode:'menu',returnTo:'menu',clock:0,stamina:100,staminaDelay:0,exhausted:false,hasFlare:false,flareTaken:false,flares:0,flareCooldown:0,photos:0,flash:0,photoCooldown:0,photoPending:false,photoAge:99,shake:0,sprinting:false,intro:0,hintAge:0,fadeIn:0,hasFlashlight:false,torchOn:false,zoom:1,zoomTarget:1,noticeTime:0,notice:''};
@@ -400,6 +401,7 @@
   }
 
   function terrainHeight(x, z) {
+    if(player.biome==='forest')return forestTerrainHeight(x,z);
     const raw=.68*Math.sin(x*.042)*Math.cos(z*.038)+.40*Math.sin(x*.083+z*.035)+.20*Math.cos(z*.107-x*.031);
     const d=Math.max(Math.abs(x+185),Math.abs(z+270)),t=Math.max(0,Math.min(1,(d-34)/5)),e=t*t*(3-2*t);return .18*(1-e)+raw*e;
   }
@@ -689,7 +691,9 @@
       return mix(mix(hash(i), hash(i+vec2(1.,0.)), f.x),
                  mix(hash(i+vec2(0.,1.)), hash(i+vec2(1.)), f.x), f.y);
     }
+    ${FOREST_TERRAIN_GLSL}
     float heightAt(vec2 p) {
+      if(u_forestLevel>.5)return forestHeight(p);
       float raw=.68*sin(p.x*.042)*cos(p.y*.038)+.40*sin(p.x*.083+p.y*.035)+.20*cos(p.y*.107-p.x*.031);float d=max(abs(p.x+185.),abs(p.y+270.));return mix(.18,raw,smoothstep(34.,39.,d));
     }
     vec3 fogColor(vec3 direction) {
@@ -1268,7 +1272,8 @@
       uniform vec3 u_camera;
       out vec3 v_world;
       void main() {
-        vec2 p = a_position + floor(u_camera.xz/4.)*4.;
+        float cell=u_forestLevel>.5?2.:4.;
+        vec2 p = a_position*(cell/4.) + floor(u_camera.xz/cell)*cell;
         v_world = vec3(p.x, heightAt(p)-.015, p.y);
         gl_Position = u_vp*vec4(v_world,1.);
       }
@@ -1278,6 +1283,7 @@
       uniform float u_time;
       out vec4 color;
       void main(){
+        vec3 groundNormal=normalize(cross(dFdx(v_world),dFdy(v_world)));if(groundNormal.y<0.)groundNormal=-groundNormal;
         float broad=noise(v_world.xz*.095),grain=noise(v_world.xz*7.5);
         vec3 c=mix(vec3(.17,.235,.065),vec3(.295,.36,.115),broad)*(.88+grain*.20);
         float shade=noise(v_world.xz*.012+vec2(u_time*.003,4.));
@@ -1294,7 +1300,16 @@
         vec3 litter=mix(vec3(.17,.145,.10),vec3(.30,.247,.15),noise(v_world.xz*3.2))*(.82+.30*fineEarth);
         float leaves=smoothstep(.67,.84,noise(v_world.xz*vec2(11.,6.)));
         litter=mix(litter,vec3(.39,.285,.14),leaves*.6);litter=mix(litter,vec3(.15,.19,.08),smoothstep(.59,.78,mottle)*.35);
+        vec2 leafCell=floor(v_world.xz*4.),leaf=fract(v_world.xz*4.)-.5;
+        float angle=earthHash(ivec2(leafCell))*6.283,ca=cos(angle),sa=sin(angle);
+        leaf=mat2(ca,sa,-sa,ca)*leaf;
+        float fallenLeaf=(1.-smoothstep(.8,1.,length(leaf/vec2(.36,.12))))*step(.48,earthHash(ivec2(leafCell)+9));
+        litter=mix(litter,vec3(.32,.21,.095),fallenLeaf*.6);
         c=mix(c,litter,woods);c=mix(c,earth*mix(1.,.83,woods),trail*.93);
+        float exposed=smoothstep(.18,.40,1.-groundNormal.y)*u_forestLevel;
+        vec3 rock=mix(vec3(.22,.24,.23),vec3(.39,.40,.36),noise(v_world.xz*2.7+v_world.y))*(.8+.25*fineEarth);
+        rock=mix(rock,vec3(.12,.19,.075),smoothstep(.48,.74,mottle)*max(groundNormal.y,0.)*.65);
+        c=mix(c,rock,exposed);
 
         vec4 road=roadInfo(v_world.xz);
         float lateral=road.y,edge=road.x,ragged=(noise(v_world.xz*3.)-.5)*.2;
@@ -1307,7 +1322,7 @@
         paint*=smoothstep(.19,.7,grain)*(.35+.4*noise(v_world.xz*.65));
         asphalt=mix(asphalt,vec3(.70,.68,.55),paint);
         c=mix(c,asphalt,pavement);
-        vec3 n=normalize(cross(dFdx(v_world),dFdy(v_world)));if(n.y<0.)n=-n;
+        vec3 n=groundNormal;
         vec4 surface=texture(u_surfaceMaps,vec3(uv,2.));
         // Keep the broad road lighting aligned to the terrain normal.
         // Cast shadows and the asphalt color/roughness still apply below.
@@ -1451,10 +1466,11 @@
             if(v_uv.x>2.5){vec2 p=vec2(v_uv.x-4.,v_uv.y);float r=length(p),rings=sin(r*69.+noise(p*8.)*2.);albedo=mix(vec3(.36,.245,.13),vec3(.56,.42,.26),.5+rings*.24)*(.86+.16*noise(p*39.));float split=pow(abs(sin(atan(p.y,p.x)*4.+r*.18)),55.)*smoothstep(.15,.7,r);albedo*=1.-split*.45;}
             else{float grain=noise(v_uv*vec2(4.,150.)),groove=smoothstep(.45,.72,noise(v_uv*vec2(12.,48.)));albedo=mix(vec3(.12,.115,.09),vec3(.29,.26,.20),grain)*(1.-groove*.35);albedo=mix(albedo,vec3(.20,.25,.10),smoothstep(.6,.84,noise(v_world.xz*.9))*max(n.y,0.)*.48);}
           }
+          if(u_assetKind>12.5){albedo*=.80+.25*noise(v_world.xz*7.1+v_world.y);if(u_assetKind>13.5)albedo=mix(albedo,vec3(.13,.20,.075),smoothstep(.43,.73,noise(v_world.xz*.8+v_world.y*.2))*max(n.y,0.)*.8);}
           if(steel&&u_variant>.5){float rust=smoothstep(.42,.75,noise(v_world.xz*.18+v_world.y*.04));albedo=mix(albedo,vec3(.35,.18,.09),rust*(u_variant<1.5?.30:.55));}
           if(torch)n=mappedNormal(v_world,n,v_uv,texture(u_assetNormal,v_uv).rgb,.055);
           if(u_assetKind>1.5&&u_assetKind<2.5){float gray=dot(albedo,vec3(.2126,.7152,.0722));albedo=vec3(.44+gray*.4);}
-          float roughness=tree||log?.94:cameraProp?.45:avatar?.9:steel?.62:torch?.38:.28,metalness=tree||log||avatar?0.:steel?.7:torch?.3:.8;
+          float roughness=tree||log||u_assetKind>12.5?.94:cameraProp?.45:avatar?.9:steel?.62:torch?.38:.28,metalness=tree||log||avatar||u_assetKind>12.5?0.:steel?.7:torch?.3:.8;
           vec3 eye=normalize(u_camera-v_world);float vis=fieldShadow(v_world+geometric*.04);
           vec3 c=albedo*(interiorAmbient(v_world)+u_direct*max(dot(n,SUN),0.)*vis);
           if(tree&&v_uv.x>.5)c+=albedo*u_direct*.22*max(dot(-n,SUN),0.)*vis;
@@ -1523,7 +1539,8 @@
       uniform int u_censorCount;
       uniform vec4 u_censorRects[8];
       uniform float u_censorDepths[8];
-      uniform vec2 u_texel;
+      uniform vec2 u_texel,u_motion;
+      uniform float u_bodycam,u_lens,u_exposure;
       uniform float u_time,u_vhs,u_intro,u_flash,u_bloom,u_fade,u_lost,u_threat;
       out vec4 color;
       float random(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
@@ -1532,7 +1549,7 @@
       void main(){
         float tape=floor(u_time*24.);
         vec2 q=v_uv-.5;
-        vec2 uv=.5+q*(1.+dot(q,q)*.062*u_vhs);
+        vec2 uv=.5+q*(1.+dot(q,q)*u_lens);
         float row=floor(uv.y*240.);
         float line=random(vec2(row,tape));
         float roll=1.-smoothstep(.002,.015,abs(uv.y-fract(u_time*.055)));
@@ -1540,9 +1557,10 @@
         float distortion=u_intro*u_intro;
         uv.x+=tear+sin(uv.y*47.+u_time*28.)*.085*distortion;
         uv.y+=sin(u_time*19.+uv.x*22.)*.027*distortion;
-        vec2 shift=vec2((2.2*u_vhs+distortion*25.)*u_texel.x,0.);
+        vec2 shift=vec2((2.2*u_vhs+distortion*25.)*u_texel.x,0.)+q*dot(q,q)*.003*u_bodycam;
         vec3 c=texture(u_scene,uv).rgb;
         c.r=texture(u_scene,uv+shift).r;c.b=texture(u_scene,uv-shift).b;
+        if(dot(u_motion,u_motion)>.00000001)c=c*.76+(texture(u_scene,uv+u_motion).rgb+texture(u_scene,uv-u_motion).rgb)*.12;
         vec3 n=texture(u_scene,uv+vec2(0.,-1.)*u_texel).rgb;
         vec3 e=texture(u_scene,uv+vec2(1.,0.)*u_texel).rgb;
         vec3 s=texture(u_scene,uv+vec2(0.,1.)*u_texel).rgb;
@@ -1558,12 +1576,12 @@
           }
           c+=glow*.14;
         }
-        c=pow(aces(c*.96),vec3(1./2.2));
+        c=pow(aces(c*.96*u_exposure),vec3(1./2.2));
         float lum=luma(c);
         c=mix(c,vec3(lum)*vec3(.95,1.025,.96),u_vhs*.18);
         float grain=random(v_uv/u_texel+vec2(tape,9.13))-.5;
         float scan=sin(v_uv.y/u_texel.y*3.14159265);
-        c+=grain*(.065*u_vhs+.030*u_threat);
+        c+=grain*(.065*u_vhs+.030*u_threat+.022*u_bodycam*(1.-lum));
         c*=1.-(.032+.02*roll)*u_vhs*(.5+.5*scan);
         c+=roll*.025*u_vhs;
         c*=1.-.32*smoothstep(.22,.72,length(q));
@@ -1658,7 +1676,7 @@
   function setMode(mode){game.mode=mode;game.clock=0;keys.clear();game.sprinting=false;syncUI();}
   function resetWorld(playable,seed=null){
     player.biome="meadow";restoreMeadowGeometry();clearSuitCards();selectLayout(playable?(seed??(net.active?net.snapshots.at(-1)?.world.seed:(seedFromText(document.getElementById('singleplayerSeed').value)??Math.floor(Math.random()*0x7fffffff)))??0):0);
-    avatarCache.clear();networkPylons=[];localDroppedItems=[];localDropSerial=0;pendingDrop=null;localFlares=[];flareSerial=0;cameraDynamics={lean:0,pitch:0,speed:0,breath:0};
+    avatarCache.clear();networkPylons=[];localDroppedItems=[];localDropSerial=0;pendingDrop=null;localFlares=[];flareSerial=0;cameraDynamics=createBodyCamera();
     equippedTool='camera';kitPreviousFlashlight=false;resetEquipmentMotion();resetForestHaunts();resetForestLevel();tablet.progress=0;tablet.closing=false;game.godMode=false;game.infiniteSprint=false;
     turbine.x=playable?activeLayout.turbines[0].x:-35;turbine.z=playable?activeLayout.turbines[0].z:-250;turbine.y=terrainHeight(turbine.x,turbine.z);
     resetEnemy();resetPowerCreature();resetOtherTurbines();buildPowerCorridor();Object.assign(world,{phase:.43,cycle:true,turbineStopped:false,powerStopped:false});updateEnvironment(0);
@@ -1966,25 +1984,23 @@
     bob.roll=(Math.sin(bob.phase)*.005-bob.strafe*.004)*bob.blend*amplitude;
     const shake=reducedMotion||game.mode==='fieldPanel'?0:clamp(game.shake,0,1.3)*settings.shake;
     const jitter=(Math.sin(time*43.7)+Math.sin(time*79.1)*.35)*shake;
-    const response=1-Math.exp(-7*dt),velocity=distance/Math.max(.001,dt);
-    cameraDynamics.speed+=(velocity-cameraDynamics.speed)*response;
-    const accel=clamp((velocity-cameraDynamics.speed)*.009,-.025,.025);
-    cameraDynamics.pitch+=(accel-cameraDynamics.pitch)*response;
-    cameraDynamics.lean+=((moving?-sideways*.012:0)-cameraDynamics.lean)*response;
-    cameraDynamics.breath+=dt*(game.stamina<25?2.5:1.25);
-    if(reducedMotion){cameraDynamics.pitch=0;cameraDynamics.lean=0;}
-    if(tablet.progress>0){const fade=1-ease(tablet.progress);bob.vertical*=fade;bob.lateral*=fade;bob.roll*=fade;cameraDynamics.pitch*=fade;cameraDynamics.lean*=fade;}
-    const yaw=player.yaw+jitter*.009,pitch=player.pitch+cameraDynamics.pitch+Math.sin(bob.phase*2)*.0018*bob.blend+Math.sin(time*51.3)*shake*.013;
+    const velocity=distance/Math.max(.001,dt),ground=shedFloor(player.x,player.z),style=cameraStyleAmount();
+    stepBodyCamera(cameraDynamics,{yaw:player.yaw,pitch:player.pitch,speed:velocity,sideways,ground,x:player.x,z:player.z,stamina:game.stamina,day:world.day,canopy:inForest()?.8:0,torch:game.torchOn,amount:style,enabled:!reducedMotion&&game.mode==='playing'},dt);
+    // A chest-mounted camera settles after each footfall instead of following a perfect sine.
+    const footPlant=Math.pow(Math.max(0,Math.cos(bob.phase*2)),6)*.009*bob.blend*amplitude*style;
+    bob.vertical+=Math.sin(bob.phase*3+.6)*.004*bob.blend*style-footPlant;
+    if(tablet.progress>0){const fade=1-ease(tablet.progress);bob.vertical*=fade;bob.lateral*=fade;bob.roll*=fade;}
+    const yaw=player.yaw+cameraDynamics.yawLag+jitter*.009,pitch=player.pitch+cameraDynamics.pitch+cameraDynamics.pitchLag+Math.sin(bob.phase*2)*.0018*bob.blend+Math.sin(time*51.3)*shake*.013;
     const roll=bob.roll+cameraDynamics.lean+Math.sin(time*39.2)*shake*.013;
-    player.y=shedFloor(player.x,player.z)+game.eyeHeight;
+    player.y=ground+game.eyeHeight;
     const sy=Math.sin(yaw),cy=Math.cos(yaw),sp=Math.sin(pitch),cp=Math.cos(pitch),cr=Math.cos(roll),sr=Math.sin(roll);
     const baseRight=[cy,0,-sy],baseUp=[sy*sp,cp,cy*sp];
     for(let i=0;i<3;i++){right[i]=baseRight[i]*cr+baseUp[i]*sr;up[i]=baseUp[i]*cr-baseRight[i]*sr;}
     forward.set([-sy*cp,sp,-cy*cp]);
-    cameraPosition.set([player.x+cy*bob.lateral+jitter*.028,player.y+bob.vertical+(reducedMotion||game.mode==='fieldPanel'?0:Math.sin(cameraDynamics.breath)*.004*(1-bob.blend))+Math.sin(time*61)*shake*.045,player.z-sy*bob.lateral]);
+    cameraPosition.set([player.x+cy*bob.lateral+jitter*.028,player.y+bob.vertical+cameraDynamics.vertical+(reducedMotion||game.mode==='fieldPanel'?0:Math.sin(cameraDynamics.breath)*.004*(1-bob.blend))+Math.sin(time*61)*shake*.045,player.z-sy*bob.lateral]);
     const x=cameraPosition[0],y=cameraPosition[1],z=cameraPosition[2];
     view.set([right[0],up[0],-forward[0],0,right[1],up[1],-forward[1],0,right[2],up[2],-forward[2],0,-(right[0]*x+right[1]*y+right[2]*z),-(up[0]*x+up[1]*y+up[2]*z),forward[0]*x+forward[1]*y+forward[2]*z,1]);
-    const targetTan=Math.tan((65+Math.min(1,cameraDynamics.speed/6.6)*7)*Math.PI/360)/game.zoom;cameraTan=lerp(cameraTan+(targetTan-cameraTan)*(1-Math.exp(-5*dt)),TAN_HALF_FOV,ease(tablet.progress));
+    const targetTan=Math.tan((65+style*5+Math.min(1,cameraDynamics.speed/6.6)*(7+style*3))*Math.PI/360)/game.zoom;cameraTan=lerp(cameraTan+(targetTan-cameraTan)*(1-Math.exp(-5*dt)),TAN_HALF_FOV,ease(tablet.progress));
     projection[0]=1/(cameraTan*canvas.width/canvas.height);projection[5]=1/cameraTan;
     viewProjection.set(multiply(projection,view));
   }
@@ -1995,7 +2011,8 @@
     world.day=ease(clamp((world.sun[1]+.10)/.28,0,1));
     world.light=world.sun[1]>=0?world.sun:world.sun.map(v=>-v);
     const strength=world.sun[1]>=0?clamp(world.sun[1]*3,0,1):clamp(-world.sun[1]*2,0,1)*.16;
-    world.direct=[lerp(.48,1.0,world.day)*strength,lerp(.64,.95,world.day)*strength,lerp(1,.84,world.day)*strength];
+    const sunset=world.sun[1]>-.04?1-ease(clamp(world.sun[1]/.32,0,1)):0;
+    world.direct=[lerp(.48,1.0,world.day)*strength,lerp(.64,.95,world.day)*strength*(1-sunset*.20),lerp(1,.84,world.day)*strength*(1-sunset*.38)];
     world.ambient=[lerp(.085,.40,world.day),lerp(.11,.44,world.day),lerp(.17,.47,world.day)];
   }
   function chooseTime(phase){(inForest()?forestLevel:world).phase=phase;updateEnvironment(0);syncFieldPanel();}
@@ -2140,7 +2157,7 @@
     const u=postProgram.uniforms;gl.uniform1i(u.u_scene,0);
     gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,sceneTarget.depth);gl.uniform1i(u.u_sceneDepth,1);
     gl.uniform1i(u.u_censorCount,headCensorCount);gl.uniform4fv(u['u_censorRects[0]']??null,headCensorRects);gl.uniform1fv(u['u_censorDepths[0]']??null,headCensorDepths);gl.uniform2f(u.u_texel,1/canvas.width,1/canvas.height);
-    gl.uniform1f(u.u_time,time);gl.uniform1f(u.u_vhs,settings.vhs);gl.uniform1f(u.u_intro,game.intro);gl.uniform1f(u.u_flash,flash);
+    gl.uniform1f(u.u_time,time);gl.uniform1f(u.u_vhs,cameraTapeAmount());gl.uniform1f(u.u_bodycam,cameraStyleAmount());gl.uniform1f(u.u_lens,cameraLensStrength());gl.uniform1f(u.u_exposure,lerp(1,cameraDynamics.exposure,cameraStyleAmount()));gl.uniform2f(u.u_motion,cameraDynamics.turnX,cameraDynamics.turnY);gl.uniform1f(u.u_intro,game.intro);gl.uniform1f(u.u_flash,flash);
     gl.uniform1f(u.u_bloom,settings.bloom?1:0);gl.uniform1f(u.u_lost,game.mode==='lost'?1:0);gl.uniform1f(u.u_fade,game.mode==='loading'?1:game.fadeIn);
     gl.uniform1f(u.u_threat,inForest()?(visibleMimic()?.state==='charge'?1:0):enemy.state==='dormant'&&powerCreature.state==='dormant'?0:1);gl.drawArrays(gl.TRIANGLES,0,3);drawSuitCards();positionTabletScreen();
   }

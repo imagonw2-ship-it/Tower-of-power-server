@@ -56,7 +56,7 @@ function appendForest(){
       for(const t of c.trees){
         const d=(player.x-t.x)**2+(player.z-t.z)**2;if(d>(range+14)**2)continue;
         const b=forestBatches[t.kind*2+(d<near*near?0:1)];
-        b.values.set([t.x,terrainHeight(t.x,t.z)-.045,t.z,t.height,Math.sin(t.yaw),Math.cos(t.yaw),t.shade,0],b.count++*8);
+        b.values.set([t.x,inForest()?t.ground:terrainHeight(t.x,t.z)-.045,t.z,t.height,Math.sin(t.yaw),Math.cos(t.yaw),t.shade,0],b.count++*8);
       }
     }
     for(const b of forestBatches)if(b.count){gl.bindBuffer(gl.ARRAY_BUFFER,b.buffer);gl.bufferSubData(gl.ARRAY_BUFFER,0,b.values.subarray(0,b.count*8));}

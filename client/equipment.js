@@ -35,7 +35,7 @@ function toggleFlashlight(){
   sound.noise(.045,.22,1800);refreshFieldKit();
 }
 function heldEquipmentMatrix(tool=equipmentMotion.shown){
-  const dip=ease(equipmentMotion.lower),sway=Math.sin(bob.phase)*bob.blend*.008;
+  const dip=ease(equipmentMotion.lower),sway=Math.sin(bob.phase)*bob.blend*.008-cameraDynamics.yawLag*.24;
   const drinking=tool==='soda'&&game.drinking>0?Math.sin((1-game.drinking/1.1)*Math.PI):0;
   const x=tool==='flashlight'?.27:tool==='soda'?.21:.22;
   // The launcher origin is above its handle. Raise it so the grip and knuckles
@@ -44,7 +44,7 @@ function heldEquipmentMatrix(tool=equipmentMotion.shown){
   const z=tool==='flashlight'?.59:tool==='soda'?.53:tool==='flare'?.53:.42;
   const p=cameraPosition.map((v,i)=>v+right[i]*(x+sway+dip*.055)-up[i]*(y+dip*.46+(game.sprinting?.045:0)-drinking*.24)+forward[i]*(z-dip*.1));
   const basis=new Float32Array([right[0],right[1],right[2],0,up[0],up[1],up[2],0,-forward[0],-forward[1],-forward[2],0,...p,1]);
-  const tilt=multiply(rotateX(dip*.62+drinking*.8),rotateZ(-dip*.17+(tool==='soda'?-.12:0)));
+  const tilt=multiply(rotateX(dip*.62+drinking*.8+cameraDynamics.pitchLag*.55),rotateZ(-dip*.17+(tool==='soda'?-.12:0)));
   return multiply(multiply(basis,tilt),tool==='flashlight'?transform(0,0,0,1.3,1.3,1.3):identity());
 }
 function appendHeldEquipment(){

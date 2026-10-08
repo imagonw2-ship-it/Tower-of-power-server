@@ -23,7 +23,7 @@ function projectPickup(p){
   const uv=[(m[0]*p[0]+m[4]*p[1]+m[8]*p[2]+m[12])/w*.5+.5,(m[1]*p[0]+m[5]*p[1]+m[9]*p[2]+m[13])/w*.5+.5];
   // Reverse the lens warp for the HTML overlay; a broad tap area absorbs tape jitter.
   const q=uv.map(v=>v-.5);let x=q[0],y=q[1];
-  for(let i=0;i<4;i++){const f=1+(x*x+y*y)*.062*settings.vhs;x=q[0]/f;y=q[1]/f;}
+  for(let i=0;i<4;i++){const f=1+(x*x+y*y)*cameraLensStrength();x=q[0]/f;y=q[1]/f;}
   return [(.5+x)*innerWidth,(.5-y)*innerHeight];
 }
 function updatePickupPrompt(){
