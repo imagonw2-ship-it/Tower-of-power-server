@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {launch} from './game-harness.js';
+import {forestTerrainHeight} from '../shared/forest-terrain.js';
 
 test('native GLES compiles the game and verifies flashlight visibility, falloff and shadows', {
   skip: !process.env.ANGLE_LIB_DIR && 'Set ANGLE_LIB_DIR to enable the real graphics compiler gate.',
@@ -11,6 +12,7 @@ test('native GLES compiles the game and verifies flashlight visibility, falloff 
   shaders.push('#version 300 es\nvoid main(){vec2 p=vec2(float((gl_VertexID<<1)&2),float(gl_VertexID&2));gl_Position=vec4(p*2.-1.,0.,1.);}',
     '#version 300 es\n'+run('commonGLSL')+`\nuniform vec2 u_probe;uniform float u_probeMode;uniform vec3 u_rayFrom,u_rayTo;out vec4 color;
     void main(){vec3 p=vec3(u_probe.x,-1.35,-u_probe.y);
+      if(u_probeMode>3.5){color=vec4(vec3((heightAt(u_probe)+20.)/40.),1.);return;}
       if(u_probeMode>2.5){color=vec4(vec3(shedTransmission(u_rayFrom,u_rayTo)),1.);return;}
       if(u_probeMode>.5){color=vec4(u_probeMode>1.5?vec3(fieldShadow(p)):interiorAmbient(p),1.);return;}
       vec3 c=flashLight(vec3(.035),vec3(.3,.37,.22),p,vec3(0.),vec3(0.,1.,0.),0.);
@@ -25,4 +27,5 @@ test('native GLES compiles the game and verifies flashlight visibility, falloff 
   assert.equal(report.programs.length, 8);
   assert.ok(report.programs.every(p => p.linked));
   assert.deepEqual(report.failures, []);
+  for(const p of report.terrain)assert.ok(Math.abs(p.height-forestTerrainHeight(p.x,p.z))<.19,`GPU and actor terrain diverge at ${p.x},${p.z}`);
 });

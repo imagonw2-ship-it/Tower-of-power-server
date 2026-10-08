@@ -1,3 +1,4 @@
+import {LAYOUT_VERSION} from '../shared/world-layout.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {makeLayout,makeLayoutLookup,nearestRoad,segmentDistanceSquared,seedFromText,forestForLayout,collideForest} from '../shared/world-layout.js';
@@ -34,7 +35,7 @@ test('world seeds round-trip by number or phrase, and rooms keep separate layout
  const rooms=new Rooms(),a=rooms.create({id:'a'},'the quiet forest'),b=rooms.create({id:'b'},'8');
  assert.equal(a.world.seed,seed);assert.equal(b.world.seed,8);assert.notDeepEqual(a.world.layout,b.world.layout);
  assert.throws(()=>rooms.create({id:'c'},{}),/seed/);assert.throws(()=>rooms.create({id:'c'},'x'.repeat(41)),/seed/);
- assert.equal(rooms.snapshot(a).world.layoutVersion,6);assert.equal(serializeWorld(a.world).seed,seed);
+ assert.equal(rooms.snapshot(a).world.layoutVersion,LAYOUT_VERSION);assert.equal(serializeWorld(a.world).seed,seed);
 });
 test('GPU spatial lookup retains exact road edges and intersections across generated worlds',()=>{
  for(let seed=0;seed<20;seed++){
