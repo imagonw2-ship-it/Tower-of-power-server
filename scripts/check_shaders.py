@@ -52,7 +52,7 @@ delete_program = gl('glDeleteProgram', None, [U])
 
 sources = json.load(sys.stdin)
 assert sources and len(sources) % 2 == 0
-failures, programs = [], []
+failures, programs, terrain_probes = [], [], []
 names = ['sky','ground','grass','objects','camera effects','shadows','clear suit IDs','flashlight probe']
 for pair in range(len(sources)//2):
     program = create_program()
@@ -102,7 +102,7 @@ for pair in range(len(sources)//2):
         gl('glUseProgram',None,[U])(program)
         location=gl('glGetUniformLocation',I,[U,c.c_char_p])
         ui=gl('glUniform1i',None,[I,I]);uf=gl('glUniform1f',None,[I,c.c_float])
-        ui(location(program,b'u_scene'),0);ui(location(program,b'u_sceneDepth'),1)
+        ui(location(program,b'u_scene'),0);ui(location(program,b'u_sceneDepth'),1);uf(location(program,b'u_exposure'),1)
         gl('glUniform2f',None,[I,c.c_float,c.c_float])(location(program,b'u_texel'),1,1)
         gl('glUniform4fv',None,[I,I,c.POINTER(c.c_float)])(location(program,b'u_censorRects[0]'),1,(c.c_float*4)(.2,.2,.8,.8))
         uf(location(program,b'u_censorDepths[0]'),.6)
@@ -182,6 +182,8 @@ for pair in range(len(sources)//2):
         gl('glUniform2f',None,[I,c.c_float,c.c_float])(location(program,b'u_nearShadowTexel'),1/1024,1/1024)
         vals=[sample(x,0,on=0) for x in [-8,-4,0,4,8]]
         assert all(a+.02<b for a,b in zip(vals,vals[1:])), f'Close shadow filtering is not smooth: {vals}'
+        uf(location(program,b'u_probeMode'),4);uf(location(program,b'u_forestLevel'),1)
+        terrain_probes=[{'x':x,'z':z,'height':sample(x,z,on=0)*40-20} for x,z in [(0,-16),(-24.3,-40.7),(46,-100),(6,-266),(321.4,891.6),(43200.3,-33600.7)]]
         assert gl('glGetError',U,[])()==0,'Graphics error in flashlight probe'
     failures.extend(errors)
     programs.append({'name':name, 'linked':not errors})
@@ -193,5 +195,5 @@ egl('eglMakeCurrent', U, [P,P,P,P])(display,None,None,None)
 egl('eglDestroySurface', U, [P,P])(display,surface)
 egl('eglDestroyContext', U, [P,P])(display,context)
 egl('eglTerminate', U, [P])(display)
-print(json.dumps({'renderer':renderer, 'programs':programs, 'failures':failures}))
+print(json.dumps({'renderer':renderer, 'programs':programs, 'failures':failures, 'terrain':terrain_probes}))
 sys.exit(bool(failures))
