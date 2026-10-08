@@ -48,13 +48,13 @@ export class ForestMimic {
     const recorded=players.filter(p=>p.alive!==false&&p.connected!==false&&memory?.clips.some(c=>c.id===p.id));
     if(recorded.length&&!recorded.some(p=>p.id!==target.id)){const other=near.find(p=>p.id!==recorded[0].id);if(other)target=other;}
     const source=this.chooseIdentity(players,memory,target),d=10+this.random()*5,a=(target.yaw||0)+(this.random()-.5)*.55;
-    Object.assign(this,{active:true,id:'mimic-'+(++this.serial),isMimic:true,biome:'forest',sourceId:source.id,targetId:target.id,username:source.username||'YOU',heldItem:source.heldItem||'none',torch:!!source.torch,x:target.x+Math.sin(a)*d,z:target.z+Math.cos(a)*d,yaw:target.yaw||0,pitch:0,vx:0,vz:0,crouching:false,sprinting:false,stamina:100,staminaDelay:0,exhausted:false,alive:true,state:'follow',stateUntil:this.clock+12+this.random()*10,expires:this.clock+140,echoAt:this.clock+2+this.random()*3,playing:null,steps:0,route:[],routeAt:0,routeGoal:null,perceiveAt:0,seen:false,watched:false,stare:0,unwatched:0,flankAfter:this.clock+3,spawnAt:this.clock,lastSeenAt:this.clock,lastHeardAt:-99,searchPoint:0,stuck:0});
+    Object.assign(this,{active:true,id:'mimic-'+(++this.serial),isMimic:true,biome:'forest',sourceId:source.id,targetId:target.id,username:source.username||'YOU',heldItem:source.heldItem||'none',torch:!!source.torch,x:target.x+Math.sin(a)*d,z:target.z+Math.cos(a)*d,yaw:target.yaw||0,pitch:0,vx:0,vz:0,crouching:false,sprinting:false,stamina:100,staminaDelay:0,exhausted:false,alive:true,health:2,deathTime:0,state:'follow',stateUntil:this.clock+12+this.random()*10,expires:this.clock+140,echoAt:this.clock+2+this.random()*3,playing:null,steps:0,route:[],routeAt:0,routeGoal:null,perceiveAt:0,seen:false,watched:false,stare:0,unwatched:0,flankAfter:this.clock+3,spawnAt:this.clock,lastSeenAt:this.clock,lastHeardAt:-99,searchPoint:0,stuck:0});
     collideEndlessForest(this,this.layout.seed);this.y=forestTerrainHeight(this.x,this.z)+1.7;
     this.lastKnown={x:target.x,z:target.z,yaw:target.yaw||0,pitch:target.pitch||0,crouching:!!target.crouching,vx:0,vz:0};return true;
   }
   clear(){this.active=false;this.playing=null;this.route=[];this.next=this.clock+25+this.random()*35;}
   forget(id){if(this.playing?.clip.id===id)this.playing=null;}
-  snapshot(){if(!this.active)return{active:false};return Object.fromEntries(['active','id','isMimic','biome','sourceId','targetId','username','heldItem','torch','x','y','z','yaw','pitch','vx','vz','crouching','sprinting','alive','state'].map(k=>[k,this[k]]));}
+  snapshot(){if(!this.active)return{active:false};return Object.fromEntries(['active','id','isMimic','biome','sourceId','targetId','username','heldItem','torch','x','y','z','yaw','pitch','vx','vz','crouching','sprinting','alive','state','health','deathTime'].map(k=>[k,this[k]]));}
   changeState(state,duration){this.state=state;this.stateUntil=this.clock+duration;this.route=[];this.routeAt=0;}
   observe(target,dt){
     if(this.clock>=this.perceiveAt){
@@ -88,6 +88,7 @@ export class ForestMimic {
     this.clock+=dt;memory.tick(this.clock);
     const near=players.filter(p=>p.alive!==false&&p.connected!==false&&biomeOf(p)==='forest');
     if(!this.active&&this.clock>=this.next){this.next=this.clock+12;if(near.length&&this.random()<.28)this.spawn(near[Math.floor(this.random()*near.length)],players,memory);}if(!this.active)return [];
+    if(!this.alive){this.deathTime=(this.deathTime||0)+dt;this.playing=null;if(this.deathTime>5)this.clear();return [];}
     const target=near.find(p=>p.id===this.targetId),source=players.find(p=>p.id===this.sourceId&&p.alive!==false&&p.connected!==false);
     if(!target||!source||this.clock>=this.expires||Math.hypot(target.x-this.x,target.z-this.z)>85){this.clear();return [];}
     this.heldItem=source.heldItem||'none';this.torch=!!source.torch;this.observe(target,dt);
