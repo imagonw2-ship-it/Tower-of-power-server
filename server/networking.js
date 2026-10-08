@@ -1,3 +1,5 @@
+import {beginGunReload} from '../shared/equipment-rules.js';
+import {shootMimic} from '../shared/gun-combat.js';
 import {biomeOf} from '../shared/forest-level.js';
 import { LAYOUT_VERSION } from '../shared/world-layout.js';
 import { spawnFlare } from '../shared/survival.js';
@@ -101,7 +103,7 @@ export function attachNetworking(
         if (["host", "join", "resume"].includes(m.type)) {
           // Older builds cannot draw the generated roads, towers or forest.
           // Keep login available, but never put them into an invisible world.
-          if (ws.layoutVersion !== LAYOUT_VERSION) throw Object.assign(Error('Update TOWER OF POWER to version 15 or newer to join multiplayer.'), { code: 'UPDATE_REQUIRED' });
+          if (ws.layoutVersion !== LAYOUT_VERSION) throw Object.assign(Error('Update TOWER OF POWER to version 16 or newer to join multiplayer.'), { code: 'UPDATE_REQUIRED' });
           if (room) throw Error("Already in a world.");
           const target =
               m.type === "host"
@@ -159,8 +161,9 @@ export function attachNetworking(
         )
           return;
         p.actionSeq = m.id;
-        let ok = false,flareResult=null;
+        let ok = false,flareResult=null,gunResult=null;
         const w = room.world;
+        if(m.action==='inventory'&&room.phase==='playing'&&p.alive&&typeof m.open==='boolean'){p.inventoryOpen=m.open;p.input.x=p.input.z=p.vx=p.vz=0;p.sprinting=false;p.gunReload=0;ok=true;}
         if(m.action==='host')ok=hostCommand(room,p,m.value);
         if (m.action === "world" && p.id === room.ownerId) {
           const a = m.value;
@@ -173,7 +176,12 @@ export function attachNetworking(
           }
         }
         if (room.phase === "playing" && p.alive && !p.tabletOpen) {
-          if(m.action==='equip'&&(m.item==='none'||(m.item==='camera'&&p.inventory.camera!==false)||(m.item==='flashlight'&&p.inventory.flashlight)||(m.item==='soda'&&p.inventory.sodas>0)||(m.item==='flare'&&p.inventory.flare))){p.heldItem=m.item;if(m.item!=='flashlight')p.torch=false;ok=true;}
+          if(m.action==='equip'&&(m.item==='none'||(m.item==='camera'&&p.inventory.camera!==false)||(m.item==='flashlight'&&p.inventory.flashlight)||(m.item==='soda'&&p.inventory.sodas>0)||(m.item==='flare'&&p.inventory.flare)||(m.item==='gun'&&p.inventory.gun))){p.heldItem=m.item;if(m.item!=='flashlight')p.torch=false;ok=true;}
+          if(m.action==='reload')ok=beginGunReload(p);
+          if(m.action==='shoot'&&[m.yaw,m.pitch].every(Number.isFinite)&&Math.abs(m.yaw)<1e6&&Math.abs(m.pitch)<=1.49){
+            p.yaw=m.yaw;p.pitch=m.pitch;p.input.yaw=m.yaw;p.input.pitch=m.pitch;gunResult=shootMimic(p,w.mimic,w.seed);ok=!!gunResult;
+            if(ok){w.sim.noise(p,180);w.sim.events.push({kind:'gunshot',id:p.id,x:p.x,z:p.z,biome:biomeOf(p)});if(gunResult.killed)w.mimicFrames=[];}
+          }
           if(m.action==='drop')ok=dropItem(w,p,m.item);
           if(m.action==='flare'&&p.heldItem==='flare'&&p.inventory.flare&&p.inventory.flares>0&&!(p.flareCooldown>0)&&w.flares.length<16){
             p.inventory.flares--;p.flareCooldown=1.2;
@@ -207,7 +215,7 @@ export function attachNetworking(
             ok = true;
           }
         }
-        send(ws, { type: "actionResult", id: m.id, action: m.action, ok,...(flareResult?{flare:flareResult}:{}) });
+        send(ws, { type: "actionResult", id: m.id, action: m.action, ok,...(flareResult?{flare:flareResult}:{}),...(gunResult?{shot:gunResult}:{}) });
       } catch (e) {
         send(ws, {
           type: "error",

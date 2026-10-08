@@ -79,7 +79,7 @@ export class Rooms {
     const r = this.rooms.get(this.membership.get(id)),
       p = r?.players.get(id);
     if (p) {
-      p.connected = false;p.tabletOpen=false;
+      p.connected = false;p.tabletOpen=false;p.inventoryOpen=false;p.gunReload=0;
       r.world.voiceMemory.forget(id);r.world.mimic.forget(id);
       p.speakingUntil=0;
       p.disconnectedAt = Date.now();

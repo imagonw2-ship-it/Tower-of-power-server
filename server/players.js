@@ -1,3 +1,4 @@
+import {tickGun} from '../shared/equipment-rules.js';
 import {biomeOf,moveForestActor,tickForestBoundary} from '../shared/forest-level.js';
 import { spendStamina } from '../shared/survival.js';
 import { movePlayer, floorHeight, footstepRadius } from "../shared/physics.js";
@@ -18,8 +19,8 @@ export function makePlayer(account, index) {
     stamina: 100, staminaDelay: 0, exhausted: false,
     alive: true,
     health: 1,
-    godMode:false,infiniteSprint:false,tabletOpen:false,biome:"meadow",teleportSeq:0,slow:0,frozen:0,
-    inventory: { camera: true, flashlight: false, sodas: 0, flare: false, flares: 0 },
+    godMode:false,infiniteSprint:false,tabletOpen:false,inventoryOpen:false,gunReload:0,gunCooldown:0,gunFlash:0,biome:"meadow",teleportSeq:0,slow:0,frozen:0,
+    inventory: { camera: true, flashlight: false, sodas: 0, flare: false, flares: 0,gun:false,backpack:false,ammo:0,reserve:0 },
     torch: false,
     heldItem: "camera",
     boost: 0,
@@ -48,7 +49,7 @@ export function acceptInput(p, m, now) {
     return false;
   p.seq = m.seq;
   p.lastInput = now;
-  if(p.tabletOpen)return true;
+  if(p.tabletOpen||p.inventoryOpen)return true;
   p.input = {
     x: m.x,
     z: m.z,
@@ -60,6 +61,7 @@ export function acceptInput(p, m, now) {
   return true;
 }
 export function tickPlayer(p, dt, world, now) {
+  tickGun(p,dt);
   p.boost = Math.max(0, p.boost - dt);
   p.slow=Math.max(0,(p.slow||0)-dt);p.frozen=Math.max(0,(p.frozen||0)-dt);
   if(tickForestBoundary(p,world.layout,world.forestLevel,dt))Object.assign(p.input,{x:0,z:0,yaw:p.yaw,pitch:p.pitch});
@@ -68,7 +70,7 @@ export function tickPlayer(p, dt, world, now) {
   p.photo = Math.max(0, p.photo - dt);
   p.cooldown = Math.max(0, p.cooldown - dt);
   p.flareCooldown=Math.max(0,(p.flareCooldown||0)-dt);
-  if (p.tabletOpen || p.frozen>0 || !p.alive || !p.connected || now - p.lastInput > 350) {
+  if (p.tabletOpen || p.inventoryOpen || p.frozen>0 || !p.alive || !p.connected || now - p.lastInput > 350) {
     p.input.x = p.input.z = 0;
     p.sprinting = false;
     p.vx = p.vz = 0;
@@ -103,7 +105,7 @@ export function wirePlayer(p) {
     sprinting: p.sprinting,
     stamina:p.stamina, exhausted:p.exhausted,
     alive: p.alive,
-    godMode:p.godMode,infiniteSprint:p.infiniteSprint,tabletOpen:p.tabletOpen,
+    godMode:p.godMode,infiniteSprint:p.infiniteSprint,tabletOpen:p.tabletOpen,inventoryOpen:p.inventoryOpen,gunReload:p.gunReload,gunFlash:p.gunFlash,
     connected: p.connected,
     speaking: (p.speakingUntil||0)>Date.now(),
     voiceSlot: p.voiceSlot,
