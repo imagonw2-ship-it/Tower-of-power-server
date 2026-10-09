@@ -40,4 +40,4 @@ function appendWatchingEye(){
 }
 
 function visibleMimic(){if(!net.active)return localMimic.active?localMimic:null;const q=snapshotPair(),m=q?.b.world.mimic;if(!m?.active)return null;const a=q.a.world.mimic;return a?.active&&a.id===m.id?poseBetween(a,m,q.t):m;}
-function appendMimic(){const m=visibleMimic();if(m&&!isMenuScene())appendHazmat(m,net.active?net.snapshots.at(-1).world.elapsed:localMimic.clock);}
+function appendMimic(){const m=visibleMimic();if(m&&!isMenuScene())appendHazmat(m,net.active?performance.now()/1000:localMimic.clock);}

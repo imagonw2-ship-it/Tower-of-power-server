@@ -414,7 +414,7 @@ function updateNetworkFrame(dt) {
     player.z = lerp(player.z, z, blend);
   }
   game.hasGun=!!p.inventory.gun;game.hasBackpack=!!p.inventory.backpack;
-  if(p.actionSeq>=(gunMotion.latestAction||0)){game.ammo=p.inventory.ammo||0;game.reserve=p.inventory.reserve||0;game.gunReload=p.gunReload||0;}
+  syncGunInventory(p,latest.received);
   game.hasCamera=p.inventory.camera!==false;
   game.hasFlashlight = p.inventory.flashlight;
   game.sodas = p.inventory.sodas;
@@ -472,7 +472,8 @@ function appendNetworkObjects() {
   for(const cur of q.b.players){
     if(cur.id===net.player.id||!cur.alive||!cur.connected||!sameBiome(cur,player))continue;
     const prev=q.a.players.find(p=>p.id===cur.id)||cur,p=poseBetween(prev,cur,q.t);
-    appendHazmat(p,net.snapshots.at(-1).world.elapsed);
+    // Render-time animation keeps moving between the server's 10 Hz snapshots.
+    appendHazmat(p,performance.now()/1000);
     if (p.photo > 0 && Math.hypot(p.x - player.x, p.z - player.z) < 35)
       game.flash = Math.max(game.flash, (0.15 * p.photo) / 0.22);
   }

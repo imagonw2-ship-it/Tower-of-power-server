@@ -22,6 +22,20 @@ function posedGripRecord(base,patch,kind,scale=1){
   }
   let text='';for(let i=0;i<bytes.length;i+=16384)text+=String.fromCharCode(...bytes.subarray(i,i+16384));return{...base,vertices:btoa(text)};
 }
+function twoHandGripRecord(base,patch,kind){
+  const posed=posedGripRecord(base,patch,kind),bytes=Uint8Array.from(atob(posed.vertices),c=>c.charCodeAt(0)),view=new DataView(bytes.buffer),source=new DataView(Uint8Array.from(atob(base.vertices),c=>c.charCodeAt(0)).buffer);
+  const ids=new Uint16Array(Uint8Array.from(atob(patch.indices),c=>c.charCodeAt(0)).buffer),left=AVATAR_ASSET.bones.indexOf('hand_l');
+  // The supplied suit is mirrored. Transfer the curled right glove to matching
+  // left vertices, preserving its original UVs, seams and bone weights.
+  for(let i=0;i<base.vertexCount;i++){
+    if(source.getUint8(i*32+21)!==left)continue;
+    let nearest=-1,best=.004*.004;
+    for(const j of ids){let d=0;for(let k=0;k<3;k++)d+=(source.getFloat32(i*32+k*4,true)-(k===0?-1:1)*source.getFloat32(j*32+k*4,true))**2;if(d<best){best=d;nearest=j;}}
+    if(nearest<0)continue;
+    for(let k=0;k<3;k++){const sign=k===0?-1:1;view.setFloat32(i*32+k*4,sign*view.getFloat32(nearest*32+k*4,true),true);view.setInt16(i*32+12+k*2,sign*view.getInt16(nearest*32+12+k*2,true),true);}
+  }
+  let text='';for(let i=0;i<bytes.length;i+=16384)text+=String.fromCharCode(...bytes.subarray(i,i+16384));return{...posed,vertices:btoa(text)};
+}
 function appendRemoteTorch(grip,strength,distance){
   if(strength<=.01)return;
   let slot=remoteTorchCount;
@@ -33,7 +47,7 @@ function appendRemoteTorch(grip,strength,distance){
 }
 // All props share the same palm frame. Each origin is adjusted to its actual grip,
 // rather than putting the asset's center at the wrist.
-const itemGripAnchors={camera:[.059,-.003,.008],flashlight:[-.0005,-.17,.001],soda:[0,.079,0],flare:[0,-.105,.039],gun:[0,-.046,.009]};
+const itemGripAnchors={camera:[.059,-.003,.008],flashlight:[-.0005,-.17,.001],soda:[0,.079,0],flare:[0,-.105,.039],gun:[0,-.051,.017]};
 const itemPalm=[-.078,-.030,.002];
 // Fit the already curled glove to the actual handle cross-section. The larger
 // first-person torch needs its own clearance; the wrist and sleeve stay fixed.
@@ -74,25 +88,29 @@ function buildAvatars(){
   povArmMesh=unpackModel(POV_ARM_ASSET);povArmTexture=textures.suit;
   const gear=AVATAR_ASSET.meshes.find(m=>m.name==='ClassASuitGear_low');
   for(const [kind,patch] of Object.entries(GRIP_ASSET.poses)){gripMeshes[kind]=unpackModel(posedGripRecord(gear,patch.gear,kind));povGripMeshes[kind]=unpackModel(posedGripRecord(POV_ARM_ASSET,patch.arm,kind,kind==='flashlight'?1.3:1));}
-  const gp=GRIP_ASSET.poses.flare;gripMeshes.gun=unpackModel(posedGripRecord(gear,gp.gear,'gun'));povGripMeshes.gun=unpackModel(posedGripRecord(POV_ARM_ASSET,gp.arm,'gun'));
+  const gp=GRIP_ASSET.poses.flare;gripMeshes.gun=unpackModel(twoHandGripRecord(gear,gp.gear,'gun'));povGripMeshes.gun=unpackModel(posedGripRecord(POV_ARM_ASSET,gp.arm,'gun'));
+  gripMeshes.backpack=unpackModel(twoHandGripRecord(gear,GRIP_ASSET.poses.camera.gear,'camera'));
   for(const [name,clip] of Object.entries(AVATAR_ASSET.clips))avatarClips[name]={...clip,values:new Float32Array(Uint8Array.from(atob(clip.data),c=>c.charCodeAt(0)).buffer)};
   cameraItemMesh=unpackModel(CAMERA_ASSET);cameraItemTexture=importedTexture(CAMERA_ASSET.texture,5);
 }
-function appendPovArm(item,kind){
-  // Solve the glove from the prop's grip, then bend the sleeve toward it. The
-  // same pose drives holding, drinking, walking sway and the equipment swap.
+function itemHandMatrix(item,kind,left=false){
   const point=(m,p)=>[0,1,2].map(k=>m[k]*p[0]+m[4+k]*p[1]+m[8+k]*p[2]+m[12+k]);
   const h=identity(),grip=point(item,itemGripAnchors[kind]);
   for(let j=0;j<3;j++){
     const col=[8,0,4][j],axis=norm([item[col],item[col+1],item[col+2]]);
-    for(let k=0;k<3;k++)h[j*4+k]=axis[k];
+    for(let k=0;k<3;k++)h[j*4+k]=axis[k]*(left&&j!==1?-1:1);
   }
-  for(let k=0;k<3;k++)h[12+k]=grip[k]-h[k]*itemPalm[0]-h[4+k]*itemPalm[1]-h[8+k]*itemPalm[2];
+  for(let k=0;k<3;k++)h[12+k]=grip[k]-(left?-1:1)*(h[k]*itemPalm[0]+h[4+k]*itemPalm[1]+h[8+k]*itemPalm[2]);
+  return h;
+}
+function appendPovArm(item,kind){
+  // Solve the glove from the prop's grip, then bend the sleeve toward it.
+  const h=itemHandMatrix(item,kind);
   povHandMatrix=h;
   const ids=['upperarm_r','lowerarm_r','hand_r'].map(n=>AVATAR_ASSET.bones.indexOf(n)),bind=ids.map(i=>AVATAR_ASSET.bind[i]);
   const positions=bind.map(m=>Array.from(m.slice(12,15))),ul=Math.hypot(...positions[1].map((v,k)=>v-positions[0][k])),ll=Math.hypot(...positions[2].map((v,k)=>v-positions[1][k]));
   const wrist=Array.from(h.slice(12,15));
-  let shoulder=cameraPosition.map((v,k)=>v+right[k]*.39-up[k]*.49-forward[k]*.02);
+  let shoulder=cameraPosition.map((v,k)=>v+right[k]*(kind==='gun'?.29:.39)-up[k]*(kind==='gun'?.43:.49)-forward[k]*(kind==='gun'?.055:.02));
   let delta=wrist.map((v,k)=>v-shoulder[k]),distance=Math.hypot(...delta),axis=norm(delta);
   const reach=(ul+ll)*.985;
   if(distance>reach){shoulder=shoulder.map((v,k)=>v+axis[k]*(distance-reach));distance=reach;}
@@ -115,11 +133,13 @@ function appendLeftPovArm(item,kind){
   appendPovArm(multiply(mirror,multiply(item,transform(itemGripAnchors[kind][0]*2,0,0,-1,1,1))),kind);
   const arm=objectDraws.at(-1);arm.model=mirror;arm.leftArm=true;
 }
-function avatarSupportGun(poses){
-  const ids=['upperarm_l','lowerarm_l','hand_l'].map(n=>AVATAR_ASSET.bones.indexOf(n)),r=poses[AVATAR_ASSET.bones.indexOf('hand_r')],a=Array.from(poses[ids[0]].slice(12,15)),b=Array.from(poses[ids[1]].slice(12,15)),c=Array.from(poses[ids[2]].slice(12,15)),wrist=[r[12]+.065,r[13]-.015,r[14]+.025];
-  const upper=b.map((v,k)=>v-a[k]),lower=c.map((v,k)=>v-b[k]),ul=Math.hypot(...upper),ll=Math.hypot(...lower),delta=wrist.map((v,k)=>v-a[k]),d=Math.min(Math.hypot(...delta),(ul+ll)*.99),axis=norm(delta),pole=[.7,-.6,0],bend=norm(pole.map((v,k)=>v-axis[k]*dot(pole,axis))),along=(ul*ul-ll*ll+d*d)/(2*d),out=Math.sqrt(Math.max(0,ul*ul-along*along)),elbow=a.map((v,k)=>v+axis[k]*along+bend[k]*out);
-  poses[ids[0]]=avatarAim(poses[ids[0]],upper,elbow.map((v,k)=>v-a[k]));poses[ids[1]]=avatarAim(poses[ids[1]],lower,wrist.map((v,k)=>v-elbow[k]));poses[ids[2]]=avatarAim(poses[ids[2]],lower,wrist.map((v,k)=>v-elbow[k]));
-  for(let k=0;k<3;k++){poses[ids[1]][12+k]=elbow[k];poses[ids[2]][12+k]=wrist[k];}
+function avatarReachItem(poses,item,kind,side,weight=1){
+  const left=side==='l',ids=['upperarm_','lowerarm_','hand_'].map(n=>AVATAR_ASSET.bones.indexOf(n+side)),hand=itemHandMatrix(item,kind,left);
+  const a=Array.from(poses[ids[0]].slice(12,15)),b=Array.from(poses[ids[1]].slice(12,15)),c=Array.from(poses[ids[2]].slice(12,15)),wrist=Array.from(hand.slice(12,15));
+  const upper=b.map((v,k)=>v-a[k]),lower=c.map((v,k)=>v-b[k]),ul=Math.hypot(...upper),ll=Math.hypot(...lower),delta=wrist.map((v,k)=>v-a[k]),d=Math.max(.01,Math.min(Math.hypot(...delta),(ul+ll)*.995)),axis=norm(delta),pole=[left?.7:-.7,-.6,-.1],bend=norm(pole.map((v,k)=>v-axis[k]*dot(pole,axis))),along=(ul*ul-ll*ll+d*d)/(2*d),out=Math.sqrt(Math.max(0,ul*ul-along*along)),elbow=a.map((v,k)=>v+axis[k]*along+bend[k]*out);
+  const targets=[avatarAim(poses[ids[0]],upper,elbow.map((v,k)=>v-a[k])),avatarAim(poses[ids[1]],lower,wrist.map((v,k)=>v-elbow[k])),hand];
+  for(let k=0;k<3;k++)targets[1][12+k]=elbow[k];
+  for(let i=0;i<3;i++)for(let k=0;k<16;k++)poses[ids[i]][k]=lerp(poses[ids[i]][k],targets[i][k],weight);
 }
 function avatarMatrix(p,q){
   const n=Math.hypot(...q)||1,x=q[0]/n,y=q[1]/n,z=q[2]/n,w=q[3]/n;
@@ -187,14 +207,41 @@ function appendHeadCensor(root,skin){
   headCensorRects.set([minX-px,minY-py,maxX+px,maxY+py],headCensorCount*4);
   headCensorDepths[headCensorCount++]=Math.max(0,depth-.0000005);
 }
+function updateAvatarEquipment(a,p,dt){
+  a.pack=clamp(a.pack+(p.inventoryOpen?dt/.98:-dt/.72),0,1);
+  const g=a.gun,remaining=p.gunReload||0;
+  if(remaining!==a.lastReload){a.reloadTimer=remaining;a.lastReload=remaining;}
+  a.reloadTimer=Math.max(0,a.reloadTimer-dt);
+  if(p.heldItem!=='gun'||p.inventoryOpen||p.tabletOpen)a.reloadTimer=0;
+  g.reload=a.reloadTimer>0?Math.min(1,Math.max(g.reload+dt/GUN_RELOAD_SECONDS,1-a.reloadTimer/GUN_RELOAD_SECONDS)):0;
+  const pose=gunReloadPose(g.reload);
+  dampGunValue('reloadTilt',pose.tilt,25,dt,g);dampGunValue('magDrop',pose.magDrop,32,dt,g);dampGunValue('supportReach',pose.reach,28,dt,g);
+  if((p.gunFlash||0)>a.lastFlash){g.velocities.kick+=9;g.flash=.065;}
+  a.lastFlash=p.gunFlash||0;g.flash=Math.max(0,g.flash-dt);
+  dampGunValue('kick',0,17,dt,g);dampGunValue('sprint',Number(!!p.sprinting),16,dt,g);
+}
+function avatarBackpackMatrix(poses,progress){
+  const chest=AVATAR_ASSET.bones.indexOf('spine_03'),skin=multiply(poses[chest],AVATAR_ASSET.inverseBind[chest]);
+  const t=gunPhase(.12,.68,progress),swing=Math.sin(t*Math.PI);
+  // The attachment follows the animated chest, including crouching and leaning.
+  return multiply(skin,multiply(transform(-swing*.40,lerp(.90,.72,t)+swing*.04,lerp(-.225,.55,t)),multiply(rotateY(Math.PI+swing*.65),rotateZ(swing*.16))));
+}
+function avatarHoldBackpack(poses,model,progress){
+  for(const side of ['r','l']){
+    const sign=side==='r'?1:-1,item=multiply(model,transform(sign*.175-itemGripAnchors.camera[0],.29-itemGripAnchors.camera[1],.015-itemGripAnchors.camera[2]));
+    // Reach with the right hand first; the left catches the second handle.
+    avatarReachItem(poses,item,'camera',side,gunPhase(side==='r'?0:.20,side==='r'?.14:.57,progress));
+  }
+}
 function appendHazmat(p,clock){
   if(!sameBiome(p,player))return;
   const distance=Math.hypot(p.x-player.x,p.z-player.z);if(distance>150)return;
-  let a=avatarCache.get(p.id);if(!a){a={last:-1,renderTime:clock,motion:createToolMotion(p.heldItem||'camera'),pose:new Float32Array(avatarBoneCount*7),sample:new Float32Array(avatarBoneCount*7),bones:new Float32Array(32*16),matrices:[],held:false};avatarCache.set(p.id,a);}
+  let a=avatarCache.get(p.id);if(!a){a={last:-1,renderTime:clock,pack:p.inventoryOpen?1:0,gun:createGunMotion(),reloadTimer:0,lastReload:0,lastFlash:0,motion:createToolMotion(p.heldItem||'camera'),pose:new Float32Array(avatarBoneCount*7),sample:new Float32Array(avatarBoneCount*7),bones:new Float32Array(32*16),matrices:[],held:false};avatarCache.set(p.id,a);}
   const speed=Math.hypot(p.vx||0,p.vz||0),clip=p.crouching?(speed>.2?'crouch':'crouchIdle'):speed>.2?(p.sprinting?'run':'walk'):'idle';
-  advanceToolMotion(a.motion,p.heldItem||'camera',clamp(clock-a.renderTime,0,.1));a.renderTime=clock;
-  const held=p.tabletOpen||p.inventoryOpen?'none':a.motion.shown;
-  if(clock-a.last>1/(distance>60?12:30)||a.last<0||held!==a.held||a.tabletOpen!==(p.tabletOpen||p.inventoryOpen)){
+  const dt=clamp(clock-a.renderTime,0,.1);updateAvatarEquipment(a,p,dt);
+  advanceToolMotion(a.motion,p.heldItem||'camera',dt,!!(p.tabletOpen||p.inventoryOpen||a.pack>0));a.renderTime=clock;
+  const holdingPack=!!p.inventory?.backpack&&(p.inventoryOpen||a.pack>0),held=p.tabletOpen||p.inventoryOpen||holdingPack?'none':a.motion.shown;
+  if(distance<32||clock-a.last>1/(distance>60?12:30)||a.last<0||held!==a.held||a.tabletOpen!==(p.tabletOpen||p.inventoryOpen)){
     avatarSample(clip,clock,a.sample);
     const blend=a.last<0||clock<a.last?1:1-Math.exp(-Math.min(.1,clock-a.last)*18);
     for(let i=0;i<avatarBoneCount;i++){
@@ -202,22 +249,33 @@ function appendHazmat(p,clock){
       for(let k=0;k<7;k++)a.pose[o+k]=lerp(a.pose[o+k],a.sample[o+k]*(k>=3?sign:1),blend);
       a.matrices[i]=avatarMatrix(a.pose.subarray(o,o+3),a.pose.subarray(o+3,o+7));
     }
-    if(p.tabletOpen||p.inventoryOpen)avatarHoldTablet(a.matrices);
-    else if(held!=='none'){avatarHold(a.matrices,(p.pitch||0)+(p.gunFlash||0)*.7,a.motion.lower);if(held==='gun')avatarSupportGun(a.matrices);}
+    a.packModel=avatarBackpackMatrix(a.matrices,a.pack);
+    if(holdingPack)avatarHoldBackpack(a.matrices,a.packModel,a.pack);
+    else if(p.tabletOpen)avatarHoldTablet(a.matrices);
+    else if(held!=='none'){
+      avatarHold(a.matrices,(p.pitch||0)+a.gun.kick*.22-a.gun.sprint*.35,a.motion.lower);
+      if(held==='gun'){
+        const hand=a.matrices[AVATAR_ASSET.bones.indexOf('hand_r')],g=a.gun;
+        a.gunModel=multiply(multiply(hand,itemGripMatrix('gun')),multiply(rotateZ(-g.reloadTilt*.44),rotateX(-g.reloadTilt*.12)));
+        avatarReachItem(a.matrices,a.gunModel,'gun','r');
+        avatarReachItem(a.matrices,multiply(a.gunModel,gunSupportMatrix(g.supportReach,g.magDrop)),'gun','l');
+      }
+    }
     for(let i=0;i<avatarBoneCount;i++)a.bones.set(multiply(a.matrices[i],AVATAR_ASSET.inverseBind[i]),i*16);
     a.last=clock;a.held=held;a.tabletOpen=p.tabletOpen||p.inventoryOpen;
   }
   let root=multiply(transform(p.x,shedFloor(p.x,p.z),p.z),rotateY(p.yaw+Math.PI));const shadow=distance<32;
   if(p.isMimic&&p.alive===false){const fall=ease(clamp((p.deathTime||0)/.65,0,1));root=multiply(root,multiply(transform(0,.13*fall,0),rotateX(-fall*1.48)));}
-  if(p.inventory?.backpack&&distance<60){const open=p.inventoryOpen;const model=multiply(root,open?multiply(transform(0,.72,.45),rotateY(Math.PI)):multiply(transform(0,.73,-.26),rotateY(Math.PI)));appendBackpackModel(model,open?1:0,shadow);}
-  for(const part of avatarParts)objectDraws.push({mesh:part.name==='ClassASuitGear_low'&&gripMeshes[held]?gripMeshes[held]:part.mesh,model:root,bones:a.bones,texture:part.texture,material:5,assetKind:5,castShadow:shadow});
+  if(p.inventory?.backpack&&distance<60)appendBackpackModel(multiply(root,a.packModel),ease(clamp((a.pack-.62)/.32,0,1)),shadow);
+  const gripKind=holdingPack?'backpack':held;
+  for(const part of avatarParts)objectDraws.push({mesh:part.name==='ClassASuitGear_low'&&gripMeshes[gripKind]?gripMeshes[gripKind]:part.mesh,model:root,bones:a.bones,texture:part.texture,material:5,assetKind:5,castShadow:shadow});
   const head=AVATAR_ASSET.bones.indexOf('head');
   if(!p.isMimic)appendHeadCensor(root,a.bones.subarray(head*16,head*16+16));
   if(!p.isMimic)appendSuitCard(p,root,a.bones,distance);
   if(p.tabletOpen&&distance<60){const model=multiply(root,multiply(transform(0,1.17,.40),rotateY(Math.PI)));for(const part of tablet.meshes)objectDraws.push({mesh:part.mesh,model,material:5,assetKind:11,castShadow:shadow,tablet:true});}
   if(held!=='none'&&distance<60){
     const h=a.matrices[AVATAR_ASSET.bones.indexOf('hand_r')],grip=multiply(root,multiply(h,itemGripMatrix(held)));
-    if(held==='gun'){appendGun(grip,{flash:p.gunFlash||0,reload:p.gunReload>0?1-p.gunReload/GUN_RELOAD_SECONDS:0,ammo:p.inventory?.ammo??17,shadow});return;}
+    if(held==='gun'){appendGun(multiply(root,a.gunModel),{flash:a.gun.flash,reload:a.gun.reload,magDrop:a.gun.magDrop,ammo:p.inventory?.ammo??17,shadow});return;}
     const mesh=held==='flashlight'?flashlightMesh:held==='soda'?sodaMesh:held==='flare'?flareGunMesh:cameraItemMesh;
     objectDraws.push({mesh,model:grip,material:5,texture:held==='camera'?cameraItemTexture:held==='flare'?flareGunTexture:undefined,assetKind:held==='camera'?6:held==='flashlight'?1:held==='flare'?7:2,castShadow:shadow});
     if(p.torch&&held==='flashlight'&&distance<60)appendRemoteTorch(grip,1-ease(a.motion.lower),distance);

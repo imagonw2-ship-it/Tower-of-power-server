@@ -9,10 +9,10 @@ function advanceToolMotion(m,target,dt,inventory=false){
   if(inventory){m.shown=target;m.lower=1;m.phase='raise';return;}
   if(m.shown!==target&&m.phase!=='lower')m.phase='lower';
   if(m.phase==='lower'){
-    m.lower=Math.min(1,m.lower+dt/.16);
+    m.lower=Math.min(1,m.lower+dt/(m.shown==='gun'||target==='gun'?.23:.16));
     if(m.lower>=1){m.shown=target;m.phase='raise';}
   }else if(m.phase==='raise'){
-    m.lower=Math.max(0,m.lower-dt/.24);if(m.lower<=0)m.phase='idle';
+    m.lower=Math.max(0,m.lower-dt/(m.shown==='gun'?.34:.24));if(m.lower<=0)m.phase='idle';
   }
 }
 function resetEquipmentMotion(){Object.assign(equipmentMotion,createToolMotion('camera'));torchPreferred=true;}
@@ -95,7 +95,8 @@ function openFieldKit(){
 }
 function closeFieldKit(){
   if(game.mode!=='inventory')return;
-  if(game.hasBackpack&&backpack.progress>0){backpack.closing=true;sound.noise(.23,.09,2700,'highpass');return;}finishCloseFieldKit();
+  if(backpack.closing)return;
+  if(game.hasBackpack&&backpack.progress>0){backpack.closing=true;if(net.active)net.action('inventory',{open:false});sound.noise(.23,.09,2700,'highpass');return;}finishCloseFieldKit();
 }
 function finishCloseFieldKit(){
   resetBackpack();fieldKit.style.pointerEvents='auto';if(net.active)net.action('inventory',{open:false});
