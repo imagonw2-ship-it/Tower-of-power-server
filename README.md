@@ -1,3 +1,13 @@
+## Version 16.1: equipment motion fixes
+
+The gun sits closer to the center, with aligned sights and a tighter two-handed grip. Frame-rate independent springs smooth aiming, recoil, sprint lowering and reload recovery. Reused multiplayer snapshots no longer restart the reload timer; the support hand follows the moving magazine.
+
+Other players now see continuous equipment and locomotion animations between network updates. The backpack attaches to the animated chest, follows crouching, swings around from the back, and opens and closes its flap. Both curled gloves follow the bag's grip points. Remote gun reloads include the support hand, magazine and weapon tilt, and equipment rises smoothly after closing the pack.
+
+Android versionCode 32 / versionName 16.1 keeps the existing package and signer. Multiplayer remains compatible with version 16; each player should install 16.1 to see the animation fixes. Accounts, inventory capacity and combat rules are unchanged.
+
+Validation: 25 focused automated checks covering gameplay and equipment motion, plus first-person and remote WebGL render checks. Physical Android handling still needs device feedback.
+
 ## Version 16: field equipment
 
 The supplied Glock 17 has a two-handed grip, aim transition, walking sway, sprint lowering, recoil, moving slide and magazine reload. It carries 17 rounds with 34 in reserve. Bullets damage only mimics: two body hits or one head hit. Terrain, trees and forest obstacles block shots. The server validates ammunition, shot timing and hits; dead mimics stop moving, attacking and replaying voices.
