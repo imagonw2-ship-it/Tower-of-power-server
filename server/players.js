@@ -79,7 +79,7 @@ export function tickPlayer(p, dt, world, now) {
     return;
   }
   if(biomeOf(p)==="forest"){moveForestActor(p,p.input,dt,world.seed);return;}
-  const obstacles = trafficPoleObstacles(world.trafficLights||[]);
+  const obstacles = trafficPoleObstacles(world.trafficLights||[],p);
   if (world.sim.enemy.state === "dormant")
     obstacles.push({ x: world.sim.turbine.x, z: world.sim.turbine.z, r: 8.1 });
   for(const s of world.extraTurbines||[])if(s.enemy.state==='dormant')obstacles.push({x:s.turbine.x,z:s.turbine.z,r:8.1});
