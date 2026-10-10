@@ -33,10 +33,11 @@ test('fence collisions agree with authoritative movement and are absent in the f
   const actor=makePlayer({id:'x',username:'X'},0);Object.assign(actor,{x:.7,z:0,infiniteSprint:true});
   for(let i=0;i<30;i++)movePlayer(actor,{x:-1,z:0,yaw:0,pitch:0,sprint:true},.05,[],()=>{},l);assert.ok(actor.x>=.399);
 });
-test('import uses one horizontal head with a larger displayed size and a lower cable span',()=>{
+test('one imported GE head is reused as three upright heads on the deep cable span',()=>{
   assert.equal(run('TRAFFIC_LIGHT_ASSET.headCount'),1);assert.equal(run('TRAFFIC_LIGHT_ASSET.lensDiameter'),.2032);
+  assert.equal(run('TRAFFIC_LIGHT_ASSET.instanceCount'),3);
   const bounds=run(`(()=>{const p=TRAFFIC_LIGHT_ASSET.meshes.flatMap(m=>{const b=Uint8Array.from(atob(m.vertices),c=>c.charCodeAt(0)),v=new DataView(b.buffer);return Array.from({length:m.vertexCount},(_,i)=>[0,4,8].map(k=>v.getFloat32(i*32+k,true)));});return[0,1,2].map(k=>Math.max(...p.map(v=>v[k]))-Math.min(...p.map(v=>v[k])));})()`);
-  assert.ok(bounds[0]>.8&&bounds[0]<.9&&bounds[1]<.34);const g=trafficLightGeometry(signal());assert.ok(g.head[1]>4&&g.head[1]<4.3);assert.equal(g.tops.length,2);assert.ok(g.attachments.every((p,i)=>p[1]<g.tops[i][1]-.5));
+  assert.ok(bounds[0]>.8&&bounds[0]<.9&&bounds[1]<.34);const g=trafficLightGeometry(signal());assert.ok(g.head[1]>4.5&&g.head[1]<5.1);assert.equal(g.heads.length,3);assert.equal(g.tops.length,2);assert.ok(g.attachments.every((p,i)=>p[1]<g.tops[i][1]-.5));assert.ok(g.heads[1].position[1]<g.heads[0].position[1]-.5);
 });
 test('green accelerates beyond boosted sprint speed; yellow slows before the red stop',()=>{
   const s=active(signal());advance(s,1);assert.ok(Math.hypot(s.vx,s.vz)>9.24);s.phase='yellow';s.phaseTime=0;advance(s,1);assert.ok(Math.hypot(s.vx,s.vz)<3);assert.ok(SIGNAL_SPEED.green>9.24);
@@ -68,7 +69,7 @@ test('poles warn before stomping; ordinary contact, red lights and god mode are 
 });
 test('server snapshots carry every signal and vacant meadow simulation sleeps',()=>{
   const w=makeWorld(config,0);w.started=true;const before=snapshotTrafficLights(w.trafficLights);tickWorld(w,[],.05,Date.now());assert.deepEqual(snapshotTrafficLights(w.trafficLights),before);
-  const r={code:'TEST',ownerId:'host',phase:'playing',players:new Map(),world:w};const snap=Rooms.prototype.snapshot.call({},r);assert.deepEqual(snap.world.trafficLights,before);assert.equal(snap.world.layoutVersion,9);
+  const r={code:'TEST',ownerId:'host',phase:'playing',players:new Map(),world:w};const snap=Rooms.prototype.snapshot.call({},r);assert.deepEqual(snap.world.trafficLights,before);assert.equal(snap.world.layoutVersion,10);
   local();run(`net.code='QA';net.snapshots=[{received:performance.now(),world:{trafficLights:${JSON.stringify(before)}}}];`);assert.equal(run('visibleTrafficLights().length'),before.length);run("net.code='';");
 });
 test('both server and local turbine awakening keep the resting heading and turn progressively',()=>{

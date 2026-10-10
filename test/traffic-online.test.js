@@ -27,11 +27,12 @@ test('two real clients synchronize traffic phase, host pause, stomp attacks and 
     for(const player of [p,q])Object.assign(player,{x:s.x,z:s.z+40,y:2,biome:'meadow',godMode:true});
     Object.assign(s,{active:true,phase:'red',phaseTime:4.2,targetId:p.id});
     const stopped=await host.wait('snapshot',m=>m.world.trafficLights?.[0]?.active&&m.world.trafficLights[0].phase==='red');
-    assert.equal(stopped.world.trafficLights[0].vx,0);assert.equal(stopped.world.layoutVersion,9);
+    assert.equal(stopped.world.trafficLights[0].vx,0);assert.equal(stopped.world.layoutVersion,10);
     const moved=await friend.wait('snapshot',m=>m.world.trafficLights?.[0]?.phase==='green'&&Math.hypot(m.world.trafficLights[0].vx,m.world.trafficLights[0].vz)>1);
     const matching=await host.wait('snapshot',m=>m.world.elapsed===moved.world.elapsed);
     assert.deepEqual(matching.world.trafficLights,moved.world.trafficLights);
     assert.ok(moved.world.trafficLights.every(s=>s.feet.length===2&&s.feet.every(f=>f.position.every(Number.isFinite))));
+    assert.ok(moved.world.trafficLights.every(s=>s.heads.length===3&&s.heads.every(h=>Number.isFinite(h.swingX)&&Number.isFinite(h.swingZ))));
     assert.equal((await friend.action('host',{value:{command:'traffic',enabled:true}})).ok,false);
     assert.equal((await host.action('host',{value:{command:'traffic',enabled:true}})).ok,true);
     const paused=await friend.wait('snapshot',m=>m.world.trafficStopped===true);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createTrafficLights,stepTrafficLights,snapshotTrafficLights,trafficLightGeometry,setTrafficLightsStopped,collideTrafficPoles,SIGNAL_STOMP,SIGNAL_HEAD_SCALE} from '../shared/traffic-light.js';
+import {createTrafficLights,stepTrafficLights,snapshotTrafficLights,trafficLightGeometry,setTrafficLightsStopped,collideTrafficPoles,SIGNAL_STOMP,SIGNAL_HEAD_SCALE,SIGNAL_HEIGHT,SIGNAL_HALF_SPAN,SIGNAL_HEAD_DROP} from '../shared/traffic-light.js';
 import {hostCommand} from '../server/host-controls.js';
 import {makeWorld,serializeWorld,tickWorld} from '../server/worlds.js';
 import {makePlayer} from '../server/players.js';
@@ -11,7 +11,7 @@ const flat=()=>0,{run,document}=launch();
 function scene(){
   const s=createTrafficLights({roadside:{signals:[{id:'signal',x:0,z:0,heading:0}]}},flat)[0];
   Object.assign(s,{active:true,phase:'green',targetId:'p'});
-  const p={id:'p',x:5.2,z:2,y:1.7,alive:true,connected:true,biome:'meadow',godMode:false};
+  const p={id:'p',x:SIGNAL_HALF_SPAN,z:2,y:1.7,alive:true,connected:true,biome:'meadow',godMode:false};
   return{s,p};
 }
 function advance(s,p,seconds,hit=()=>{}){for(let i=0;i<Math.round(seconds*120);i++)stepTrafficLights([s],1/120,[p],flat,[],hit);}
@@ -55,16 +55,37 @@ test('host pause survives world ticks and a new room starts with traffic enabled
   assert.deepEqual(snapshotTrafficLights(r.world.trafficLights),before);assert.equal(room().world.trafficStopped,false);
 });
 test('raised pole clearance lets players dodge beneath it and grounded poles remain solid',()=>{
-  const {s}=scene(),p={x:5.2,z:0,y:1.7};s.feet[1].position[1]=3;collideTrafficPoles(p,[s]);assert.equal(p.x,5.2);
-  s.feet[1].position[1]=0;collideTrafficPoles(p,[s]);assert.ok(Math.abs(p.x-5.2)>=.449);
+  const {s}=scene(),p={x:SIGNAL_HALF_SPAN,z:0,y:1.7};s.feet[1].position[1]=3;collideTrafficPoles(p,[s]);assert.equal(p.x,SIGNAL_HALF_SPAN);
+  s.feet[1].position[1]=0;collideTrafficPoles(p,[s]);assert.ok(Math.abs(p.x-SIGNAL_HALF_SPAN)>=.479);
 });
-test('rendered head is enlarged and both pole cable wraps follow the lifted pose',()=>{
+test('three upright heads, junctions and cable wraps stay attached to the lifted rig',()=>{
   run("net.code='';resetWorld(true,0);setMode('playing');locked=true;const qaSignal=trafficLights[0];player.x=qaSignal.x;player.z=qaSignal.z+15;player.y=terrainHeight(player.x,player.z)+1.7;updateCamera(0);objectDraws.length=0;appendRoadside();");
-  assert.equal(run('objectDraws.filter(o=>o.trafficWrap).length'),2);assert.equal(run('objectDraws.filter(o=>o.signalLens).length'),3);
+  assert.equal(run('objectDraws.filter(o=>o.trafficWrap).length'),2);assert.equal(run('objectDraws.filter(o=>o.signalLens).length'),9);assert.equal(run('objectDraws.filter(o=>o.trafficJunction).length'),3);
+  assert.ok(run('objectDraws.find(o=>o.signalHead).model[1]<-1.4'));
   assert.ok(Math.abs(run('Math.hypot(...objectDraws.find(o=>o.signalHead).model.slice(0,3))')-SIGNAL_HEAD_SCALE)<1e-6);
   run('qaSignal.feet[1].position[1]+=2;objectDraws.length=0;appendRoadside();');
   assert.ok(run('objectDraws.every(o=>Array.from(o.model).every(Number.isFinite))'));assert.ok(run('Math.abs(objectDraws.filter(o=>o.trafficWrap)[1].model[13]-qaSignal.feet[1].position[1])<.000001'));
-  const s=scene().s,g=trafficLightGeometry(s);assert.ok(g.head[1]<4.3);assert.ok(g.attachments[0][1]<g.tops[0][1]);
+  const s=scene().s,g=trafficLightGeometry(s);assert.ok(g.sag>2.2);assert.ok(g.attachments[0][1]<g.tops[0][1]);
+});
+test('walking poles pivot in wide strides while retaining their exact length and a planted support',()=>{
+  const {s,p}=scene();p.x=0;p.z=100;p.godMode=true;let maxTilt=0,planted=0;
+  for(let i=0;i<180;i++){
+    const before=s.feet.map(f=>f.position.slice());stepTrafficLights([s],1/120,[p],flat);const g=trafficLightGeometry(s);
+    s.feet.forEach((f,j)=>{const d=g.tops[j].map((v,k)=>v-f.position[k]);assert.ok(Math.abs(Math.hypot(...d)-SIGNAL_HEIGHT)<1e-9);maxTilt=Math.max(maxTilt,Math.hypot(d[0],d[2]));});
+    if(s.feet.some((f,j)=>f.position.every((v,k)=>v===before[j][k])))planted++;
+  }
+  assert.ok(maxTilt>2.5);assert.ok(planted>170);
+});
+test('three independently driven pendulums keep their hang lengths and settle after stopping',()=>{
+  const {s,p}=scene();p.x=0;p.z=100;p.godMode=true;let different=false;
+  for(let i=0;i<180;i++){
+    stepTrafficLights([s],1/120,[p],flat);const g=trafficLightGeometry(s);
+    for(const h of g.heads)assert.ok(Math.abs(Math.hypot(...h.position.map((v,k)=>v-h.anchor[k]))-SIGNAL_HEAD_DROP)<1e-9);
+    different||=Math.abs(s.heads[0].swingZ-s.heads[2].swingZ)>.025;
+  }
+  assert.ok(different);s.active=false;s.phase='red';s.targetId=null;
+  for(let i=0;i<1200;i++)stepTrafficLights([s],1/120,[],flat);
+  assert.ok(s.heads.every(h=>Math.hypot(h.swingX,h.swingZ)<.01));
 });
 test('the complete stomp and suspended head stay stable across slow and fast frame rates',()=>{
   const a=scene(),b=scene();a.p.godMode=b.p.godMode=true;
