@@ -138,6 +138,7 @@ export class Rooms {
         cycle: w.cycle,
         turbineStopped: w.turbineStopped,
         powerStopped: w.powerStopped,
+        trafficStopped: w.trafficStopped,
         elapsed: w.elapsed,
         trafficLights:snapshotTrafficLights(w.trafficLights),
         mimic:w.mimic.snapshot(),forestLevel:{...w.forestLevel},meadowLoaded:w.meadowLoaded,

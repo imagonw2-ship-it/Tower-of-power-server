@@ -72,7 +72,7 @@ export function createApp(options = {}) {
         return;
       }
       if (req.url === "/health") {
-        reply(200, { ok: true, protocol: 1, release: "17", features: ["shared-drops", "proximity-voice", "scaled-pylons", "silent-search", "seeded-worlds", "forest", "procedural-roads", "connected-pylon-graph", "forest-navigation", "suit-id-cards", "clustered-forests", "clear-suit-ids", "forest-only-dirt", "tree-watchers", "voice-mimics", "host-tablet", "host-abilities", "player-mimic", "endless-forest", "host-player-controls", "forest-terrain", "forest-day-night", "mimic-navigation", "body-camera", "mimic-defense", "physical-backpack", "host-item-spawning", "roadside-fences", "traffic-light-enemies", "dedicated-gun-aim", "smooth-turbine-waking"], rooms: rooms.rooms.size });
+        reply(200, { ok: true, protocol: 1, release: "17.1", features: ["shared-drops", "proximity-voice", "scaled-pylons", "silent-search", "seeded-worlds", "forest", "procedural-roads", "connected-pylon-graph", "forest-navigation", "suit-id-cards", "clustered-forests", "clear-suit-ids", "forest-only-dirt", "tree-watchers", "voice-mimics", "host-tablet", "host-abilities", "player-mimic", "endless-forest", "host-player-controls", "forest-terrain", "forest-day-night", "mimic-navigation", "body-camera", "mimic-defense", "physical-backpack", "host-item-spawning", "roadside-fences", "traffic-light-enemies", "dedicated-gun-aim", "smooth-turbine-waking", "traffic-pole-stomps", "host-traffic-control"], rooms: rooms.rooms.size });
         return;
       }
       if (
