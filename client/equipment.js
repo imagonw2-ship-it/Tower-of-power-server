@@ -87,7 +87,7 @@ function refreshFieldKit(){
 function openFieldKit(){
   if(!['playing','paused'].includes(game.mode))return;
   if(game.hasBackpack)sound.noise(.22,.11,550);
-  kitReturn=game.mode;backpack.yaw=player.yaw;backpack.pitch=player.pitch;backpack.zoom=game.zoomTarget;backpack.closing=false;backpack.progress=0;
+  kitReturn=game.mode;backpack.yaw=player.yaw;backpack.pitch=player.pitch;backpack.zoom=game.zoomTarget;backpack.closing=false;backpack.progress=0;backpack.progressVelocity=0;
   fieldKit.classList.toggle('physical',!!game.hasBackpack);fieldKit.style.transform='';fieldKit.style.opacity=game.hasBackpack?'0':'1';fieldKit.style.pointerEvents=game.hasBackpack?'none':'auto';
   game.gunReload=0;if(net.active)net.action('inventory',{open:true});setMode('inventory');fieldKit.hidden=false;refreshFieldKit();
   if(document.pointerLockElement===canvas)document.exitPointerLock();
@@ -141,7 +141,8 @@ document.getElementById('kitClose').addEventListener('click',closeFieldKit);
 document.getElementById('desktopKit').addEventListener('click',openFieldKit);
 document.getElementById('touchKit').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();openFieldKit();});
 document.getElementById('touchUse').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();useEquipment();});
-document.getElementById('touchAim').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(equippedTool==='gun'){toggleGunAim();return;}const levels=[1,2,4,6];const next=levels.find(v=>v>game.zoomTarget+.1)||1;changeZoom(next/game.zoomTarget);});
+document.getElementById('touchGunAim').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();toggleGunAim();});
+document.getElementById('touchAim').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();const levels=[1,2,4,6];const next=levels.find(v=>v>game.zoomTarget+.1)||1;changeZoom(next/game.zoomTarget);});
 document.addEventListener('keydown',e=>{
   if(['INPUT','TEXTAREA','SELECT'].includes(e.target?.tagName))return;
   if((e.code==='KeyI'||e.code==='Tab')&&!e.repeat&&['playing','paused','inventory'].includes(game.mode)){

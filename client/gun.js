@@ -63,13 +63,14 @@ function updateGun(dt){
   const stage=Math.floor(gunMotion.reload*4);if(stage!==gunMotion.reloadStage&&game.gunReload>0){sound.noise(.07,.07,stage===3?1800:850);gunMotion.reloadStage=stage;}
   if(gunMotion.pending&&performance.now()-gunMotion.pending.at>2500)gunMotion.pending=null;
   const hud=document.getElementById('gunReadout');hud.hidden=!holding;
+  const aimButton=document.getElementById('touchGunAim');aimButton.hidden=!holding;aimButton.classList.toggle('latched',gunMotion.aiming);aimButton.setAttribute('aria-pressed',String(gunMotion.aiming));aimButton.setAttribute('aria-label',gunMotion.aiming?'Lower sights':'Aim down sights');document.getElementById('touchAim').hidden=holding;
   document.getElementById('gunAmmo').textContent=String(game.ammo||0).padStart(2,'0')+' / '+String(game.reserve||0).padStart(2,'0');
   document.getElementById('gunReloadLabel').textContent=game.gunReload>0?'RELOADING':game.ammo===0?'RELOAD':'R · RELOAD';
   document.getElementById('gunReload').disabled=game.gunReload>0||game.ammo>=GUN_MAGAZINE||!game.reserve;
 }
 function heldGunMatrix(){
   const aim=clamp(gunMotion.aim,0,1),dip=ease(equipmentMotion.lower),reload=gunMotion.reloadTilt,kick=gunMotion.kick,sprint=gunMotion.sprint;
-  const x=lerp(.135,0,aim)+gunMotion.swayX*(1-aim*.95)+reload*.025,y=lerp(-.125,-.05491,aim)-dip*.45+reload*.025-sprint*.13+gunMotion.swayY*(1-aim*.95),z=lerp(.49,.51,aim)-kick*.09-reload*.022-sprint*.025;
+  const x=gunMotion.swayX*(1-aim*.95)+reload*.025,y=lerp(-.125,-.05491,aim)-dip*.45+reload*.025-sprint*.13+gunMotion.swayY*(1-aim*.95),z=lerp(.49,.51,aim)-kick*.09-reload*.022-sprint*.025;
   const p=cameraPosition.map((v,k)=>v+right[k]*x+up[k]*y+forward[k]*z);
   // Sight tops are 54.91 mm above the model origin. Converge on the actual
   // gameplay aim ray so body-camera lag does not pull the sights away from hits.

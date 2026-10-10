@@ -1,24 +1,24 @@
 // The owned pack is a passive capacity upgrade. The existing I / bag control
 // brings it forward, opens the front, and projects the inventory into its lining.
-const backpack={parts:[],texture:null,liner:null,progress:0,closing:false,yaw:0,pitch:0,zoom:1,model:null};
+const backpack={parts:[],texture:null,liner:null,progress:0,progressVelocity:0,closing:false,yaw:0,pitch:0,zoom:1,model:null};
 function buildBackpack(){
   backpack.texture=importedTexture(BACKPACK_ASSET.texture,5);backpack.parts=BACKPACK_ASSET.meshes.map(p=>({name:p.name,mesh:unpackModel(p)}));
   const g=infraGeometry(),s=BACKPACK_ASSET.screen;
   infraFace(g,[[s[0]-.01,s[1]-.015,s[4]-.002],[s[2]+.01,s[1]-.015,s[4]-.002],[s[2]+.01,s[3]+.01,s[4]-.002],[s[0]-.01,s[3]+.01,s[4]-.002]],[.025,.030,.021],[[0,0],[1,0],[1,1],[0,1]]);backpack.liner=mesh3D(g);
 }
-function resetBackpack(){Object.assign(backpack,{progress:0,closing:false,model:null});fieldKit.classList.remove('physical');fieldKit.style.transform='';fieldKit.style.opacity='';}
+function resetBackpack(){Object.assign(backpack,{progress:0,progressVelocity:0,closing:false,model:null});fieldKit.classList.remove('physical');fieldKit.style.transform='';fieldKit.style.opacity='';}
 function updateBackpack(dt){
   const open=game.mode==='inventory'&&game.hasBackpack;
-  if(!open&&backpack.progress>0){backpack.progress=0;backpack.closing=false;backpack.model=null;}
+  if(!open&&backpack.progress>0){backpack.progress=0;backpack.progressVelocity=0;backpack.closing=false;backpack.model=null;}
   if(!open)return;
   const before=backpack.progress;
-  backpack.progress=clamp(backpack.progress+(backpack.closing?-dt/.72:dt/.98),0,1);
+  advancePackMotion(backpack,'progress',backpack.closing?0:1,dt);
   if(before<.63&&backpack.progress>=.63)sound.noise(.24,.10,3100,'highpass');
-  const t=ease(clamp(backpack.progress/.67,0,1));player.yaw=backpack.yaw;player.pitch=lerp(backpack.pitch,-.16,t);game.zoom=game.zoomTarget=lerp(backpack.zoom,1,t);
+  const t=gunPhase(.06,.82,backpack.progress);player.yaw=backpack.yaw;player.pitch=lerp(backpack.pitch,-.16,t);game.zoom=game.zoomTarget=lerp(backpack.zoom,1,t);
   if(backpack.closing&&backpack.progress===0){player.pitch=backpack.pitch;game.zoom=game.zoomTarget=backpack.zoom;finishCloseFieldKit();}
 }
 function backpackBasis(){
-  const t=ease(clamp(backpack.progress/.68,0,1)),yaw=backpack.yaw,pitch=-.16;
+  const t=gunPhase(.08,.84,backpack.progress),yaw=backpack.yaw,pitch=-.16;
   const r=[Math.cos(yaw),0,-Math.sin(yaw)],u=[Math.sin(yaw)*Math.sin(pitch),Math.cos(pitch),Math.cos(yaw)*Math.sin(pitch)],f=[-Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch)];
   const side=(1-t)*.80,depth=lerp(-.32,.60,t),height=lerp(-.50,-.29,t)+Math.sin(Math.PI*t)*.06;
   const p=[player.x,player.y,player.z].map((v,k)=>v+r[k]*side+u[k]*height+f[k]*depth);
@@ -35,7 +35,7 @@ function appendBackpackModel(model,open=0,shadow=false){
 }
 function appendBackpack(){
   if(!game.hasBackpack||backpack.progress<=0||game.mode!=='inventory')return;
-  const model=backpack.model=backpackBasis(),opening=ease(clamp((backpack.progress-.62)/.32,0,1));appendBackpackModel(model,opening);
+  const model=backpack.model=backpackBasis(),opening=gunPhase(.70,.985,backpack.progress);appendBackpackModel(model,opening);
   // Both gloved hands stay attached to the bag handles while swinging it forward.
   for(const side of [1,-1]){
     const item=multiply(model,transform(side*.175-itemGripAnchors.camera[0],.29-itemGripAnchors.camera[1],.015-itemGripAnchors.camera[2]));

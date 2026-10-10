@@ -208,7 +208,7 @@ function appendHeadCensor(root,skin){
   headCensorDepths[headCensorCount++]=Math.max(0,depth-.0000005);
 }
 function updateAvatarEquipment(a,p,dt){
-  a.pack=clamp(a.pack+(p.inventoryOpen?dt/.98:-dt/.72),0,1);
+  advancePackMotion(a,'pack',p.inventoryOpen?1:0,dt);
   const g=a.gun,remaining=p.gunReload||0;
   if(remaining!==a.lastReload){a.reloadTimer=remaining;a.lastReload=remaining;}
   a.reloadTimer=Math.max(0,a.reloadTimer-dt);
@@ -222,7 +222,7 @@ function updateAvatarEquipment(a,p,dt){
 }
 function avatarBackpackMatrix(poses,progress){
   const chest=AVATAR_ASSET.bones.indexOf('spine_03'),skin=multiply(poses[chest],AVATAR_ASSET.inverseBind[chest]);
-  const t=gunPhase(.12,.68,progress),swing=Math.sin(t*Math.PI);
+  const t=gunPhase(.08,.84,progress),swing=Math.sin(t*Math.PI);
   // The attachment follows the animated chest, including crouching and leaning.
   return multiply(skin,multiply(transform(-swing*.40,lerp(.90,.72,t)+swing*.04,lerp(-.225,.55,t)),multiply(rotateY(Math.PI+swing*.65),rotateZ(swing*.16))));
 }
@@ -266,7 +266,7 @@ function appendHazmat(p,clock){
   }
   let root=multiply(transform(p.x,shedFloor(p.x,p.z),p.z),rotateY(p.yaw+Math.PI));const shadow=distance<32;
   if(p.isMimic&&p.alive===false){const fall=ease(clamp((p.deathTime||0)/.65,0,1));root=multiply(root,multiply(transform(0,.13*fall,0),rotateX(-fall*1.48)));}
-  if(p.inventory?.backpack&&distance<60)appendBackpackModel(multiply(root,a.packModel),ease(clamp((a.pack-.62)/.32,0,1)),shadow);
+  if(p.inventory?.backpack&&distance<60)appendBackpackModel(multiply(root,a.packModel),gunPhase(.70,.985,a.pack),shadow);
   const gripKind=holdingPack?'backpack':held;
   for(const part of avatarParts)objectDraws.push({mesh:part.name==='ClassASuitGear_low'&&gripMeshes[gripKind]?gripMeshes[gripKind]:part.mesh,model:root,bones:a.bones,texture:part.texture,material:5,assetKind:5,castShadow:shadow});
   const head=AVATAR_ASSET.bones.indexOf('head');

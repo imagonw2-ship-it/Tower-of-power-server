@@ -100,7 +100,7 @@
       <button id="controlsOpen">CONTROLS</button>
     </nav>
     <p id="worldMenuNotice" hidden>Your online world and voice chat stay active.</p>
-    <p class="menuFoot"><strong id="releaseLabel">VERSION 16.1 · EQUIPMENT MOTION</strong><br>HEADPHONES RECOMMENDED</p>
+    <p class="menuFoot"><strong id="releaseLabel">VERSION 17 · ROADSIDE ENCOUNTERS</strong><br>HEADPHONES RECOMMENDED</p>
   </main>
   <section id="settingsPanel" class="panel settings" hidden aria-label="Settings">
     <h2>SETTINGS</h2>
@@ -200,7 +200,7 @@
     pylonMesh=unpackModel(IMPORTED_MODELS.pylon);pylonLODMesh=unpackModel(IMPORTED_MODELS.pylonLOD);
     pylonTexture=importedTexture(IMPORTED_TEXTURES.pylon,5);importNormalTexture=importedTexture(IMPORTED_TEXTURES.flashlight,6,true);
     for(let i=0;i<9;i++)pylonBones.set(identity(),i*16);
-    buildPowerCorridor();buildInfrastructure();buildAvatars();buildFlareModels();buildGun();buildBackpack();buildTablet();buildForestHaunts();
+    buildPowerCorridor();buildInfrastructure();buildAvatars();buildFlareModels();buildGun();buildBackpack();buildTablet();buildForestHaunts();buildTrafficModels();
   }
   const rigGLSL=`
     layout(location=4) in vec4 a_skin;
@@ -1450,6 +1450,12 @@
           color=vec4(vec3(3.5,.35,.035)*halo+vec3(12.,8.,3.)*core,clamp(halo+core,0.,1.));return;
         }
         if(u_material>4.5){
+          if(u_assetKind>14.5&&u_assetKind<15.5){
+            vec3 lens=texture(u_assetTexture,v_uv).rgb;
+            vec3 tint=u_variant<1.5?vec3(1.,.018,.006):u_variant<2.5?vec3(1.,.52,.008):vec3(.012,1.,.12);
+            vec3 c=u_variant>.5?pow(lens,vec3(1.6))*tint*2.0:lens*.055;
+            color=linearOutput(applyFog(c,v_world,u_camera));return;
+          }
           if(u_assetKind>11.5&&u_assetKind<12.5){
             vec2 p=(v_uv*2.-1.)/vec2(.87,.43);float lid=1.-p.x*p.x;if(abs(p.y)>lid*.80){color=vec4(0.,0.,0.,1.);return;}
             vec2 uv=vec2(.492,.735)+vec2(p.x*.223+p.y*.060,-p.x*.170+p.y*.138);
@@ -1679,7 +1685,7 @@
     avatarCache.clear();networkPylons=[];localDroppedItems=[];localDropSerial=0;pendingDrop=null;localFlares=[];flareSerial=0;cameraDynamics=createBodyCamera();
     equippedTool='camera';kitPreviousFlashlight=false;resetEquipmentMotion();resetGun();resetBackpack();resetForestHaunts();resetForestLevel();tablet.progress=0;tablet.closing=false;game.godMode=false;game.infiniteSprint=false;
     turbine.x=playable?activeLayout.turbines[0].x:-35;turbine.z=playable?activeLayout.turbines[0].z:-250;turbine.y=terrainHeight(turbine.x,turbine.z);
-    resetEnemy();resetPowerCreature();resetOtherTurbines();buildPowerCorridor();Object.assign(world,{phase:.43,cycle:true,turbineStopped:false,powerStopped:false});updateEnvironment(0);
+    resetEnemy();resetPowerCreature();resetOtherTurbines();buildPowerCorridor();resetRoadside();Object.assign(world,{phase:.43,cycle:true,turbineStopped:false,powerStopped:false});updateEnvironment(0);
     Object.assign(player,playable?{x:128,z:-34,yaw:-.015,pitch:-.025}:{x:0,z:6,yaw:0,pitch:-.01});
     player.y=shedFloor(player.x,player.z)+EYE_HEIGHT;
     Object.assign(bob,{phase:0,blend:0,strafe:0,vertical:0,lateral:0,roll:0});
@@ -1805,7 +1811,7 @@
     if(noise.life<=0)return;
     enemy.lastKnown=noise.position.slice();enemy.memoryAge=0;enemy.heardRecently=true;enemy.navAge=0;
     if(enemy.state==='dormant'){
-      enterEnemyState('awakening');enemy.awake=0;enemy.heading=Math.atan2(noise.position[0]-turbine.x,noise.position[1]-turbine.z);
+      enterEnemyState('awakening');enemy.awake=0;enemy.wakeYawSpeed=0;
       sound.awaken();game.shake=.85;
     }else if(enemy.state!=='awakening'&&enemy.state!=='running')enterEnemyState('running');
   }
@@ -1878,6 +1884,7 @@
     if(enemy.state==='dormant'){enemy.angle+=dt*.26;return;}
     if(enemy.state==='awakening'){
       enemy.awake+=dt;
+      turnWakingTurbine(enemy,turbine,dt);
       for(let i=0;i<3;i++)if(emergenceProgress(i)>=1&&!enemy.emerged[i]){
         enemy.emerged[i]=true;const foot=idealFoot(i),d=Math.hypot(foot[0]-player.x,foot[2]-player.z);
         sound.enemyStep(d*.35);game.shake=Math.max(game.shake,1.1/(1+d*.014));
@@ -1931,7 +1938,7 @@
 
   function buildObjects(){
     headCensorCount=0;remoteTorchCount=0;suitCardDraws.length=0;objectDraws.length=0;appendPowerObjects();appendMimic();appendFlareObjects();if(!net.active&&!isMenuScene())for(const i of localDroppedItems)if(sameBiome(i,player))appendWorldItem(i,time);
-    appendForest();
+    appendForest();appendRoadside();
     if(!inForest())appendTurbine(turbine,enemy,legMeshes,activeLayout.turbines[0].style);
     if(!isMenuScene()&&!inForest())for(const t of otherTurbines)appendTurbine(t.body,t.state,t.meshes,t.style);
     if(!isMenuScene()){
@@ -1965,7 +1972,7 @@
       }
     }
     if(game.mode==='playing'&&!staminaTicked)spendStamina(game,false,dt);
-    if(game.mode==='playing'&&!inForest()){resolveShedCollision();resolvePowerCollision();collideOtherTurbines();collideForest(player,activeLayout);}
+    if(game.mode==='playing'&&!inForest()){resolveShedCollision();resolvePowerCollision();collideOtherTurbines();collideForest(player,activeLayout);collideRoadside(player,activeLayout);collideTrafficPoles(player,visibleTrafficLights());}
     const distance=game.mode==='playing'?Math.hypot(player.x-oldX,player.z-oldZ):0,moving=distance>.00001;
     const previousStep=Math.floor(bob.phase/Math.PI);
     bob.phase+=distance*Math.PI*2/(game.sprinting?4.1:2.9);
@@ -2164,7 +2171,7 @@
   }
   function frame(now){
     if(!running)return;const elapsed=previousTime?(now-previousTime)/1000:0;const dt=document.hidden?0:Math.min(elapsed,.05);previousTime=now;time+=dt;
-    updateGame(dt);updateEnvironment(dt);updateSurvival(dt);updateTablet(dt);updateBackpack(dt);updateGun(dt);updateCamera(dt);updateForestHaunts(dt);updateEnemy(dt);updatePowerCreature(dt);updateEnemyCombat(dt);updateOtherTurbines(dt);updateEquipment(dt);updateFieldKit(dt);buildObjects();updateLight();updateTorchLight();sound.update();
+    updateGame(dt);updateEnvironment(dt);updateSurvival(dt);updateTablet(dt);updateBackpack(dt);updateGun(dt);updateCamera(dt);updateForestHaunts(dt);updateEnemy(dt);updatePowerCreature(dt);updateEnemyCombat(dt);updateOtherTurbines(dt);updateTrafficLights(dt);updateEquipment(dt);updateFieldKit(dt);buildObjects();updateLight();updateTorchLight();sound.update();
     gl.activeTexture(gl.TEXTURE0+8);gl.bindTexture(gl.TEXTURE_2D,null);
     gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,null);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,null);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,null);
     if(settings.shadows!=='off'){
