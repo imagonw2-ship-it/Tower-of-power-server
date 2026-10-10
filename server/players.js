@@ -2,6 +2,7 @@ import {tickGun} from '../shared/equipment-rules.js';
 import {biomeOf,moveForestActor,tickForestBoundary} from '../shared/forest-level.js';
 import { spendStamina } from '../shared/survival.js';
 import { movePlayer, floorHeight, footstepRadius } from "../shared/physics.js";
+import {trafficPoleObstacles} from '../shared/traffic-light.js';
 export function makePlayer(account, index) {
   const x = 128 + (index % 4) * 0.75,
     z = -34 + Math.floor(index / 4) * 1.1;
@@ -78,7 +79,7 @@ export function tickPlayer(p, dt, world, now) {
     return;
   }
   if(biomeOf(p)==="forest"){moveForestActor(p,p.input,dt,world.seed);return;}
-  const obstacles = [];
+  const obstacles = trafficPoleObstacles(world.trafficLights||[]);
   if (world.sim.enemy.state === "dormant")
     obstacles.push({ x: world.sim.turbine.x, z: world.sim.turbine.z, r: 8.1 });
   for(const s of world.extraTurbines||[])if(s.enemy.state==='dormant')obstacles.push({x:s.turbine.x,z:s.turbine.z,r:8.1});

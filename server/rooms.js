@@ -1,4 +1,5 @@
 import { LAYOUT_VERSION,seedFromText } from "../shared/world-layout.js";
+import {snapshotTrafficLights} from '../shared/traffic-light.js';
 import { randomInt } from "node:crypto";
 import { config } from "./config.js";
 import { HttpError } from "./auth.js";
@@ -138,6 +139,7 @@ export class Rooms {
         turbineStopped: w.turbineStopped,
         powerStopped: w.powerStopped,
         elapsed: w.elapsed,
+        trafficLights:snapshotTrafficLights(w.trafficLights),
         mimic:w.mimic.snapshot(),forestLevel:{...w.forestLevel},meadowLoaded:w.meadowLoaded,
         flares:w.flares,
         objectives: w.objectives,

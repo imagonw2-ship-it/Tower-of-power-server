@@ -1,7 +1,8 @@
 import {createForestLevel,tickForestLevel,biomeOf,forestTerrainHeight} from '../shared/forest-level.js';
 import {MimicMemory,ForestMimic} from '../shared/forest-haunts.js';
 import { advanceFlares } from '../shared/survival.js';
-import { floorHeight,blocked } from '../shared/physics.js';
+import { floorHeight,terrainHeight,blocked,shed } from '../shared/physics.js';
+import {createTrafficLights,stepTrafficLights,snapshotTrafficLights} from '../shared/traffic-light.js';
 import { randomUUID,randomInt } from "node:crypto";
 import { makeLayout } from '../shared/world-layout.js';
 import { createEnemySimulation } from "./enemies.js";
@@ -26,6 +27,7 @@ export function makeWorld(rules,seed=randomInt(0,0x7fffffff)) {
     rules,
   };
   w.voiceMemory=new MimicMemory();w.mimic=new ForestMimic(w.layout);w.mimicFrames=[];
+  w.trafficLights=createTrafficLights(w.layout,terrainHeight);
   w.sim = createEnemySimulation(w,{turbineSpawn:w.layout.turbines[0],powerSpawn:w.layout.pylons[0]});
   w.extraTurbines=w.layout.turbines.slice(1).map(t=>createEnemySimulation(w,{turbineOnly:true,turbineSpawn:t}));
   return w;
@@ -49,6 +51,7 @@ export function tickWorld(w, players, dt, now) {
   tickForestLevel(w.forestLevel,players,dt);
   w.flares=[...advanceFlares(w.flares.filter(f=>biomeOf(f)==='meadow'),dt,floorHeight,blocked),...advanceFlares(w.flares.filter(f=>biomeOf(f)==='forest'),dt,forestTerrainHeight,()=>false)];
   if(w.meadowLoaded)w.sim.step(dt,meadow);
+  if(w.meadowLoaded)stepTrafficLights(w.trafficLights,dt,meadow,terrainHeight,[{x:shed.x,z:shed.z,r:5.4,shelter:true},...w.layout.turbines.map(t=>({x:t.x,z:t.z,r:9}))],p=>w.sim.events.push({kind:'caught',id:p.id,x:p.x,z:p.z}));
   for(const p of players)if(!p.alive||!p.connected){w.voiceMemory.forget(p.id);w.mimic.forget(p.id);}
   const alive=new Set(players.filter(p=>p.alive).map(p=>p.id));
   w.mimicFrames.push(...w.mimic.step(dt,players,w.voiceMemory));
@@ -65,7 +68,7 @@ export function serializeWorld(w) {
   return {
     schemaVersion: w.schemaVersion,
     id: w.id,
-    seed: w.seed,forestLevel:w.forestLevel,
+    seed: w.seed,forestLevel:w.forestLevel,trafficLights:snapshotTrafficLights(w.trafficLights),
     phase: w.phase,
     cycle: w.cycle,
     turbineStopped: w.turbineStopped,

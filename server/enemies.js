@@ -1,4 +1,5 @@
 // Reuses the current game's awakening, pathfinding, hearing, and foot planting.
+import {turnWakingTurbine} from '../shared/prop-motion.js';
 import { applyFlareLure } from '../shared/survival.js';
 import { SoundTargets, legColliders, resolveLegCollision, tickStomp, stompHits, pylonLegPoints } from "../shared/enemy-combat.js";
 import { PYLON_HEADING, PYLON_RIG, STATIC_PYLONS, groundedPylon, pylonPoint } from "../shared/power-layout.js";
@@ -407,10 +408,7 @@ export function createEnemySimulation(world, {powerOnly=false,turbineOnly=false,
     if (enemy.state === "dormant") {
       enterEnemyState("awakening");
       enemy.awake = 0;
-      enemy.heading = Math.atan2(
-        noise.position[0] - turbine.x,
-        noise.position[1] - turbine.z,
-      );
+      enemy.wakeYawSpeed = 0;
       sound.awaken();
       game.shake = 0.85;
     } else if (enemy.state !== "awakening" && enemy.state !== "running")
@@ -559,6 +557,7 @@ export function createEnemySimulation(world, {powerOnly=false,turbineOnly=false,
     }
     if (enemy.state === "awakening") {
       enemy.awake += dt;
+      turnWakingTurbine(enemy,turbine,dt);
       for (let i = 0; i < 3; i++)
         if (emergenceProgress(i) >= 1 && !enemy.emerged[i]) {
           enemy.emerged[i] = true;
