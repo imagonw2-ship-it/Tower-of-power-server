@@ -2,7 +2,7 @@
 // client builds the same roads, utility corridor and forest from these rules.
 import {FOREST_TREE_TYPES} from './tree-shapes.js';
 import {makeRoadside} from './roadside.js';
-export const LAYOUT_VERSION=9;
+export const LAYOUT_VERSION=10;
 export function layoutRandom(seed){let a=seed>>>0;return()=>{a+=0x6D2B79F5;let t=Math.imul(a^a>>>15,a|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 export function seedFromText(value){
   const text=String(value??'').trim().slice(0,40);if(!text)return null;
