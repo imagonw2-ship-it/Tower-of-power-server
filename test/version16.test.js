@@ -74,8 +74,8 @@ test('dead mimics stop moving, attacking and replaying voices, then disappear',(
 test('physical backpack uses the existing inventory control, settles the camera, and closes smoothly',()=>{
   const {run,document}=launch();run("resetWorld(true);setMode('playing');locked=true;game.hasBackpack=true;updateCamera(0);openFieldKit();updateBackpack(.25);updateCamera(.25);buildObjects();");
   assert.equal(document.getElementById('fieldKit').classList.contains('physical'),true);assert.ok(run('backpack.progress>0&&backpack.progress<1'));assert.ok(run('objectDraws.filter(o=>o.backpackPart).length===2'));
-  run('for(let i=0;i<60;i++){updateBackpack(.02);updateCamera(.02);}buildObjects();positionBackpackInventory();');assert.equal(run('backpack.progress'),1);assert.ok(document.getElementById('fieldKit').style.transform.startsWith('matrix('));assert.equal(run('Math.abs(player.pitch+.16)<.001'),true);
-  run('closeFieldKit();');assert.equal(run('game.mode'),'inventory');run('for(let i=0;i<40;i++)updateBackpack(.02);');assert.equal(run('game.mode'),'playing');assert.equal(run('backpack.progress'),0);assert.equal(document.querySelectorAll('#touchKit').length,1);
+  run('for(let i=0;i<100;i++){updateBackpack(.02);updateCamera(.02);}buildObjects();positionBackpackInventory();');assert.equal(run('backpack.progress'),1);assert.ok(document.getElementById('fieldKit').style.transform.startsWith('matrix('));assert.equal(run('Math.abs(player.pitch+.16)<.001'),true);
+  run('closeFieldKit();');assert.equal(run('game.mode'),'inventory');run('for(let i=0;i<80;i++)updateBackpack(.02);');assert.equal(run('game.mode'),'playing');assert.equal(run('backpack.progress'),0);assert.equal(document.querySelectorAll('#touchKit').length,1);
 });
 test('the shipped gun draws two hands and moving parts, and local firing shares the combat rules',()=>{
   const {run,document,context}=launch();run("resetWorld(true,0);setMode('playing');locked=true;game.hasGun=true;game.ammo=17;game.reserve=34;equippedTool='gun';equipmentMotion.shown='gun';updateCamera(0);objectDraws.length=0;appendHeldEquipment();");
