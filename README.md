@@ -1,3 +1,13 @@
+## Version 17.1: signal pole stomps
+
+The traffic-light head is 65% larger, and its hanging span sits lower on the wooden poles. Three visible cable coils and a hanging cable end wrap each pole; the span and both hangers remain attached as the poles move.
+
+Traffic lights attack with one aimed pole stomp. The other pole stays planted, the attacking pole lifts for a clear warning, and the landing point locks before the strike so players can dodge. Ordinary walking contact no longer causes instant death. Red lights remain stopped; green lights finish an attack before changing color. Impact damage is authoritative online and respects god mode, shelter, forest separation, and player height.
+
+The host tablet's WORLD page now has STOP / RESUME TRAFFIC LIGHTS. It freezes traffic movement, hanging motion, and any attack for the entire room. Guests cannot change it. Solo play uses the same control and simulation.
+
+Android versionCode 34 / versionName 17.1 retains the original package and signing identity. Layout capability remains 9; update each player's app to see the larger signal, cable wraps, and new tablet control. Accounts require no migration.
+
 ## Version 17: roadside encounters
 
 The gun is centered during normal hold as well as aiming. Touch players have a dedicated AIM button with a pressed state; desktop right click still toggles sights. Backpack opening and closing now share damped momentum, including interruptions, and the flap and camera settle smoothly in both first-person and remote views. Turbines ease into their turn during awakening instead of snapping toward the sound.
