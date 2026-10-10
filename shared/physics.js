@@ -1,4 +1,5 @@
 import { spendStamina } from './survival.js';
+import {collideRoadside} from './roadside.js';
 import {fieldRoadOffset,collideForest,siteClearing,bareGround} from './world-layout.js';
 // Rendering-independent world rules, copied from the current game.
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -111,6 +112,7 @@ export function movePlayer(p, input, dt, obstacles = [], collideLegs = () => {},
   p.z += dz / steps;
   collideShed(p);
   collideForest(p,layout);
+  collideRoadside(p,layout);
   for (const o of obstacles) {
     const dx = p.x - o.x,
       dz = p.z - o.z,

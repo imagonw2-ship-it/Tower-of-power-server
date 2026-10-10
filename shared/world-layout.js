@@ -1,7 +1,8 @@
 // Versioned, deterministic world generation. The server owns the seed; every
 // client builds the same roads, utility corridor and forest from these rules.
 import {FOREST_TREE_TYPES} from './tree-shapes.js';
-export const LAYOUT_VERSION=8;
+import {makeRoadside} from './roadside.js';
+export const LAYOUT_VERSION=9;
 export function layoutRandom(seed){let a=seed>>>0;return()=>{a+=0x6D2B79F5;let t=Math.imul(a^a>>>15,a|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 export function seedFromText(value){
   const text=String(value??'').trim().slice(0,40);if(!text)return null;
@@ -104,7 +105,8 @@ export function makeLayout(seed=0){
   const sites=[...turbines.map(t=>({...t,radius:11.4,kind:0})),...pylons.map((p,i)=>({...p,radius:i===0?46.5:29,kind:1}))];
   const bounds=[Math.min(...nodes.map(n=>n.x),forest.x-forest.radius)-250,Math.min(...nodes.map(n=>n.z),forest.z-forest.radius)-250,Math.max(...nodes.map(n=>n.x),forest.x+forest.radius)+250,Math.max(...nodes.map(n=>n.z),forest.z+forest.radius)+250];
   const trails=makeDirtTrails(seed,nodes,forest);
-  return{version:LAYOUT_VERSION,bounds,trails,seed,name:'FIELD '+seed,nodes,edges,roads,turbines,pylons,powerLinks,power:{...pylons[0],name:'POWER CORRIDOR'},pylonStyle:pylons[0].style,forest,sites};
+  const layout={version:LAYOUT_VERSION,bounds,trails,seed,name:'FIELD '+seed,nodes,edges,roads,turbines,pylons,powerLinks,power:{...pylons[0],name:'POWER CORRIDOR'},pylonStyle:pylons[0].style,forest,sites};
+  layout.roadside=makeRoadside(layout);return layout;
 }
 // Compact spatial lookup for GPU road/clearing queries. Eight candidates per
 // cell keep pixel/grass cost independent of the total road count. Exact segment
