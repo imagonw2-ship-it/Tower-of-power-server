@@ -9,7 +9,7 @@ import {createApp} from '../server/server.js';
 import {LAYOUT_VERSION} from '../shared/world-layout.js';
 import {forestTerrainHeight} from '../shared/forest-level.js';
 import {collectEquipment} from '../shared/equipment-rules.js';
-test('two real clients receive identical traffic phases, moving poles, and backpack state',async()=>{
+test('two real clients synchronize traffic phase, host pause, stomp attacks and backpack state',async()=>{
   const dir=mkdtempSync(join(tmpdir(),'tower-equipment-')),app=createApp({dbPath:join(dir,'accounts.sqlite'),authRate:30}),sockets=[];
   const a=await app.listen(0,'127.0.0.1'),origin=`http://127.0.0.1:${a.port}`;
   async function device(){
@@ -32,6 +32,18 @@ test('two real clients receive identical traffic phases, moving poles, and backp
     const matching=await host.wait('snapshot',m=>m.world.elapsed===moved.world.elapsed);
     assert.deepEqual(matching.world.trafficLights,moved.world.trafficLights);
     assert.ok(moved.world.trafficLights.every(s=>s.feet.length===2&&s.feet.every(f=>f.position.every(Number.isFinite))));
+    assert.equal((await friend.action('host',{value:{command:'traffic',enabled:true}})).ok,false);
+    assert.equal((await host.action('host',{value:{command:'traffic',enabled:true}})).ok,true);
+    const paused=await friend.wait('snapshot',m=>m.world.trafficStopped===true);
+    assert.ok(paused.world.trafficLights.every(v=>v.paused&&v.phase==='red'&&v.vx===0&&v.vz===0));
+    const frozen=await host.wait('snapshot',m=>m.world.elapsed>paused.world.elapsed+.15&&m.world.trafficStopped);
+    assert.deepEqual(frozen.world.trafficLights,paused.world.trafficLights);
+    Object.assign(p,{x:s.feet[1].position[0],z:s.feet[1].position[2]+1});Object.assign(s,{phase:'green',phaseTime:0,stompCooldown:0});
+    for(const f of s.feet)f.progress=1;
+    assert.equal((await host.action('host',{value:{command:'traffic',enabled:false}})).ok,true);
+    const attack=await friend.wait('snapshot',m=>m.world.trafficLights[0].stomp?.phase==='windup');
+    const sameAttack=await host.wait('snapshot',m=>m.world.elapsed===attack.world.elapsed);assert.deepEqual(sameAttack.world.trafficLights,attack.world.trafficLights);
+    const landed=await friend.wait('snapshot',m=>m.world.trafficLights[0].impactSerial>0);assert.equal(landed.world.trafficStopped,false);
     p.inventory.backpack=true;assert.equal((await host.action('inventory',{open:true})).ok,true);
     await friend.wait('snapshot',m=>m.players.some(v=>v.id===p.id&&v.inventoryOpen&&v.inventory.backpack));
     assert.equal((await host.action('inventory',{open:false})).ok,true);
