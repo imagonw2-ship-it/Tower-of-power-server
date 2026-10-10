@@ -1,4 +1,4 @@
-let roadsideChunks=[],trafficLights=[],trafficMeshes=[],trafficTextures={},trafficPoleMesh=null,trafficCableMesh=null;
+let roadsideChunks=[],trafficLights=[],trafficMeshes=[],trafficTextures={},trafficPoleMesh=null,trafficCableMesh=null,trafficWrapMesh=null;
 function roadBeamMatrix(a,b,width,depth=width){
   const delta=b.map((v,k)=>v-a[k]),length=Math.hypot(...delta),axis=norm(delta),right=norm(cross(axis,Math.abs(axis[1])>.95?[0,0,1]:[0,1,0])),front=cross(right,axis);
   return new Float32Array([...right.map(v=>v*width),0,...delta,0,...front.map(v=>v*depth),0,...a,1]);
@@ -19,6 +19,16 @@ function buildTrafficModels(){
   }
   infraFace(pole,Array.from({length:10},(_,i)=>[Math.cos(-i*Math.PI/5)*.39,1,Math.sin(-i*Math.PI/5)*.39]),[.41,.33,.20]);
   trafficPoleMesh=mesh3D(pole);trafficCableMesh=mesh3D(infraBox(0,.5,0,1,1,1,[.028,.030,.024]));
+  // A continuous, visibly thick cable coils around each wooden pole beneath its tip.
+  // Bake the loops into one mesh per pole rather than drawing every loop segment.
+  const wraps=infraGeometry();let previous=null;
+  for(let i=0;i<=64;i++){
+    const t=i/64,a=t*Math.PI*6,p=[Math.cos(a)*.155,SIGNAL_ATTACH_HEIGHT-.14+t*.28,Math.sin(a)*.155];
+    if(previous)addRoadBeam(wraps,previous,p,.045,.045,[.09,.08,.057]);previous=p;
+  }
+  addRoadBeam(wraps,previous,[previous[0],previous[1]-.53,previous[2]],.045,.045,[.09,.08,.057]);
+  for(let i=1;i<wraps.positions.length;i+=3)wraps.positions[i]/=SIGNAL_HEIGHT;
+  trafficWrapMesh=mesh3D(wraps);
 }
 function resetRoadside(){
   for(const c of roadsideChunks){gl.deleteVertexArray(c.mesh.vao);gl.deleteBuffer(c.mesh.buffer);gl.deleteBuffer(c.mesh.indexBuffer);}
@@ -41,11 +51,11 @@ function updateTrafficLights(dt){
   stepTrafficLights(trafficLights,dt,[solo],terrainHeight,trafficObstacles(),()=>{sound.caught();setMode('lost');if(document.pointerLockElement===canvas)document.exitPointerLock();});
 }
 function visibleTrafficLights(){
-  if(!net.active)return trafficLights;
+  if(!net.active)return trafficLights.map(s=>s.paused?{...s,phase:'red'}:s);
   const q=snapshotPair();if(!q)return[];
   return(q.b.world.trafficLights||[]).map(cur=>{
     const prev=(q.a.world.trafficLights||[]).find(s=>s.id===cur.id)||cur,s=poseBetween(prev,cur,q.t);
-    if(q.t<1)s.phase=prev.phase;
+    if(q.t<1&&!s.paused)s.phase=prev.phase;
     for(const k of ['swingX','swingZ','headRoll','leanX','leanZ'])s[k]=lerp(prev[k]||0,cur[k]||0,q.t);
     return s;
   });
@@ -57,17 +67,20 @@ function appendRoadside(){
   for(const s of visibleTrafficLights()){
     if(Math.hypot(s.x-player.x,s.z-player.z)>240)continue;
     const geo=trafficLightGeometry(s),shadow=Math.hypot(s.x-player.x,s.z-player.z)<75;
-    for(let i=0;i<2;i++)objectDraws.push({mesh:trafficPoleMesh,model:roadBeamMatrix(s.feet[i].position,geo.tops[i],.30),material:1,castShadow:shadow,trafficPole:true});
-    let previous=geo.tops[0];const cable=[];
-    for(let i=0;i<=12;i++){
-      const t=i/12,p=geo.tops[0].map((v,k)=>lerp(v,geo.tops[1][k],t)-(k===1?Math.sin(t*Math.PI)*geo.sag:0));cable.push(p);
+    for(let i=0;i<2;i++){
+      objectDraws.push({mesh:trafficPoleMesh,model:roadBeamMatrix(s.feet[i].position,geo.tops[i],.30),material:1,castShadow:shadow,trafficPole:true});
+      objectDraws.push({mesh:trafficWrapMesh,model:roadBeamMatrix(s.feet[i].position,geo.tops[i],1),material:5,assetKind:13,castShadow:false,trafficWrap:true});
+    }
+    let previous=geo.attachments[0];
+    for(let i=0;i<=16;i++){
+      const t=i/16,p=geo.attachments[0].map((v,k)=>lerp(v,geo.attachments[1][k],t)-(k===1?Math.sin(t*Math.PI)*geo.sag:0));
       if(i)drawSignalCable(previous,p);previous=p;
     }
-    const head=multiply(transform(...geo.head),multiply(rotateY(s.heading),multiply(rotateZ(s.headRoll),rotateX(s.swingZ*.4))));
+    const head=multiply(multiply(transform(...geo.head),multiply(rotateY(s.heading),multiply(rotateZ(s.headRoll),rotateX(s.swingZ*.4)))),transform(0,0,0,SIGNAL_HEAD_SCALE,SIGNAL_HEAD_SCALE,SIGNAL_HEAD_SCALE));
     // Two short hangers physically join the top span to the one horizontal head.
     for(const sign of [-1,1]){
       const x=sign*.285,attach=[0,1,2].map(k=>head[12+k]+head[k]*x+head[4+k]*.158);
-      const t=.5+sign*.0274,top=geo.tops[0].map((v,k)=>lerp(v,geo.tops[1][k],t)-(k===1?Math.sin(t*Math.PI)*geo.sag:0));drawSignalCable(top,attach,.035);
+      const span=Math.hypot(...geo.attachments[1].map((v,k)=>v-geo.attachments[0][k])),t=.5+x*SIGNAL_HEAD_SCALE/Math.max(1,span),top=geo.attachments[0].map((v,k)=>lerp(v,geo.attachments[1][k],t)-(k===1?Math.sin(t*Math.PI)*geo.sag:0));drawSignalCable(top,attach,.045);
     }
     for(const p of trafficMeshes){const lens=p.kind!=='housing',on=p.kind===s.phase;objectDraws.push({mesh:p.mesh,model:head,texture:lens?trafficTextures[p.kind+(on?'':'Off')]:null,material:5,assetKind:lens?15:13,variant:lens&&on?{red:1,yellow:2,green:3}[p.kind]:0,castShadow:shadow,signalHead:s.id,signalLens:lens?p.kind:null});}
   }

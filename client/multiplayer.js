@@ -438,6 +438,7 @@ function updateNetworkFrame(dt) {
     cycle: latest.world.cycle,
     turbineStopped: latest.world.turbineStopped,
     powerStopped: latest.world.powerStopped,
+    trafficStopped: !!latest.world.trafficStopped,
   });
   const q = snapshotPair(),
     e = poseBetween(q.a.enemies.turbine, q.b.enemies.turbine, q.t),

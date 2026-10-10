@@ -6,6 +6,7 @@ function hostAction(command,options={}){
   if(!isWorldHost())return false;
   if(net.active){if(!net.connected){tabletMessage('CONNECTION LOST');return false;}net.action('host',{value:{command,...options}});return true;}
   if(command==='god')game.godMode=options.enabled;
+  else if(command==='traffic'){if(typeof options.enabled!=='boolean')return false;world.trafficStopped=options.enabled;setTrafficLightsStopped(trafficLights,options.enabled);}
   else if(command==='sprint'){game.infiniteSprint=options.enabled;if(options.enabled){game.stamina=100;game.exhausted=false;}}
   else if(command==='teleport'){
     const target=hostDestination(activeLayout,options.destination);if(!target)return false;
@@ -19,6 +20,7 @@ function hostAction(command,options={}){
   refreshTablet();return true;
 }
 function refreshTablet(){
+  const trafficButton=document.getElementById('trafficToggle');trafficButton.setAttribute('aria-pressed',String(!!world.trafficStopped));trafficButton.textContent=world.trafficStopped?'RESUME TRAFFIC LIGHTS':'STOP TRAFFIC LIGHTS';trafficButton.disabled=!isWorldHost();document.getElementById('trafficStatus').textContent=world.trafficStopped?'TRAFFIC LIGHTS STOPPED':'TRAFFIC LIGHTS ACTIVE';
   document.getElementById("tabletSector").textContent=inForest()?"FOREST / NO SIGNAL":"MEADOW / CONNECTED";refreshTabletPlayers();
   for(const [id,key] of [['godToggle','godMode'],['sprintToggle','infiniteSprint']]){
     const b=document.getElementById(id);b.setAttribute('aria-pressed',String(!!game[key]));
@@ -73,6 +75,7 @@ for(const b of document.querySelectorAll('[data-host-destination]'))b.addEventLi
 for(const [id,command,label] of [['spawnMimic','mimic','MIMIC SUMMONED IN THE FOREST'],['clearMimic','clearMimic','MIMIC DISMISSED'],['wakeGiants','wake','THE GIANTS HAVE BEEN ALERTED']])document.getElementById(id).addEventListener('click',()=>{if(hostAction(command))tabletMessage(label);});
 for(const [id,command,key] of [['godToggle','god','godMode'],['sprintToggle','sprint','infiniteSprint']])document.getElementById(id).addEventListener('click',()=>{const enabled=!game[key];if(hostAction(command,{enabled}))tabletMessage((command==='god'?'GOD MODE':'INFINITE SPRINT')+' · '+(enabled?'ON':'OFF'));});
 document.getElementById('hostTabletButton').addEventListener('click',openFieldPanel);
+document.getElementById('trafficToggle').addEventListener('click',()=>{const enabled=!world.trafficStopped;if(hostAction('traffic',{enabled}))tabletMessage('TRAFFIC LIGHTS · '+(enabled?'STOPPED':'RESUMED'));});
 const originalTabletAction=net.hooks.action;
 net.hooks.action=(m,r)=>{originalTabletAction?.(m,r);if(m.action==='host')tabletMessage(m.ok?'COMMAND CONFIRMED':r?.value?.command==='mimic'?'A PLAYER MUST BE IN THE FOREST':'COMMAND UNAVAILABLE');};
 

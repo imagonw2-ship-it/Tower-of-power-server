@@ -367,7 +367,7 @@
   if(!['low','medium','high'].includes(settings.quality))settings.quality='medium';
   if(!['off','medium','high'].includes(settings.shadows))settings.shadows='medium';
   const game={mode:'menu',returnTo:'menu',clock:0,stamina:100,staminaDelay:0,exhausted:false,hasFlare:false,flareTaken:false,flares:0,flareCooldown:0,photos:0,flash:0,photoCooldown:0,photoPending:false,photoAge:99,shake:0,sprinting:false,intro:0,hintAge:0,fadeIn:0,hasFlashlight:false,torchOn:false,zoom:1,zoomTarget:1,noticeTime:0,notice:''};
-  const world={phase:.43,cycle:true,turbineStopped:false,day:1,sun:[0,1,0],light:[0,1,0],direct:[1,.95,.84],ambient:[.4,.44,.47]};
+  const world={phase:.43,cycle:true,turbineStopped:false,trafficStopped:false,day:1,sun:[0,1,0],light:[0,1,0],direct:[1,.95,.84],ambient:[.4,.44,.47]};
   let enemy={state:'dormant',silence:0,searchOnly:false,searchHint:null,attack:null,attackCooldown:0,targetId:null,heardVelocity:[0,0],sample:null,sampleTime:-99,angle:.22,awake:0,lift:0,vx:0,vz:0,heading:0,gait:0,lastStep:-1,feet:[],clock:0,cooldown:3,crouch:0,lean:0,anchor:[turbine.x,turbine.y,turbine.z]};
   const keys = new Set();
   const moveKeys = new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight']);
@@ -1685,7 +1685,7 @@
     avatarCache.clear();networkPylons=[];localDroppedItems=[];localDropSerial=0;pendingDrop=null;localFlares=[];flareSerial=0;cameraDynamics=createBodyCamera();
     equippedTool='camera';kitPreviousFlashlight=false;resetEquipmentMotion();resetGun();resetBackpack();resetForestHaunts();resetForestLevel();tablet.progress=0;tablet.closing=false;game.godMode=false;game.infiniteSprint=false;
     turbine.x=playable?activeLayout.turbines[0].x:-35;turbine.z=playable?activeLayout.turbines[0].z:-250;turbine.y=terrainHeight(turbine.x,turbine.z);
-    resetEnemy();resetPowerCreature();resetOtherTurbines();buildPowerCorridor();resetRoadside();Object.assign(world,{phase:.43,cycle:true,turbineStopped:false,powerStopped:false});updateEnvironment(0);
+    resetEnemy();resetPowerCreature();resetOtherTurbines();buildPowerCorridor();resetRoadside();Object.assign(world,{phase:.43,cycle:true,turbineStopped:false,powerStopped:false,trafficStopped:false});updateEnvironment(0);
     Object.assign(player,playable?{x:128,z:-34,yaw:-.015,pitch:-.025}:{x:0,z:6,yaw:0,pitch:-.01});
     player.y=shedFloor(player.x,player.z)+EYE_HEIGHT;
     Object.assign(bob,{phase:0,blend:0,strafe:0,vertical:0,lateral:0,roll:0});
