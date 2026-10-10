@@ -49,3 +49,7 @@ Version 14 renders the existing public-domain eye photograph in an opaque black 
 The project owner supplied `glock-17-pistol-low-poly-game-ready-3d-model.zip` (source `model.glb`) and `military-backpack-02.zip` (source `Backpack-Outdoor-02.fbx`). The runtime retains their original color textures, with reduced resolution and simplified backpack geometry. Original author and redistribution license metadata were not supplied; no license or authorship is inferred.
 
 The gun frame, slide and magazine and the backpack body and opening flap are packaged by `scripts/prepare_equipment.py`. The FBX conversion uses ufbx (https://github.com/ufbx/ufbx); UV-preserving geometry simplification uses meshoptimizer (https://github.com/zeux/meshoptimizer). These are build-time tools, not runtime downloads. The existing user-provided hazmat hands are reused. Recoil, aiming, reload, bag-opening animations, sounds and the projected inventory are original game code; no Bodycam assets or animations are included.
+
+## Traffic light (17)
+
+The project owner supplied `8-inch-ge-dr6-traffic-signals.zip`. This build uses only the first complete head (`Cylinder.299`) from `source/8 inch GE dr6 signals.fbx`, rotated horizontally, plus the supplied lens textures. The other two duplicate display heads are not included. The nominal eight-inch lenses establish the physical scale. Wooden poles, fence runs, cable geometry, gait, and pendulum simulation are authored in this project. `scripts/prepare_traffic_light.py` packs the static ufbx export without external runtime downloads.

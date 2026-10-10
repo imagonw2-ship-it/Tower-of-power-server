@@ -1,3 +1,13 @@
+## Version 17: roadside encounters
+
+The gun is centered during normal hold as well as aiming. Touch players have a dedicated AIM button with a pressed state; desktop right click still toggles sights. Backpack opening and closing now share damped momentum, including interruptions, and the flap and camera settle smoothly in both first-person and remote views. Turbines ease into their turn during awakening instead of snapping toward the sound.
+
+Seeded wooden fences spawn beside meadow roads, with gaps at junctions, sites, and the shed approach. Occasional roadside traffic-light creatures use exactly one horizontal head from the supplied GE DR6 model, with eight-inch lenses, two roughly six-metre wooden poles, a sagging span cable, and two suspended hangers. The poles step alternately; their movement and braking drive damped head swing. Green chases at up to 15.4 m/s, yellow slows to 2.6 m/s, and red stops travel for 4.6 seconds. Moving poles can catch players. The shed provides shelter; signals ignore forest occupants and sleep when the meadow is vacant. Guns still only damage mimics.
+
+Offline and server simulation share placement, timing, movement, physics, and collision rules. Multiplayer snapshots replicate pole feet, phase, and hanging motion. Layout capability is now 9: all players need version 17. Android versionCode 33 / versionName 17 preserves the existing package and signer.
+
+Validation: 26 focused automated gameplay, motion, and two-client WebSocket checks, plus first-person and remote WebGL visual checks. Physical Android performance still needs device feedback.
+
 ## Version 16.1: equipment motion fixes
 
 The gun sits closer to the center, with aligned sights and a tighter two-handed grip. Frame-rate independent springs smooth aiming, recoil, sprint lowering and reload recovery. Reused multiplayer snapshots no longer restart the reload timer; the support hand follows the moving magazine.
