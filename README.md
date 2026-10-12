@@ -1,3 +1,13 @@
+## Version 17.2: reference traffic-light walker
+
+Matches the supplied video with two tall, tapered wooden poles, a deep hanging cable and three upright yellow GE signal heads. Cable junction boxes, short hanger stems, pole climbing pegs, downleads and wrapped cable remain connected as the rig moves. The same imported head geometry is reused three times; merged housing meshes limit draw calls.
+
+The poles take longer alternating strides and rock about planted toes without changing length. Narrower running footprints create the wide V-shaped stance. Each head has its own damped suspension driven by its cable attachment, so stepping, braking and stomping make the heads swing independently. Green pursues faster than boosted sprint, yellow slows, and red stops the poles while the suspended heads settle. The aimed single-pole stomp and host tablet STOP / RESUME TRAFFIC LIGHTS control are retained.
+
+Server and offline simulation share the rig, tilted-pole collisions, and head physics; multiplayer interpolates all three suspended heads. Android versionCode 35 / versionName 17.2 retains the existing package and signer. Layout capability is 10: all multiplayer players must update to 17.2.
+
+Validation: 28 focused checks pass, including two real WebSocket clients, host permissions, attack timing, stable pole lengths, independent suspension and frame-rate consistency. Real WebGL checks cover the stationary rig, raised-pole attack, walking cycle and tablet control. Physical Android performance still needs device feedback.
+
 ## Version 17.1: signal pole stomps
 
 The traffic-light head is 65% larger, and its hanging span sits lower on the wooden poles. Three visible cable coils and a hanging cable end wrap each pole; the span and both hangers remain attached as the poles move.
