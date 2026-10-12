@@ -1,15 +1,18 @@
 // Shared by the authoritative server and offline game. Metres, seconds, radians.
+import {nearestRoad} from './world-layout.js';
 export const SIGNAL_HEIGHT=8.6,SIGNAL_HALF_SPAN=4.2;
 export const SIGNAL_HEAD_SCALE=1.45,SIGNAL_ATTACH_HEIGHT=8,SIGNAL_HANGER_LENGTH=.22;
 export const SIGNAL_HEAD_POINTS=[.23,.5,.77],SIGNAL_HEAD_DROP=.43*SIGNAL_HEAD_SCALE+SIGNAL_HANGER_LENGTH;
 export const SIGNAL_STOMP={windup:.82,strike:.22,hold:.16,recover:.48,lift:3,reach:4.8,radius:1.05,cooldown:1.8};
 export const SIGNAL_TIMING={red:4.6,green:3.4,yellow:1.35};
 export const SIGNAL_SPEED={red:0,green:13.8,yellow:2.6};
+export const SIGNAL_SIGHT={range:64,halfAngle:Math.PI*.43,memory:2.4};
+export const SIGNAL_STANCE={wide:5.2,close:1.45,farDistance:42,nearDistance:14};
 const signalClamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 export function createTrafficLights(layout,height){
   return(layout.roadside?.signals||[]).map(p=>{
-    const s={...p,phase:'red',phaseTime:0,active:false,paused:false,targetId:null,lost:0,clock:0,vx:0,vz:0,leanX:0,leanZ:0,heading:p.heading,feet:[],nextFoot:0,swingX:0,swingZ:0,swingVX:0,swingVZ:0,headRoll:0,stomp:null,stompCooldown:0,impactSerial:0,heads:SIGNAL_HEAD_POINTS.map(()=>({swingX:0,swingZ:0,vx:0,vz:0,anchor:null,anchorVelocity:[0,0,0]}))};
-    for(const sign of [-1,1]){const x=p.x+Math.cos(p.heading)*SIGNAL_HALF_SPAN*sign,z=p.z-Math.sin(p.heading)*SIGNAL_HALF_SPAN*sign,pos=[x,height(x,z),z];s.feet.push({position:pos,start:pos.slice(),target:pos.slice(),progress:1});}
+    const s={...p,roads:layout.roads||[],halfSpan:SIGNAL_STANCE.wide,stance:'roadside',seen:null,sightAge:99,scanTime:0,targetVisible:false,phase:'red',phaseTime:0,active:false,paused:false,targetId:null,lost:0,clock:0,vx:0,vz:0,leanX:0,leanZ:0,heading:p.heading,feet:[],nextFoot:0,swingX:0,swingZ:0,swingVX:0,swingVZ:0,headRoll:0,stomp:null,stompCooldown:0,impactSerial:0,heads:SIGNAL_HEAD_POINTS.map(()=>({swingX:0,swingZ:0,vx:0,vz:0,anchor:null,anchorVelocity:[0,0,0]}))};
+    for(const sign of [-1,1]){const x=p.x+Math.cos(p.heading)*s.halfSpan*sign,z=p.z-Math.sin(p.heading)*s.halfSpan*sign,pos=[x,height(x,z),z];s.feet.push({position:pos,start:pos.slice(),target:pos.slice(),progress:1});}
     return s;
   });
 }
@@ -39,20 +42,34 @@ export function setTrafficLightsStopped(signals,enabled){
   for(const s of signals){s.paused=enabled;if(enabled)s.vx=s.vz=0;}
 }
 const signalEase=t=>{t=signalClamp(t,0,1);return t*t*t*(t*(t*6-15)+10);};
+export function signalCanSee(s,p,height,obstacles=[]){
+  const dx=p.x-s.x,dz=p.z-s.z,d=Math.hypot(dx,dz);
+  if(p.alive===false||p.connected===false||p.biome==='forest'||d>SIGNAL_SIGHT.range)return false;
+  if(d>9&&(dx*Math.sin(s.heading)+dz*Math.cos(s.heading))/d<Math.cos(SIGNAL_SIGHT.halfAngle))return false;
+  const y=height(s.x,s.z)+5,py=p.y??height(p.x,p.z)+(p.crouching?.72:1.7);
+  for(let i=1;i<10;i++){const t=i/10;if(height(s.x+dx*t,s.z+dz*t)>y+(py-y)*t-.15)return false;}
+  return !obstacles.some(o=>{const t=signalClamp(((o.x-s.x)*dx+(o.z-s.z)*dz)/(d*d||1),0,1);return Math.hypot(s.x+dx*t-o.x,s.z+dz*t-o.z)<o.r&&height(o.x,o.z)+(o.shelter?4.2:20)>y+(py-y)*t;});
+}
+export function signalPredictedPoint(s,seconds){
+  const p=s.seen||{x:s.x,z:s.z,vx:0,vz:0},age=Math.min(s.sightAge,.65),lead=signalClamp(seconds+age,0,1.25);
+  return{x:p.x+p.vx*lead,z:p.z+p.vz*lead};
+}
 function beginSignalStomp(s,p,height){
-  if(s.phase!=='green'||s.stompCooldown>0)return;
+  if(s.phase!=='green'||s.stompCooldown>0||!s.targetVisible)return;
   const choices=s.feet.map((f,i)=>({i,d:Math.hypot(p.x-f.position[0],p.z-f.position[2])})).filter(c=>s.feet[1-c.i].progress>=1&&c.d<SIGNAL_STOMP.reach).sort((a,b)=>a.d-b.d);
   if(!choices.length)return;
   const foot=choices[0].i,f=s.feet[foot],sign=foot?1:-1;
-  const x=s.x+Math.cos(s.heading)*SIGNAL_HALF_SPAN*.57*sign,z=s.z-Math.sin(s.heading)*SIGNAL_HALF_SPAN*.57*sign;
-  // Lock the landing point at the start of the raised-pole warning. No homing on descent.
-  s.stomp={foot,time:0,phase:'windup',start:f.position.slice(),target:[p.x,height(p.x,p.z),p.z],return:[x,height(x,z),z],impacted:false};
+  const x=s.x+Math.cos(s.heading)*s.halfSpan*sign,z=s.z-Math.sin(s.heading)*s.halfSpan*sign,aim=signalPredictedPoint(s,SIGNAL_STOMP.windup+SIGNAL_STOMP.strike);
+  // Anticipate the victim's observed motion, then make one final adjustment
+  // during the lift. The last .18 seconds and the descent remain committed.
+  s.stomp={foot,time:0,phase:'windup',start:f.position.slice(),target:[aim.x,height(aim.x,aim.z),aim.z],return:[x,height(x,z),z],impacted:false};
   for(const f of s.feet)f.progress=1;
 }
 function tickSignalStomp(s,dt,candidates,height,onCatch){
   const a=s.stomp;if(!a)return;
   const c=SIGNAL_STOMP,f=s.feet[a.foot];a.time+=dt;
   if(a.time<c.windup){
+    if(a.time<c.windup-.18&&s.targetVisible){const aim=signalPredictedPoint(s,c.windup+c.strike-a.time),blend=1-Math.exp(-8*dt);a.target[0]+=(aim.x-a.target[0])*blend;a.target[2]+=(aim.z-a.target[2])*blend;a.target[1]=height(a.target[0],a.target[2]);}
     const t=signalEase(a.time/(c.windup-.16));f.position=a.start.map((v,k)=>v+(a.target[k]-v)*t);f.position[1]+=c.lift*t;
   }else if(a.time<c.windup+c.strike){
     a.phase='strike';const t=(a.time-c.windup)/c.strike;f.position=a.target.slice();f.position[1]+=c.lift*(1-t*t);
@@ -73,7 +90,11 @@ function tickSignalStomp(s,dt,candidates,height,onCatch){
 function signalRoute(s,p,obstacles){
   const direct=Math.atan2(p.x-s.x,p.z-s.z),side=Math.cos(direct),forward=Math.sin(direct);
   // The right pole tracks the victim; the suspended head is not an invisible hitbox.
-  let x=p.x-side*SIGNAL_HALF_SPAN*.57,z=p.z+forward*SIGNAL_HALF_SPAN*.57;
+  let x=p.x-side*s.halfSpan,z=p.z+forward*s.halfSpan;
+  // At range, the centre follows the asphalt and the feet land on its shoulders.
+  // Only the close stance cuts across the road toward the predicted victim.
+  const road=s.roads?.length?s.roads[nearestRoad(s.x,s.z,{roads:s.roads}).index]:null;
+  if(road){const dx=road.b.x-road.a.x,dz=road.b.z-road.a.z,len=Math.hypot(dx,dz),along=signalClamp(((p.x-road.a.x)*dx+(p.z-road.a.z)*dz)/len,0,len),close=signalClamp((SIGNAL_STANCE.wide-s.halfSpan)/(SIGNAL_STANCE.wide-SIGNAL_STANCE.close),0,1);x=(road.a.x+dx/len*along)*(1-close)+x*close;z=(road.a.z+dz/len*along)*(1-close)+z*close;}
   for(const o of obstacles){
     const dx=x-s.x,dz=z-s.z,l=dx*dx+dz*dz,t=signalClamp(((o.x-s.x)*dx+(o.z-s.z)*dz)/(l||1),0,1);
     if(Math.hypot(s.x+dx*t-o.x,s.z+dz*t-o.z)<o.r+6){
@@ -88,12 +109,22 @@ function signalStep(s,dt,players,height,obstacles,onCatch){
   s.clock+=dt;
   s.stompCooldown=Math.max(0,s.stompCooldown-dt);
   const candidates=players.filter(p=>p.alive!==false&&p.connected!==false&&p.biome!=='forest'&&!obstacles.some(o=>o.shelter&&Math.hypot(p.x-o.x,p.z-o.z)<o.r));
-  let p=candidates.find(p=>p.id===s.targetId);
-  if(!p||Math.hypot(p.x-s.x,p.z-s.z)>155)p=candidates.reduce((a,b)=>!a||Math.hypot(b.x-s.x,b.z-s.z)<Math.hypot(a.x-s.x,a.z-s.z)?b:a,null);
+  s.sightAge+=dt;s.scanTime-=dt;
+  if(s.scanTime<=0){
+    s.scanTime=.10;
+    const visible=candidates.filter(p=>signalCanSee(s,p,height,obstacles)),p=visible.find(p=>p.id===s.targetId)||visible.sort((a,b)=>Math.hypot(a.x-s.x,a.z-s.z)-Math.hypot(b.x-s.x,b.z-s.z))[0];
+    s.targetVisible=!!p;
+    if(p){const speed=Math.hypot(p.vx||0,p.vz||0),scale=Math.min(1,10/(speed||1));s.seen={x:p.x,z:p.z,vx:(p.vx||0)*scale,vz:(p.vz||0)*scale};s.targetId=p.id;s.sightAge=0;}
+  }
+  if(!candidates.some(p=>p.id===s.targetId)||s.sightAge>SIGNAL_SIGHT.memory){s.targetId=null;s.targetVisible=false;}
+  const p=s.targetId?signalPredictedPoint(s,Math.min(.9,Math.hypot(s.seen.x-s.x,s.seen.z-s.z)/SIGNAL_SPEED.green*.35)):null;
   const distance=p?Math.hypot(p.x-s.x,p.z-s.z):Infinity;
-  if(!s.active&&distance<70){s.active=true;s.phase='yellow';s.phaseTime=0;}
+  const close=signalEase((SIGNAL_STANCE.farDistance-distance)/(SIGNAL_STANCE.farDistance-SIGNAL_STANCE.nearDistance)),span=SIGNAL_STANCE.wide+(SIGNAL_STANCE.close-SIGNAL_STANCE.wide)*close;
+  if(!s.stomp&&s.phase!=='red')s.halfSpan+=(span-s.halfSpan)*(1-Math.exp(-2.8*dt));
+  s.stance=s.stomp?'stomp':!s.targetVisible&&s.targetId?'search':s.halfSpan<2.2?'attack':s.halfSpan<4.5?'closing':'roadside';
+  if(!s.active&&s.targetVisible){s.active=true;s.phase='yellow';s.phaseTime=0;}
   if(s.active){
-    s.targetId=distance<155?p.id:null;s.lost=s.targetId?0:s.lost+dt;if(!s.stomp)s.phaseTime+=dt;
+    s.lost=s.targetId?0:s.lost+dt;if(!s.stomp)s.phaseTime+=dt;
     if(s.phaseTime>=SIGNAL_TIMING[s.phase]){s.phaseTime-=SIGNAL_TIMING[s.phase];s.phase=s.phase==='red'?'green':s.phase==='green'?'yellow':'red';}
     if(s.lost>9){s.active=false;s.phase='red';s.phaseTime=0;s.targetId=null;}
   }
@@ -104,7 +135,7 @@ function signalStep(s,dt,players,height,obstacles,onCatch){
   else{
     const goal=signalRoute(s,p,obstacles),desired=Math.atan2(goal.x-s.x,goal.z-s.z),delta=Math.atan2(Math.sin(desired-s.heading),Math.cos(desired-s.heading));
     s.heading+=signalClamp(delta,-2.2*dt,2.2*dt);
-    const speed=SIGNAL_SPEED[s.phase]*signalClamp(Math.hypot(goal.x-s.x,goal.z-s.z)/2,.20,1),blend=1-Math.exp(-5*dt);
+    const speed=SIGNAL_SPEED[s.phase]*signalClamp(Math.hypot(goal.x-s.x,goal.z-s.z)/2,0,1),blend=1-Math.exp(-5*dt);
     s.vx+=(Math.sin(s.heading)*speed-s.vx)*blend;s.vz+=(Math.cos(s.heading)*speed-s.vz)*blend;
     s.x+=s.vx*dt;s.z+=s.vz*dt;
     for(const o of obstacles){const dx=s.x-o.x,dz=s.z-o.z,d=Math.hypot(dx,dz),r=o.r+5.6;if(d<r){s.x=o.x+(d>.001?dx/d:1)*r;s.z=o.z+(d>.001?dz/d:0)*r;}}
@@ -122,7 +153,7 @@ function signalStep(s,dt,players,height,obstacles,onCatch){
   }
   if(moving&&!swinging&&!attacking){
     for(let j=0;j<2;j++){
-      const i=(s.nextFoot+j)%2,sign=i?1:-1,f=s.feet[i],x=s.x+Math.cos(s.heading)*SIGNAL_HALF_SPAN*.57*sign+s.vx*.19,z=s.z-Math.sin(s.heading)*SIGNAL_HALF_SPAN*.57*sign+s.vz*.19;
+      const i=(s.nextFoot+j)%2,sign=i?1:-1,f=s.feet[i],x=s.x+Math.cos(s.heading)*s.halfSpan*sign+s.vx*.19,z=s.z-Math.sin(s.heading)*s.halfSpan*sign+s.vz*.19;
       if(Math.hypot(f.position[0]-x,f.position[2]-z)<.55)continue;
       f.start=f.position.slice();f.target=[x,height(x,z),z];f.progress=0;const pace=signalClamp(Math.hypot(s.vx,s.vz)/SIGNAL_SPEED.green,0,1);f.duration=.46-.12*pace;f.lift=.75+.85*pace;s.nextFoot=1-i;break;
     }
@@ -153,7 +184,7 @@ export function stepTrafficLights(signals,dt,players,height,obstacles=[],onCatch
   for(let i=0;i<steps;i++)for(const s of signals)signalStep(s,duration/steps,players,height,obstacles,onCatch);
 }
 export function snapshotTrafficLights(signals){
-  return signals.map(s=>({...Object.fromEntries(['id','x','z','heading','phaseTime','active','paused','vx','vz','leanX','leanZ','clock','swingX','swingZ','headRoll','impactSerial'].map(k=>[k,s[k]])),phase:s.paused?'red':s.phase,feet:s.feet.map(f=>({position:f.position.slice(),progress:f.progress})),heads:s.heads.map(h=>({swingX:h.swingX,swingZ:h.swingZ})),stomp:s.stomp?{foot:s.stomp.foot,time:s.stomp.time,phase:s.stomp.phase,target:s.stomp.target.slice()}:null,lastImpact:s.lastImpact?.slice()}));
+  return signals.map(s=>({...Object.fromEntries(['id','x','z','heading','phaseTime','active','paused','halfSpan','stance','targetVisible','vx','vz','leanX','leanZ','clock','swingX','swingZ','headRoll','impactSerial'].map(k=>[k,s[k]])),phase:s.paused?'red':s.phase,feet:s.feet.map(f=>({position:f.position.slice(),progress:f.progress})),heads:s.heads.map(h=>({swingX:h.swingX,swingZ:h.swingZ})),stomp:s.stomp?{foot:s.stomp.foot,time:s.stomp.time,phase:s.stomp.phase,target:s.stomp.target.slice()}:null,lastImpact:s.lastImpact?.slice()}));
 }
 export function trafficPoleObstacles(signals,player){return signals.flatMap(s=>{const g=trafficLightGeometry(s);return s.feet.map((f,i)=>{const t=signalClamp(((player?.y??f.position[1]+.7)-.7-f.position[1])/(g.tops[i][1]-f.position[1]),0,1);return{x:f.position[0]+(g.tops[i][0]-f.position[0])*t,y:f.position[1],z:f.position[2]+(g.tops[i][2]-f.position[2])*t,r:.48};});});}
 export function collideTrafficPoles(p,signals){

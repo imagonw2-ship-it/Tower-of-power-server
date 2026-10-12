@@ -3,6 +3,21 @@ const combatClamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const combatMix = (a, b, t) => a + (b - a) * t;
 const combatEase = t => t * t * (3 - 2 * t);
 
+// Being quiet alone is no longer cover: exposed operators are tracked even
+// while standing still. Grass concealment requires crouching, in both modes.
+export const TOWER_PRESENCE_RANGE=180;
+export function towerPresenceContact(p,body,grassAt,blocked){
+  return p.alive!==false&&p.connected!==false&&p.biome!=='forest'&&
+    Math.hypot(p.x-body.x,p.z-body.z)<TOWER_PRESENCE_RANGE&&
+    !(p.crouching&&grassAt(p.x,p.z))&&!blocked(p,body);
+}
+export function scanTowerPresence(state,body,players,dt,grassAt,blocked,observe){
+  state.presenceClock=(state.presenceClock||0)-dt;
+  if(state.presenceClock>0||state.lureId)return;
+  state.presenceClock=.12;
+  for(const p of players)if(towerPresenceContact(p,body,grassAt,blocked))observe(p);
+}
+
 export class SoundTargets {
   constructor() { this.reset(); }
   reset() { this.time = 0; this.tracks = new Map(); this.id = null; this.since = 0; this.revision = -1; }
