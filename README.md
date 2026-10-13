@@ -1,3 +1,13 @@
+## Version 18: adaptive pursuit and top-opening backpack
+
+Traffic lights see up to 64 m in a forward cone, with close awareness and terrain/shelter occlusion. They use a short last-seen memory, follow the road with wide shoulder steps at range, and smoothly narrow onto the asphalt near a victim. Their pole stomp predicts observed movement and can adjust during the lift; the final part of the windup and the descent commit to the landing point. Red lights and host pause still stop pursuit.
+
+Turbines and pylons now detect stationary or walking exposed players within 180 m. Quiet movement alone is insufficient: crouch in grass to avoid new tracking updates. Solid shelter, forest separation, loud noises, and last-known-position investigation retain their existing rules.
+
+The military pack is carried by its top handle in the left hand. Front pockets stay closed; only a small top cap opens. The right hand unzips, stows the held tool, and retrieves the chosen tool over a 1.45 s transfer. Multiplayer replicates the action and ownership changes at completion; closing waits for the transfer. The existing inventory button and 12-slot capacity are unchanged.
+
+Validation: 24 focused checks covering sight, prediction, stances, hiding, transfer ownership, remote animation, and two real WebSocket clients; mobile WebGL visual checks. Android versionCode 36 / versionName 18 retains the existing package and signer. Layout capability 11 requires all multiplayer players to update together.
+
 ## Version 17.2: reference traffic-light walker
 
 Matches the supplied video with two tall, tapered wooden poles, a deep hanging cable and three upright yellow GE signal heads. Cable junction boxes, short hanger stems, pole climbing pegs, downleads and wrapped cable remain connected as the rig moves. The same imported head geometry is reused three times; merged housing meshes limit draw calls.
