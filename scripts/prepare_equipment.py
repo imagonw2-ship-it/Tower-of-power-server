@@ -6,7 +6,7 @@ First run simplify_prop.mjs to preserve UV seams during mobile optimization.
 The original uploads stay untouched. UVs and original base colors are preserved.
 """
 from pathlib import Path
-import base64, io, json, struct, sys
+import base64, io, json, struct, sys, subprocess
 import numpy as np
 from scipy.spatial import ConvexHull
 from PIL import Image
@@ -69,6 +69,7 @@ meshes=[dict(name=k,**pack(np.concatenate(v))) for k,v in parts.items()]
 bagrows=np.concatenate([np.concatenate(v) for v in parts.values()])
 bag={'source':'User supplied military-backpack-02 FBX','texture':texture(atlas,1536),'meshes':meshes,'hinge':[0,.066,.054],'screen':[-.133,.093,.139,.369,.059]}
 save('backpack',bag)
+subprocess.run([sys.executable,str(root/'scripts/rebuild_backpack_opening.py')],check=True)
 # Convex support points let dropped models rest on slopes without sinking.
 supports={}
 for kind,points in [('gun',pos),('backpack',np.concatenate(allpos))]:
