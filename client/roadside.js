@@ -52,7 +52,7 @@ function resetRoadside(){
 function trafficObstacles(){return[{x:shed.x,z:shed.z,r:5.4,shelter:true},...activeLayout.turbines.map(t=>({x:t.x,z:t.z,r:9}))];}
 function updateTrafficLights(dt){
   if(net.active||inForest()||game.mode!=='playing')return;
-  const solo={...player,id:'solo',alive:true,godMode:game.godMode};
+  const solo={...player,id:'solo',alive:true,godMode:game.godMode,crouching:game.crouching,vx:game.vx||0,vz:game.vz||0};
   stepTrafficLights(trafficLights,dt,[solo],terrainHeight,trafficObstacles(),()=>{sound.caught();setMode('lost');if(document.pointerLockElement===canvas)document.exitPointerLock();});
 }
 function visibleTrafficLights(){
@@ -61,7 +61,7 @@ function visibleTrafficLights(){
   return(q.b.world.trafficLights||[]).map(cur=>{
     const prev=(q.a.world.trafficLights||[]).find(s=>s.id===cur.id)||cur,s=poseBetween(prev,cur,q.t);
     if(q.t<1&&!s.paused)s.phase=prev.phase;
-    for(const k of ['swingX','swingZ','headRoll','leanX','leanZ'])s[k]=lerp(prev[k]||0,cur[k]||0,q.t);
+    for(const k of ['swingX','swingZ','headRoll','leanX','leanZ','halfSpan'])s[k]=lerp(prev[k]||0,cur[k]||0,q.t);
     s.heads=(cur.heads||[]).map((h,i)=>({swingX:lerp(prev.heads?.[i]?.swingX??h.swingX,h.swingX,q.t),swingZ:lerp(prev.heads?.[i]?.swingZ??h.swingZ,h.swingZ,q.t)}));
     return s;
   });

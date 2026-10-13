@@ -268,6 +268,7 @@
     if(!net.active&&game.mode==='playing'&&!world.powerStopped)applyFlareLure(powerCreature,powerCreature,localFlares,dt,true);
     if(game.mode!=='playing'||isMenuScene()||world.powerStopped)return;
     const p=powerCreature,distance=Math.hypot(player.x-p.x,player.z-p.z);p.memoryAge+=dt;
+    observeSoloPresence(p,p,dt,true);
     if(silentSearch(p,p,[{...player,alive:true}],dt)&&p.state==='dormant')p.noise=p.searchHint.slice();
     if(!p.discovered&&Math.hypot(player.x-POWER_ZONE.x,player.z-POWER_ZONE.z)<95){p.discovered=true;game.notice='POWER CORRIDOR / KEEP QUIET';game.noticeTime=4;}
     if(p.noise){
@@ -1786,6 +1787,11 @@
     if(game.crouching)return grassCover(player.x,player.z)?4.5:onRoad(player.x,player.z)?16:9;
     return(game.sprinting?104:43)*(onRoad(player.x,player.z)?1.35:1);
   }
+  function observeSoloPresence(state,body,dt,power=false){
+    scanTowerPresence(state,body,[{...player,alive:true,crouching:game.crouching}],dt,grassCover,
+      (p,b)=>shedBlocksSight([b.x,terrainHeight(b.x,b.z)+1.6,b.z],[p.x,p.y,p.z]),
+      p=>{const at=[p.x,p.z];noteAudibleContact(state);state.noise=power?at:{position:at,life:.3};rememberSoundMotion(state,at,time);});
+  }
   function emitNoise(radius){
     if(inForest())return;
     if(game.mode!=='playing')return;
@@ -1879,6 +1885,7 @@
     if(isMenuScene()){enemy.angle+=dt*.24;return;}
     if(game.mode!=='playing')return;
     const distance=Math.hypot(player.x-turbine.x,player.z-turbine.z);
+    observeSoloPresence(enemy,turbine,dt);
     if(silentSearch(enemy,turbine,[{...player,alive:true}],dt)&&enemy.state==='dormant')enemy.noise={position:enemy.searchHint.slice(),life:.3};
     sensePlayer(dt);
     if(enemy.state==='dormant'){enemy.angle+=dt*.26;return;}
@@ -2007,7 +2014,7 @@
     cameraPosition.set([player.x+cy*bob.lateral+jitter*.028,player.y+bob.vertical+cameraDynamics.vertical+(reducedMotion||game.mode==='fieldPanel'?0:Math.sin(cameraDynamics.breath)*.004*(1-bob.blend))+Math.sin(time*61)*shake*.045,player.z-sy*bob.lateral]);
     const x=cameraPosition[0],y=cameraPosition[1],z=cameraPosition[2];
     view.set([right[0],up[0],-forward[0],0,right[1],up[1],-forward[1],0,right[2],up[2],-forward[2],0,-(right[0]*x+right[1]*y+right[2]*z),-(up[0]*x+up[1]*y+up[2]*z),forward[0]*x+forward[1]*y+forward[2]*z,1]);
-    const targetTan=Math.tan((65+style*5+Math.min(1,cameraDynamics.speed/6.6)*(7+style*3))*Math.PI/360)/game.zoom;cameraTan=lerp(cameraTan+(targetTan-cameraTan)*(1-Math.exp(-5*dt)),TAN_HALF_FOV,ease(Math.max(tablet.progress,backpack.progress)));
+    const targetTan=Math.tan((65+style*5+Math.min(1,cameraDynamics.speed/6.6)*(7+style*3))*Math.PI/360)/game.zoom;cameraTan=lerp(cameraTan+(targetTan-cameraTan)*(1-Math.exp(-5*dt)),TAN_HALF_FOV/lerp(1,1.4,ease(backpack.progress)),ease(Math.max(tablet.progress,backpack.progress)));
     projection[0]=1/(cameraTan*canvas.width/canvas.height);projection[5]=1/cameraTan;
     viewProjection.set(multiply(projection,view));
   }

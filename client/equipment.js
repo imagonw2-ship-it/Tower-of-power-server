@@ -18,12 +18,13 @@ function advanceToolMotion(m,target,dt,inventory=false){
 function resetEquipmentMotion(){Object.assign(equipmentMotion,createToolMotion('camera'));torchPreferred=true;}
 function canEquip(tool){return tool==='none'||(tool==='camera'&&game.hasCamera!==false)||(tool==='flashlight'&&game.hasFlashlight)||(tool==='soda'&&(game.sodas>0||game.drinking>0))||(tool==='flare'&&game.hasFlare)||(tool==='gun'&&game.hasGun);}
 function setTorch(on){if(net.active)net.action('torch',{on});else game.torchOn=on;}
-function equipTool(tool){
+function equipTool(tool,fromPack=false){
   if(!canEquip(tool))return false;
+  if(!fromPack&&game.mode==='inventory'&&game.hasBackpack)return queueBackpackTool(tool);
   const changed=tool!==equippedTool;
   if(equippedTool==='flashlight'&&changed)torchPreferred=game.torchOn;
   if(changed){game.gunReload=0;gunMotion.aiming=false;gunMotion.reload=0;}
-  equippedTool=tool;if(net.active)net.action('equip',{item:tool});
+  equippedTool=tool;if(net.active&&!fromPack)net.action('equip',{item:tool});
   if(tool==='flashlight'&&changed)setTorch(torchPreferred);
   else if(tool!=='flashlight'&&game.torchOn)setTorch(false);
   if(changed){sound.noise(.09,.06,900);advanceToolMotion(equipmentMotion,tool,0);}
@@ -95,6 +96,7 @@ function openFieldKit(){
 }
 function closeFieldKit(){
   if(game.mode!=='inventory')return;
+  if(backpack.action){backpack.closeRequested=true;return;}
   if(backpack.closing)return;
   if(game.hasBackpack&&backpack.progress>0){backpack.closing=true;if(net.active)net.action('inventory',{open:false});sound.noise(.23,.09,2700,'highpass');return;}finishCloseFieldKit();
 }

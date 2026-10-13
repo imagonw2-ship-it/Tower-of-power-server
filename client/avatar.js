@@ -209,6 +209,14 @@ function appendHeadCensor(root,skin){
 }
 function updateAvatarEquipment(a,p,dt){
   advancePackMotion(a,'pack',p.inventoryOpen?1:0,dt);
+  if(p.packAction){
+    if(a.packTransfer?.serial!==p.packAction.serial)a.packTransfer={...p.packAction};
+    else a.packTransfer.time=Math.max(a.packTransfer.time,p.packAction.time);
+  }
+  if(a.packTransfer){
+    a.packTransfer.time=Math.min(PACK_TRANSFER_SECONDS,a.packTransfer.time+dt);
+    if(!p.packAction&&a.packTransfer.time>=PACK_TRANSFER_SECONDS)a.packTransfer=null;
+  }
   const g=a.gun,remaining=p.gunReload||0;
   if(remaining!==a.lastReload){a.reloadTimer=remaining;a.lastReload=remaining;}
   a.reloadTimer=Math.max(0,a.reloadTimer-dt);
@@ -224,14 +232,12 @@ function avatarBackpackMatrix(poses,progress){
   const chest=AVATAR_ASSET.bones.indexOf('spine_03'),skin=multiply(poses[chest],AVATAR_ASSET.inverseBind[chest]);
   const t=gunPhase(.08,.84,progress),swing=Math.sin(t*Math.PI);
   // The attachment follows the animated chest, including crouching and leaning.
-  return multiply(skin,multiply(transform(-swing*.40,lerp(.90,.72,t)+swing*.04,lerp(-.225,.55,t)),multiply(rotateY(Math.PI+swing*.65),rotateZ(swing*.16))));
+  return multiply(skin,multiply(transform(lerp(0,.10,t)+swing*.34,lerp(.90,.70,t)+swing*.04,lerp(-.225,.46,t)),multiply(rotateY(Math.PI-swing*.65),multiply(rotateZ(-swing*.16),rotateX(t*.12)))));
 }
-function avatarHoldBackpack(poses,model,progress){
-  for(const side of ['r','l']){
-    const sign=side==='r'?1:-1,item=multiply(model,transform(sign*.175-itemGripAnchors.camera[0],.29-itemGripAnchors.camera[1],.015-itemGripAnchors.camera[2]));
-    // Reach with the right hand first; the left catches the second handle.
-    avatarReachItem(poses,item,'camera',side,gunPhase(side==='r'?0:.20,side==='r'?.14:.57,progress));
-  }
+function avatarHoldBackpack(poses,model,progress,action,held){
+  avatarReachItem(poses,backpackGrip(model,BACKPACK_ASSET.handle),'camera','l',gunPhase(0,.25,progress));
+  const pose=packHandPose(action,progress,held),kind=pose.kind==='none'?'camera':pose.kind;
+  avatarReachItem(poses,backpackGrip(model,pose.position,kind,pose.tilt),kind,'r',gunPhase(.20,.62,progress));
 }
 function appendHazmat(p,clock){
   if(!sameBiome(p,player))return;
@@ -250,7 +256,7 @@ function appendHazmat(p,clock){
       a.matrices[i]=avatarMatrix(a.pose.subarray(o,o+3),a.pose.subarray(o+3,o+7));
     }
     a.packModel=avatarBackpackMatrix(a.matrices,a.pack);
-    if(holdingPack)avatarHoldBackpack(a.matrices,a.packModel,a.pack);
+    if(holdingPack)avatarHoldBackpack(a.matrices,a.packModel,a.pack,a.packTransfer,p.heldItem);
     else if(p.tabletOpen)avatarHoldTablet(a.matrices);
     else if(held!=='none'){
       avatarHold(a.matrices,(p.pitch||0)+a.gun.kick*.22-a.gun.sprint*.35,a.motion.lower);
@@ -266,7 +272,10 @@ function appendHazmat(p,clock){
   }
   let root=multiply(transform(p.x,shedFloor(p.x,p.z),p.z),rotateY(p.yaw+Math.PI));const shadow=distance<32;
   if(p.isMimic&&p.alive===false){const fall=ease(clamp((p.deathTime||0)/.65,0,1));root=multiply(root,multiply(transform(0,.13*fall,0),rotateX(-fall*1.48)));}
-  if(p.inventory?.backpack&&distance<60)appendBackpackModel(multiply(root,a.packModel),gunPhase(.70,.985,a.pack),shadow);
+  if(p.inventory?.backpack&&distance<60){
+    const model=multiply(root,a.packModel);appendBackpackModel(model,gunPhase(.66,.94,a.pack),shadow);
+    if(holdingPack){const pose=packHandPose(a.packTransfer,a.pack,p.heldItem);if(!pose.inside)appendPackItem(backpackGrip(model,pose.position,pose.kind,pose.tilt),pose.kind,shadow);}
+  }
   const gripKind=holdingPack?'backpack':held;
   for(const part of avatarParts)objectDraws.push({mesh:part.name==='ClassASuitGear_low'&&gripMeshes[gripKind]?gripMeshes[gripKind]:part.mesh,model:root,bones:a.bones,texture:part.texture,material:5,assetKind:5,castShadow:shadow});
   const head=AVATAR_ASSET.bones.indexOf('head');

@@ -66,6 +66,7 @@ const net = new TowerNetwork({
     if(m.action==='shoot'||m.action==='reload')confirmGunAction(m);
     if(m.action==='flare')confirmFlareShot(m);
     if (!m.ok) {
+      if(m.action==='equip'){backpack.action=null;backpack.closeRequested=false;}
       if(m.action==='drop')pendingDrop=null;
       game.notice = "ACTION UNAVAILABLE";
       game.noticeTime = 1.4;
@@ -425,7 +426,7 @@ function updateNetworkFrame(dt) {
   game.stamina=p.stamina??100;game.exhausted=!!p.exhausted;
   game.boostTime = p.boost;
   game.torchOn = p.torch;
-  if(p.heldItem&&p.actionSeq>=net.actionSeq)equippedTool=p.heldItem;
+  if(p.heldItem&&p.actionSeq>=net.actionSeq&&!backpack.action)equippedTool=p.heldItem;
   game.sodaTaken = true;
   if (!p.alive && !["lost", "transition"].includes(game.mode)) {
     sound.caught();
