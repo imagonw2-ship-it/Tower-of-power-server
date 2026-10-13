@@ -1,9 +1,9 @@
 // Reuses the current game's awakening, pathfinding, hearing, and foot planting.
 import {turnWakingTurbine} from '../shared/prop-motion.js';
 import { applyFlareLure } from '../shared/survival.js';
-import { SoundTargets, legColliders, resolveLegCollision, tickStomp, stompHits, pylonLegPoints } from "../shared/enemy-combat.js";
+import { SoundTargets, scanTowerPresence, TOWER_PRESENCE_RANGE, legColliders, resolveLegCollision, tickStomp, stompHits, pylonLegPoints } from "../shared/enemy-combat.js";
 import { PYLON_HEADING, PYLON_RIG, STATIC_PYLONS, groundedPylon, pylonPoint } from "../shared/power-layout.js";
-import { terrainHeight, shed, clamp } from "../shared/physics.js";
+import { terrainHeight, grassCover, shed, clamp } from "../shared/physics.js";
 import { silentSearch, noteAudibleContact } from '../shared/silent-search.js';
 export function createEnemySimulation(world, {powerOnly=false,turbineOnly=false,turbineSpawn={x:95,z:-250},powerSpawn={x:-185,z:-270}}={}) {
   const lerp = (a, b, t) => a + (b - a) * t,
@@ -702,6 +702,9 @@ export function createEnemySimulation(world, {powerOnly=false,turbineOnly=false,
     step(dt, players) {
       const alive=players.filter(p=>p.alive);
       const applyTarget=(tracker,body,state,power)=>{
+        if(!(power?world.powerStopped:world.turbineStopped))scanTowerPresence(state,body,alive,dt,(x,z)=>grassCover(x,z,world.layout),
+          (p,b)=>shedBlocksSight([b.x,terrainHeight(b.x,b.z)+1.6,b.z],[p.x,p.y,p.z]),
+          p=>{tracker.hear(p,TOWER_PRESENCE_RANGE,body,1);noteAudibleContact(state);});
         const previousLure=state.lureId;
         if(applyFlareLure(state,body,(world.flares||[]).filter(f=>f.biome!=='forest'),dt,power)){tracker.step(dt,alive,body);Object.assign(player,{x:9999,y:0,z:9999});return;}
         if(previousLure)tracker.reset();

@@ -1,4 +1,5 @@
 import {beginGunReload} from '../shared/equipment-rules.js';
+import {beginPackTransfer} from '../shared/prop-motion.js';
 import {shootMimic} from '../shared/gun-combat.js';
 import {biomeOf} from '../shared/forest-level.js';
 import { LAYOUT_VERSION } from '../shared/world-layout.js';
@@ -163,7 +164,7 @@ export function attachNetworking(
         p.actionSeq = m.id;
         let ok = false,flareResult=null,gunResult=null;
         const w = room.world;
-        if(m.action==='inventory'&&room.phase==='playing'&&p.alive&&typeof m.open==='boolean'){p.inventoryOpen=m.open;p.input.x=p.input.z=p.vx=p.vz=0;p.sprinting=false;p.gunReload=0;ok=true;}
+        if(m.action==='inventory'&&room.phase==='playing'&&p.alive&&typeof m.open==='boolean'){if(!m.open&&p.packAction)p.packCloseRequested=true;else p.inventoryOpen=m.open;p.input.x=p.input.z=p.vx=p.vz=0;p.sprinting=false;p.gunReload=0;ok=true;}
         if(m.action==='host')ok=hostCommand(room,p,m.value);
         if (m.action === "world" && p.id === room.ownerId) {
           const a = m.value;
@@ -176,31 +177,31 @@ export function attachNetworking(
           }
         }
         if (room.phase === "playing" && p.alive && !p.tabletOpen) {
-          if(m.action==='equip'&&(m.item==='none'||(m.item==='camera'&&p.inventory.camera!==false)||(m.item==='flashlight'&&p.inventory.flashlight)||(m.item==='soda'&&p.inventory.sodas>0)||(m.item==='flare'&&p.inventory.flare)||(m.item==='gun'&&p.inventory.gun))){p.heldItem=m.item;if(m.item!=='flashlight')p.torch=false;ok=true;}
+          if(m.action==='equip'&&(m.item==='none'||(m.item==='camera'&&p.inventory.camera!==false)||(m.item==='flashlight'&&p.inventory.flashlight)||(m.item==='soda'&&p.inventory.sodas>0)||(m.item==='flare'&&p.inventory.flare)||(m.item==='gun'&&p.inventory.gun))){if(p.inventoryOpen&&p.inventory.backpack)ok=beginPackTransfer(p,m.item);else if(!p.packAction){p.heldItem=m.item;if(m.item!=='flashlight')p.torch=false;ok=true;}}
           if(m.action==='reload')ok=beginGunReload(p);
           if(m.action==='shoot'&&[m.yaw,m.pitch].every(Number.isFinite)&&Math.abs(m.yaw)<1e6&&Math.abs(m.pitch)<=1.49){
             p.yaw=m.yaw;p.pitch=m.pitch;p.input.yaw=m.yaw;p.input.pitch=m.pitch;gunResult=shootMimic(p,w.mimic,w.seed);ok=!!gunResult;
             if(ok){w.sim.noise(p,180);w.sim.events.push({kind:'gunshot',id:p.id,x:p.x,z:p.z,biome:biomeOf(p)});if(gunResult.killed)w.mimicFrames=[];}
           }
-          if(m.action==='drop')ok=dropItem(w,p,m.item);
-          if(m.action==='flare'&&p.heldItem==='flare'&&p.inventory.flare&&p.inventory.flares>0&&!(p.flareCooldown>0)&&w.flares.length<16){
+          if(m.action==='drop'&&!p.packAction)ok=dropItem(w,p,m.item);
+          if(m.action==='flare'&&!p.inventoryOpen&&p.heldItem==='flare'&&p.inventory.flare&&p.inventory.flares>0&&!(p.flareCooldown>0)&&w.flares.length<16){
             p.inventory.flares--;p.flareCooldown=1.2;
             const launcher=w.items.find(i=>i.kind==='flare'&&i.holder===p.id);if(launcher)launcher.ammo=p.inventory.flares;
             flareResult={...spawnFlare(p,'flare-'+(++w.flareSerial),biomeOf(p)==='forest'?()=>false:blocked),biome:biomeOf(p)};w.flares.push(flareResult);
             w.sim.events.push({kind:'flare',id:p.id,x:p.x,z:p.z,biome:biomeOf(p)});ok=true;
           }
-          if (m.action === "pickup") ok = takeItem(w, p, m.itemId);
-          if (m.action === "torch" && p.inventory.flashlight) {
+          if (m.action === "pickup" && !p.packAction) ok = takeItem(w, p, m.itemId);
+          if (m.action === "torch" && p.inventory.flashlight && !p.packAction) {
             p.torch = !!m.on;if(p.torch)p.heldItem="flashlight";
             ok = true;
           }
-          if (m.action === "photo" && p.inventory.camera!==false && p.cooldown <= 0) {
+          if (m.action === "photo" && !p.inventoryOpen && p.inventory.camera!==false && p.cooldown <= 0) {
             p.cooldown = 0.9;
             p.photo = 0.22;p.heldItem="camera";p.torch=false;
             w.sim.noise(p, 100);
             ok = true;
           }
-          if (m.action === "soda" && p.inventory.sodas > 0 && p.drinking <= 0) {
+          if (m.action === "soda" && !p.inventoryOpen && p.inventory.sodas > 0 && p.drinking <= 0) {
             p.inventory.sodas--;
             const used = w.items.find(
               (i) => i.kind === "soda" && i.holder === p.id && !i.consumed,

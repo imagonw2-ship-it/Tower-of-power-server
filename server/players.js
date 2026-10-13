@@ -3,6 +3,7 @@ import {biomeOf,moveForestActor,tickForestBoundary} from '../shared/forest-level
 import { spendStamina } from '../shared/survival.js';
 import { movePlayer, floorHeight, footstepRadius } from "../shared/physics.js";
 import {trafficPoleObstacles} from '../shared/traffic-light.js';
+import {tickPackTransfer} from '../shared/prop-motion.js';
 export function makePlayer(account, index) {
   const x = 128 + (index % 4) * 0.75,
     z = -34 + Math.floor(index / 4) * 1.1;
@@ -20,7 +21,7 @@ export function makePlayer(account, index) {
     stamina: 100, staminaDelay: 0, exhausted: false,
     alive: true,
     health: 1,
-    godMode:false,infiniteSprint:false,tabletOpen:false,inventoryOpen:false,gunReload:0,gunCooldown:0,gunFlash:0,biome:"meadow",teleportSeq:0,slow:0,frozen:0,
+    godMode:false,infiniteSprint:false,tabletOpen:false,inventoryOpen:false,packAction:null,packSerial:0,packCloseRequested:false,gunReload:0,gunCooldown:0,gunFlash:0,biome:"meadow",teleportSeq:0,slow:0,frozen:0,
     inventory: { camera: true, flashlight: false, sodas: 0, flare: false, flares: 0,gun:false,backpack:false,ammo:0,reserve:0 },
     torch: false,
     heldItem: "camera",
@@ -62,6 +63,7 @@ export function acceptInput(p, m, now) {
   return true;
 }
 export function tickPlayer(p, dt, world, now) {
+  tickPackTransfer(p,dt);
   tickGun(p,dt);
   p.boost = Math.max(0, p.boost - dt);
   p.slow=Math.max(0,(p.slow||0)-dt);p.frozen=Math.max(0,(p.frozen||0)-dt);
@@ -108,6 +110,7 @@ export function wirePlayer(p) {
     alive: p.alive,
     godMode:p.godMode,infiniteSprint:p.infiniteSprint,tabletOpen:p.tabletOpen,inventoryOpen:p.inventoryOpen,gunReload:p.gunReload,gunFlash:p.gunFlash,
     connected: p.connected,
+    packAction:p.packAction?{...p.packAction}:null,
     speaking: (p.speakingUntil||0)>Date.now(),
     voiceSlot: p.voiceSlot,
     inventory: p.inventory,
