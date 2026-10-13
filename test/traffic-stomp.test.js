@@ -17,8 +17,8 @@ function scene(){
 function advance(s,p,seconds,hit=()=>{}){for(let i=0;i<Math.round(seconds*120);i++)stepTrafficLights([s],1/120,[p],flat,[],hit);}
 function room(){const world=makeWorld(config,0),p=makePlayer({id:'host',username:'HOST'},0);p.connected=p.alive=true;return{ownerId:'host',phase:'playing',world,players:new Map([[p.id,p]])};}
 
-test('stomp lifts the near pole, plants the support pole, and locks its landing point',()=>{
-  const {s,p}=scene(),support=s.feet[0].position.slice();advance(s,p,.55);
+test('stomp lifts the near pole, plants the support pole, and commits its landing point before descent',()=>{
+  const {s,p}=scene(),support=s.feet[0].position.slice();advance(s,p,.70);
   assert.equal(s.stomp.foot,1);assert.equal(s.stomp.phase,'windup');assert.ok(s.feet[1].position[1]>2.6);assert.deepEqual(s.feet[0].position,support);
   const target=s.stomp.target.slice();p.z+=5;advance(s,p,.7);assert.deepEqual(s.stomp.target,target);assert.equal(p.alive,true);assert.equal(s.impactSerial,1);
 });
@@ -55,8 +55,8 @@ test('host pause survives world ticks and a new room starts with traffic enabled
   assert.deepEqual(snapshotTrafficLights(r.world.trafficLights),before);assert.equal(room().world.trafficStopped,false);
 });
 test('raised pole clearance lets players dodge beneath it and grounded poles remain solid',()=>{
-  const {s}=scene(),p={x:SIGNAL_HALF_SPAN,z:0,y:1.7};s.feet[1].position[1]=3;collideTrafficPoles(p,[s]);assert.equal(p.x,SIGNAL_HALF_SPAN);
-  s.feet[1].position[1]=0;collideTrafficPoles(p,[s]);assert.ok(Math.abs(p.x-SIGNAL_HALF_SPAN)>=.479);
+  const {s}=scene(),p={x:s.feet[1].position[0],z:0,y:1.7},start=p.x;s.feet[1].position[1]=3;collideTrafficPoles(p,[s]);assert.equal(p.x,start);
+  s.feet[1].position[1]=0;collideTrafficPoles(p,[s]);assert.ok(Math.abs(p.x-start)>=.479);
 });
 test('three upright heads, junctions and cable wraps stay attached to the lifted rig',()=>{
   run("net.code='';resetWorld(true,0);setMode('playing');locked=true;const qaSignal=trafficLights[0];player.x=qaSignal.x;player.z=qaSignal.z+15;player.y=terrainHeight(player.x,player.z)+1.7;updateCamera(0);objectDraws.length=0;appendRoadside();");

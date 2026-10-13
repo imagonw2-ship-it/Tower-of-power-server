@@ -7,7 +7,7 @@ import {setTimeout as delay} from 'node:timers/promises';
 import WebSocket from 'ws';
 import {createApp} from '../server/server.js';
 import {LAYOUT_VERSION} from '../shared/world-layout.js';
-import {forestTerrainHeight} from '../shared/forest-level.js';
+import {terrainHeight} from '../shared/physics.js';
 import {collectEquipment} from '../shared/equipment-rules.js';
 test('two real clients synchronize traffic phase, host pause, stomp attacks and backpack state',async()=>{
   const dir=mkdtempSync(join(tmpdir(),'tower-equipment-')),app=createApp({dbPath:join(dir,'accounts.sqlite'),authRate:30}),sockets=[];
@@ -24,10 +24,10 @@ test('two real clients synchronize traffic phase, host pause, stomp attacks and 
     const host=await device(),friend=await device();host.send({type:'host',seed:'0'});const joined=await host.wait('joined');friend.send({type:'join',code:joined.code});await friend.wait('joined');host.send({type:'start'});await host.wait('snapshot',m=>m.phase==='playing');
     const room=app.rooms.rooms.get(joined.code),p=room.players.get(room.ownerId),q=[...room.players.values()].find(x=>x.id!==p.id);
     const w=room.world,s=w.trafficLights[0];w.powerStopped=w.turbineStopped=true;
-    for(const player of [p,q])Object.assign(player,{x:s.x,z:s.z+40,y:2,biome:'meadow',godMode:true});
+    for(const player of [p,q])Object.assign(player,{x:s.x+Math.sin(s.heading)*40,z:s.z+Math.cos(s.heading)*40,y:terrainHeight(s.x+Math.sin(s.heading)*40,s.z+Math.cos(s.heading)*40)+1.7,biome:'meadow',godMode:true});
     Object.assign(s,{active:true,phase:'red',phaseTime:4.2,targetId:p.id});
     const stopped=await host.wait('snapshot',m=>m.world.trafficLights?.[0]?.active&&m.world.trafficLights[0].phase==='red');
-    assert.equal(stopped.world.trafficLights[0].vx,0);assert.equal(stopped.world.layoutVersion,10);
+    assert.equal(stopped.world.trafficLights[0].vx,0);assert.equal(stopped.world.layoutVersion,LAYOUT_VERSION);
     const moved=await friend.wait('snapshot',m=>m.world.trafficLights?.[0]?.phase==='green'&&Math.hypot(m.world.trafficLights[0].vx,m.world.trafficLights[0].vz)>1);
     const matching=await host.wait('snapshot',m=>m.world.elapsed===moved.world.elapsed);
     assert.deepEqual(matching.world.trafficLights,moved.world.trafficLights);
@@ -47,7 +47,13 @@ test('two real clients synchronize traffic phase, host pause, stomp attacks and 
     const landed=await friend.wait('snapshot',m=>m.world.trafficLights[0].impactSerial>0);assert.equal(landed.world.trafficStopped,false);
     p.inventory.backpack=true;assert.equal((await host.action('inventory',{open:true})).ok,true);
     await friend.wait('snapshot',m=>m.players.some(v=>v.id===p.id&&v.inventoryOpen&&v.inventory.backpack));
+    p.inventory.gun=true;
+    assert.equal((await host.action('equip',{item:'gun'})).ok,true);
+    const transfer=await friend.wait('snapshot',m=>m.players.some(v=>v.id===p.id&&v.packAction?.to==='gun'));
+    assert.equal(transfer.players.find(v=>v.id===p.id).heldItem,'camera');
+    assert.equal((await host.action('drop',{item:'camera'})).ok,false);
     assert.equal((await host.action('inventory',{open:false})).ok,true);
+    await friend.wait('snapshot',m=>m.players.some(v=>v.id===p.id&&v.heldItem==='gun'&&!v.packAction&&!v.inventoryOpen));
     await friend.wait('snapshot',m=>m.players.some(v=>v.id===p.id&&!v.inventoryOpen&&v.inventory.backpack));
   }finally{for(const ws of sockets)ws.terminate();await app.close();rmSync(dir,{recursive:true,force:true});}
 });

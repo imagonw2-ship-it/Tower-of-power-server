@@ -11,10 +11,10 @@ test('the worn pack follows the chest through crouching and stays behind the tor
   setup();const standing=run("Array.from(avatarCache.get('peer').packModel)");run('peer.crouching=true;');advance(60);const crouched=run("Array.from(avatarCache.get('peer').packModel)");assert.ok(crouched[13]<standing[13]-.1);assert.ok(Math.abs(crouched[6]-standing[6])>.05);
   assert.ok(run("(()=>{const a=avatarCache.get('peer'),chest=a.matrices[AVATAR_ASSET.bones.indexOf('spine_03')],m=a.packModel;return Math.hypot(m[12]-chest[12],m[13]+.28-chest[13],m[14]-chest[14])<.6&&m.every(Number.isFinite);})()"));
 });
-test('remote pack swings, opens its flap, stays in both palms, and closes continuously',()=>{
+test('remote pack swings by its carry handle, opens only the top, and closes continuously',()=>{
   setup();const initial=run("Array.from(avatarCache.get('peer').packModel)");run('peer.inventoryOpen=true;');advance(18);assert.ok(run("avatarCache.get('peer').pack>0&&avatarCache.get('peer').pack<.7"));const swing=run("Array.from(avatarCache.get('peer').packModel)");assert.ok(Math.abs(swing[12]-initial[12])>.02);advance(100);
-  assert.equal(run("avatarCache.get('peer').pack"),1);assert.ok(run("(()=>{const b=objectDraws.find(o=>o.backpackPart==='body'),f=objectDraws.find(o=>o.backpackPart==='flap');return Math.abs(b.model[5]-f.model[5])>.5;})()"));
-  assert.ok(run("(()=>{const a=avatarCache.get('peer'),point=(m,p)=>[0,1,2].map(k=>m[12+k]+m[k]*p[0]+m[4+k]*p[1]+m[8+k]*p[2]);return ['r','l'].every(side=>{const h=a.matrices[AVATAR_ASSET.bones.indexOf('hand_'+side)],actual=point(h,itemPalm.map(v=>v*(side==='l'?-1:1))),target=point(a.packModel,[side==='r'?.175:-.175,.29,.015]);return Math.hypot(...actual.map((v,k)=>v-target[k]))<.00001;});})()"));
+  assert.equal(run("avatarCache.get('peer').pack"),1);assert.ok(run("(()=>{const b=objectDraws.find(o=>o.backpackPart==='body'),f=objectDraws.find(o=>o.backpackPart==='top');return Math.abs(b.model[5]-f.model[5])>.04&&Math.abs(b.model[5]-f.model[5])<.3;})()"));
+  assert.ok(run("(()=>{const a=avatarCache.get('peer'),point=(m,p)=>[0,1,2].map(k=>m[12+k]+m[k]*p[0]+m[4+k]*p[1]+m[8+k]*p[2]);return ['r','l'].every(side=>{const h=a.matrices[AVATAR_ASSET.bones.indexOf('hand_'+side)],actual=point(h,itemPalm.map(v=>v*(side==='l'?-1:1))),target=point(a.packModel,side==='l'?BACKPACK_ASSET.handle:packHandPose(null,1,peer.heldItem).position);return Math.hypot(...actual.map((v,k)=>v-target[k]))<.00001;});})()"));
   const open=run("Array.from(avatarCache.get('peer').packModel)");run('peer.inventoryOpen=false;');advance(1);const close=run("Array.from(avatarCache.get('peer').packModel)");assert.ok(Math.hypot(...close.slice(12,15).map((v,i)=>v-open[12+i]))<.01);advance(100);assert.equal(run("avatarCache.get('peer').pack"),0);assert.ok(run('objectDraws.every(o=>o.model.every(Number.isFinite)&&(!o.bones||o.bones.every(Number.isFinite)))'));
 });
 test('remote reload moves the support hand and magazine smoothly without waiting for packets',()=>{
@@ -22,4 +22,12 @@ test('remote reload moves the support hand and magazine smoothly without waiting
   const wrist=run("Array.from(avatarCache.get('peer').matrices[AVATAR_ASSET.bones.indexOf('hand_l')].slice(12,15))");advance(30);assert.ok(run("avatarCache.get('peer').gun.magDrop>.14"));const moved=run("Array.from(avatarCache.get('peer').matrices[AVATAR_ASSET.bones.indexOf('hand_l')].slice(12,15))");assert.ok(Math.hypot(...moved.map((v,i)=>v-wrist[i]))>.06);
   const phase=run("avatarCache.get('peer').gun.reload");run('peer.gunReload=1.69;');advance(1);assert.ok(run("avatarCache.get('peer').gun.reload")>phase);
   run('peer.gunReload=0;');advance(60);assert.ok(run("avatarCache.get('peer').gun.magDrop<.00001"));
+});
+
+test('remote transfer advances between packets and shows each item in the moving hand',()=>{
+ setup();run("peer.inventoryOpen=true;peer.heldItem='camera';");advance(130);
+ run("peer.packAction={serial:1,from:'camera',to:'gun',time:0};");advance(10);
+ assert.ok(run("objectDraws.some(o=>o.packItem==='camera')"));const before=run("avatarCache.get('peer').packTransfer.time");advance(1);assert.ok(run("avatarCache.get('peer').packTransfer.time")>before);
+ advance(52);assert.ok(run("objectDraws.some(o=>o.packItem==='gun')"));assert.ok(run("(()=>{const a=avatarCache.get('peer'),h=a.matrices[AVATAR_ASSET.bones.indexOf('hand_l')],point=(m,p)=>[0,1,2].map(k=>m[12+k]+m[k]*p[0]+m[4+k]*p[1]+m[8+k]*p[2]),p=point(h,itemPalm.map(v=>-v)),q=point(a.packModel,BACKPACK_ASSET.handle);return Math.hypot(...p.map((v,i)=>v-q[i]))<.00001;})()"));
+ run("peer.packAction=null;peer.heldItem='gun';");advance(40);assert.equal(run("avatarCache.get('peer').packTransfer"),null);
 });

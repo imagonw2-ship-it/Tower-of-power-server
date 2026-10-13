@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {makeLayout,nearestRoad} from '../shared/world-layout.js';
+import {makeLayout,nearestRoad,LAYOUT_VERSION} from '../shared/world-layout.js';
 import {collideRoadside} from '../shared/roadside.js';
 import {createTrafficLights,stepTrafficLights,trafficLightGeometry,snapshotTrafficLights,SIGNAL_SPEED} from '../shared/traffic-light.js';
 import {advancePackMotion} from '../shared/prop-motion.js';
@@ -69,7 +69,7 @@ test('poles warn before stomping; ordinary contact, red lights and god mode are 
 });
 test('server snapshots carry every signal and vacant meadow simulation sleeps',()=>{
   const w=makeWorld(config,0);w.started=true;const before=snapshotTrafficLights(w.trafficLights);tickWorld(w,[],.05,Date.now());assert.deepEqual(snapshotTrafficLights(w.trafficLights),before);
-  const r={code:'TEST',ownerId:'host',phase:'playing',players:new Map(),world:w};const snap=Rooms.prototype.snapshot.call({},r);assert.deepEqual(snap.world.trafficLights,before);assert.equal(snap.world.layoutVersion,10);
+  const r={code:'TEST',ownerId:'host',phase:'playing',players:new Map(),world:w};const snap=Rooms.prototype.snapshot.call({},r);assert.deepEqual(snap.world.trafficLights,before);assert.equal(snap.world.layoutVersion,LAYOUT_VERSION);
   local();run(`net.code='QA';net.snapshots=[{received:performance.now(),world:{trafficLights:${JSON.stringify(before)}}}];`);assert.equal(run('visibleTrafficLights().length'),before.length);run("net.code='';");
 });
 test('both server and local turbine awakening keep the resting heading and turn progressively',()=>{
