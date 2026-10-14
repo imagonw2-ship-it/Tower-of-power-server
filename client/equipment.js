@@ -73,6 +73,7 @@ function refreshFieldKit(){
     card.querySelector('.kitTag').textContent=selected?'IN HAND':'EQUIP';
     if(tool==='flashlight')card.querySelector('.kitDetail').textContent=available?(game.torchOn?'Light is on':'Light is off'):'Find it in the shed';
   }
+  fieldKit.style.setProperty('--kit-columns',String(Math.max(1,kitCards.filter(card=>!card.hidden).length)));
   document.querySelectorAll('.kitEmpty').forEach((slot,i)=>{slot.hidden=i>=capacity-used;});
   const names={none:'EMPTY HAND',camera:'CAMERA',flashlight:'FLASHLIGHT',soda:'SODA',flare:'FLARE GUN',gun:'GLOCK 17'},actions={none:'EMPTY HAND',camera:'PHOTO',flashlight:game.torchOn?'LIGHT OFF':'LIGHT ON',soda:'DRINK',flare:'FIRE FLARE',gun:game.ammo>0?'FIRE':'RELOAD'};
   document.getElementById('equippedName').textContent=names[equippedTool];

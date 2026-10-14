@@ -5,7 +5,7 @@ const treeInstanceGLSL=`
   layout(location=6) in vec4 a_treeStyle;
   uniform float u_treeInstanced,u_time;
   vec3 treeRotate(vec3 p){return vec3(p.x*a_treeStyle.y+p.z*a_treeStyle.x,p.y,-p.x*a_treeStyle.x+p.z*a_treeStyle.y);}
-  vec3 treePoint(vec3 p){vec3 w=treeRotate(p*a_treePosition.w)+a_treePosition.xyz;w.x+=sin(u_time*.65+w.z*.04)*.12*smoothstep(2.,14.,p.y*a_treePosition.w);return w;}
+  vec3 treePoint(vec3 p){vec3 w=treeRotate(p*a_treePosition.w)+a_treePosition.xyz;w.x+=sin(u_time*.58+a_treePosition.z*.12+a_treePosition.x*.07)*.085*smoothstep(.25,.90,p.y);return w;}
 `;
 function selectLayout(seed){
   const changed=!layoutLookup||activeLayout.seed!==(seed>>>0);
@@ -33,8 +33,8 @@ function buildForest(){
   const forest=inForest()?streamForest:forestForLayout(activeLayout);if(!forest)return;forestChunks=forest.chunks;
   if(!forestBatches.length){
     forestTexture=importedTexture(TREE_TEXTURE,5);
-    for(let kind=0;kind<TREE_ASSETS.length;kind++)for(let lod=0;lod<2;lod++){
-      const mesh=unpackModel(TREE_ASSETS[kind].lods[lod]),buffer=gl.createBuffer();
+    for(let kind=0;kind<TREE_ASSETS.length;kind++)for(let lod=0;lod<3;lod++){
+      const mesh=unpackModel(TREE_ASSETS[kind].lods[Math.min(lod,1)]),buffer=gl.createBuffer();
       gl.bindVertexArray(mesh.vao);gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
       for(let i=0;i<2;i++){gl.enableVertexAttribArray(5+i);gl.vertexAttribPointer(5+i,4,gl.FLOAT,false,32,i*16);gl.vertexAttribDivisor(5+i,1);}
       gl.bindVertexArray(null);const branches=infraGeometry();for(let i=0;i<(lod===0?7:4);i++){const a=i*2.399+kind,y=.22+i*.075,r=.10+(i%3)*.018,start=[0,y,0],end=[Math.cos(a)*r,y+.045,Math.sin(a)*r];corridorBeam(branches,start,end,.004,[1,1,1],5);corridorBeam(branches,end,[end[0]*1.3,end[1]+.06,end[2]*1.3],.002,[1,1,1],4);}const branchMesh=mesh3D(branches);gl.bindVertexArray(branchMesh.vao);gl.bindBuffer(gl.ARRAY_BUFFER,buffer);for(let i=0;i<2;i++){gl.enableVertexAttribArray(5+i);gl.vertexAttribPointer(5+i,4,gl.FLOAT,false,32,i*16);gl.vertexAttribDivisor(5+i,1);}gl.bindVertexArray(null);forestBatches.push({kind,lod,mesh,branchMesh,buffer,count:0,values:null});
@@ -50,17 +50,18 @@ function appendForest(){
   buildForest();if(inForest())appendForestDetails();else appendFallenLogs();
   if((player.x-forestRefreshX)**2+(player.z-forestRefreshZ)**2>16||forestRefreshQuality!==settings.quality){
     for(const b of forestBatches)b.count=0;
-    const near=settings.quality==='low'?16:30;
+    const near=settings.quality==='low'?20:settings.quality==='high'?48:36;
     for(const c of forestChunks){
       if((player.x-c.x)**2+(player.z-c.z)**2>(range+38)**2)continue;
       for(const t of c.trees){
         const d=(player.x-t.x)**2+(player.z-t.z)**2;if(d>(range+14)**2)continue;
-        const b=forestBatches[t.kind*2+(d<near*near?0:1)];
+        const shadowRange=settings.quality==='low'?40:64;
+        const b=forestBatches[t.kind*3+(d<near*near?0:d<shadowRange*shadowRange?1:2)];
         b.values.set([t.x,inForest()?t.ground:terrainHeight(t.x,t.z)-.045,t.z,t.height,Math.sin(t.yaw),Math.cos(t.yaw),t.shade,0],b.count++*8);
       }
     }
     for(const b of forestBatches)if(b.count){gl.bindBuffer(gl.ARRAY_BUFFER,b.buffer);gl.bufferSubData(gl.ARRAY_BUFFER,0,b.values.subarray(0,b.count*8));}
     forestRefreshX=player.x;forestRefreshZ=player.z;forestRefreshQuality=settings.quality;
   }
-  for(const b of forestBatches)if(b.count){objectDraws.push({mesh:b.mesh,model:identity(),material:5,assetKind:8,texture:forestTexture,treeInstances:b.count,castShadow:b.lod===0,forest:true});objectDraws.push({mesh:b.branchMesh,model:identity(),material:5,assetKind:10,texture:forestTexture,treeInstances:b.count,castShadow:false,forest:true});}
+  for(const b of forestBatches)if(b.count){objectDraws.push({mesh:b.mesh,model:identity(),material:5,assetKind:8,texture:forestTexture,treeInstances:b.count,castShadow:b.lod<2&&settings.shadows!=='off',forest:true});objectDraws.push({mesh:b.branchMesh,model:identity(),material:5,assetKind:10,texture:forestTexture,treeInstances:b.count,castShadow:false,forest:true});}
 }

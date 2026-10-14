@@ -21,7 +21,7 @@
     nav{margin-top:42px}button{display:block;min-width:160px;text-align:left;background:transparent;color:#b5bcae;border:0;border-left:2px solid transparent;padding:12px 18px;margin:6px 0;font-size:16px;letter-spacing:1.1px;cursor:pointer;transition:background .13s,color .13s,border-color .13s;text-shadow:0 2px 4px #000}
     button:hover,button:focus-visible{background:rgba(216,236,214,.10);border-left-color:#dce7ce;color:#fff;outline:none;text-shadow:0 0 12px #dce5c77a}
     .menuFoot{font-size:9px;letter-spacing:1.2px;margin-top:54px;color:#8a9386}
-    .settings{width:min(390px,86vw)}.settings h2{margin-bottom:20px}.settings label{display:flex;align-items:center;justify-content:space-between;gap:15px;margin:13px 0;font-size:10px;line-height:1.5;letter-spacing:.3px}
+    .panel.settings{width:min(390px,86vw)}.settings h2{margin-bottom:20px}.settings label{display:flex;align-items:center;justify-content:space-between;gap:15px;margin:13px 0;font-size:10px;line-height:1.5;letter-spacing:.3px}
     select{width:132px;color:#d6decf;background:#10201891;border:1px solid #cedcc831;border-radius:0;padding:7px 8px;font-size:11px}select option{background:#111c16}
     input[type=range]{width:132px;height:3px;accent-color:#c3ceb5;cursor:pointer}input[type=checkbox]{accent-color:#aebba0;width:15px;height:15px;cursor:pointer}
     dl{display:grid;grid-template-columns:100px 1fr;gap:18px 20px;line-height:1.6;font-size:12px}dd{margin:0;font-family:monospace;font-size:14px;color:#acb4a6}dt{font-style:italic}
@@ -90,40 +90,39 @@
   <canvas id="field" tabindex="0" aria-label="Tower of Power. WASD to move, Shift to sprint, C for a flash photo, E to pick up the flashlight, F to toggle it, mouse wheel or plus and minus to zoom, X to crouch, Q to drink soda, M for world controls, Escape to pause."></canvas>
   <div id="shade"></div>
   <main id="menu" class="panel">
-    <p class="eyebrow">AN UNMARKED RECORDING</p>
-    <h1>TOWER<br>OF POWER</h1>
-    <p class="tagline">It cannot see you.<br>It can hear you.</p>
+    <div class="menuIdentity"><h1>TOWER<br><span>OF POWER</span></h1></div>
     <nav aria-label="Main menu">
-      <button id="resumeWorldMenu" hidden>RETURN TO WORLD</button><button id="leaveWorldMenu" hidden>LEAVE WORLD</button>
-      <button id="play">SINGLEPLAYER</button><button id="multiplayerOpen">MULTIPLAYER</button>
-      <button id="settingsOpen">SETTINGS</button>
-      <button id="controlsOpen">CONTROLS</button>
+      <button id="resumeWorldMenu" hidden>Return to world</button><button id="leaveWorldMenu" hidden>Leave world</button>
+      <button id="play">Singleplayer</button><button id="multiplayerOpen">Multiplayer</button>
+      <div class="menuUtilities"><button id="settingsOpen">Settings</button><button id="controlsOpen">Controls</button></div>
     </nav>
     <p id="worldMenuNotice" hidden>Your online world and voice chat stay active.</p>
-    <p class="menuFoot"><strong id="releaseLabel">VERSION 17 · ROADSIDE ENCOUNTERS</strong><br>HEADPHONES RECOMMENDED</p>
+    <p class="menuFoot"><strong id="releaseLabel">VERSION 19.2</strong></p>
   </main>
   <section id="settingsPanel" class="panel settings" hidden aria-label="Settings">
-    <h2>SETTINGS</h2>
-    <h3>NEXT SINGLEPLAYER WORLD</h3><label>SEED<input id="singleplayerSeed" type="text" maxlength="40" placeholder="Random world" autocomplete="off" spellcheck="false"></label>
-    <h3>GRAPHICS</h3>
-    <label>QUALITY<select id="quality"><option value="low">LOW</option><option value="medium">MEDIUM</option><option value="high">HIGH</option></select></label>
-    <label>DYNAMIC SHADOWS<select id="shadows"><option value="off">OFF</option><option value="medium">MEDIUM</option><option value="high">HIGH</option></select></label>
-    <label>BLOOM<input id="bloom" type="checkbox"></label>
-    <label>VHS AMOUNT<input id="vhs" type="range" min="0" max="1" step="0.05"></label>
-    <label>BODY CAMERA<input id="bodycam" type="range" min="0" max="1" step="0.05"></label>
-    <label>CAMERA SHAKE<input id="shake" type="range" min="0" max="1" step="0.05"></label>
-    <h3>AUDIO</h3>
-    <label>MASTER<input id="master" type="range" min="0" max="1" step="0.05"></label>
-    <label>AMBIENCE<input id="ambience" type="range" min="0" max="1" step="0.05"></label>
-    <label>EFFECTS<input id="effects" type="range" min="0" max="1" step="0.05"></label>
-    <label>MUTE<input id="muted" type="checkbox"></label>
-    <button id="settingsBack">BACK</button>
-    <p class="menuFoot">SURFACE SCANS / POLY HAVEN · CC0</p>
+    <header class="settingsHeader"><div><p class="eyebrow">TOWER OF POWER / PREFERENCES</p><h2>Settings</h2></div><button id="settingsBack" aria-label="Back from settings">✕</button></header>
+    <nav class="settingsTabs" aria-label="Settings categories"><button data-settings-tab="graphics" aria-pressed="true">Graphics</button><button data-settings-tab="camera" aria-pressed="false">Camera</button><button data-settings-tab="audio" aria-pressed="false">Audio</button><button data-settings-tab="world" aria-pressed="false">World</button></nav>
+    <div class="settingsContent">
+    <div data-settings-page="graphics"><h3>RENDERING</h3><p class="settingIntro">Balance detail and frame rate for your device.</p>
+    <label><span>Quality<small>Tree detail, grass and resolution</small></span><select id="quality"><option value="low">Performance</option><option value="medium">Balanced</option><option value="high">High detail</option></select></label>
+    <label><span>Dynamic shadows<small>Sunlight, leaves and flashlight shadows</small></span><select id="shadows"><option value="off">Off</option><option value="medium">Balanced</option><option value="high">High detail</option></select></label>
+    <label><span>Bloom<small>Soft light around bright surfaces</small></span><input id="bloom" type="checkbox"></label></div>
+    <div data-settings-page="camera" hidden><h3>CAMERA &amp; MOTION</h3><p class="settingIntro">Tune the recording effect and camera movement.</p>
+    <label><span>VHS distortion<small>Grain, tape noise and color separation</small></span><div class="settingRange"><input id="vhs" type="range" min="0" max="1" step="0.05"><output for="vhs"></output></div></label>
+    <label><span>Body camera<small>Lens curvature and movement inertia</small></span><div class="settingRange"><input id="bodycam" type="range" min="0" max="1" step="0.05"><output for="bodycam"></output></div></label>
+    <label><span>Camera shake<small>Footsteps and giant impacts</small></span><div class="settingRange"><input id="shake" type="range" min="0" max="1" step="0.05"><output for="shake"></output></div></label></div>
+    <div data-settings-page="audio" hidden><h3>SOUND MIX</h3><p class="settingIntro">Headphones help you locate nearby movement.</p>
+    <label><span>Master volume</span><div class="settingRange"><input id="master" type="range" min="0" max="1" step="0.05"><output for="master"></output></div></label>
+    <label><span>Ambience</span><div class="settingRange"><input id="ambience" type="range" min="0" max="1" step="0.05"><output for="ambience"></output></div></label>
+    <label><span>Effects</span><div class="settingRange"><input id="effects" type="range" min="0" max="1" step="0.05"><output for="effects"></output></div></label>
+    <label><span>Mute game audio</span><input id="muted" type="checkbox"></label></div>
+    <div data-settings-page="world" hidden><h3>NEXT SINGLEPLAYER WORLD</h3><p class="settingIntro">Reuse a seed to return to the same field layout.</p><label class="seedSetting"><span>World seed<small>Leave empty for a random world</small></span><input id="singleplayerSeed" type="text" maxlength="40" placeholder="Random world" autocomplete="off" spellcheck="false"></label><p class="settingsNote">Applies when you start a new singleplayer game.</p></div>
+    </div><footer class="settingsFooter"><span>CHANGES SAVE AUTOMATICALLY</span><span>19.2</span></footer>
   </section>
   <section id="controlsPanel" class="panel" hidden>
     <h2>CONTROLS</h2>
     <dl><dt>TOUCH</dt><dd>Joystick moves; tap the run button to toggle sprint. Drag the right side to look. KIT chooses the big Use button’s tool.</dd><dt>I / TAB</dt><dd>Open the Field Kit</dd><dt>R</dt><dd>Use equipped tool</dd><dt>W A S D</dt><dd>Walk</dd><dt>SHIFT</dt><dd>Sprint</dd><dt>X</dt><dd>Toggle crouch / hide in grass</dd><dt>MOUSE</dt><dd>Look around</dd><dt>C</dt><dd>Photograph with flash</dd><dt>E</dt><dd>Pick up the item you are looking at</dd><dt>Q</dt><dd>Drink soda for a 15-second speed boost</dd><dt>M</dt><dd>Host tablet / world controls</dd><dt>F</dt><dd>Toggle flashlight</dd><dt>WHEEL / +/-</dt><dd>Zoom in / out (1x–6x)</dd><dt>ESC</dt><dd>Pause / release mouse</dd></dl>
-    <p class="tagline">Both giants are blind. They follow footsteps and the camera shutter, then search the last place they heard you. Follow ◆ to the power corridor or ▲ to the forest entrance. Both have access roads. Get some distance and crouch in the grass with X. Quiet movement can lose it; asphalt carries louder footsteps. Your flashlight is safe to use.</p>
+    <p class="tagline">Giants can detect exposed players and investigate footsteps or camera flashes. Crouch in grass or use solid cover to hide. Traffic lights watch the road and predict your movement. Follow ◆ to the power corridor or ▲ to the forest entrance. Both have access roads. Get some distance and crouch in the grass with X. Quiet movement helps while concealed; asphalt carries louder footsteps. Your flashlight is safe to use.</p>
     <button id="controlsBack">BACK</button>
   </section>
   <section id="pausePanel" class="panel" hidden>
@@ -1468,23 +1467,26 @@
           vec3 albedo=v_color,n=geometric;
           bool tabletProp=u_assetKind>10.5&&u_assetKind<11.5,log=u_assetKind>9.5&&u_assetKind<10.5,tree=u_assetKind>7.5&&u_assetKind<8.5,cameraProp=u_assetKind>5.5&&u_assetKind<7.5,avatar=u_assetKind>4.5&&u_assetKind<5.5,steel=u_assetKind>2.5&&u_assetKind<3.5,torch=u_assetKind<1.5;
           if(avatar||cameraProp)albedo=texture(u_assetTexture,v_uv).rgb;else if(u_assetKind>3.5&&u_assetKind<4.5)albedo=texture(u_signTexture,v_uv).rgb;else if(steel)albedo*=texture(u_assetTexture,v_uv).rgb*1.16;
-          if(tree){vec4 tex=texture(u_assetTexture,v_uv);if(tex.a<.45)discard;albedo*=tex.rgb;float fade=1.-smoothstep(u_forestRange-55.,u_forestRange,length(v_world.xz-u_camera.xz));if(fract(dot(floor(gl_FragCoord.xy),vec2(.754877,.56984)))>fade)discard;albedo*=.85+.15*noise(v_world.xz*3.+v_world.y);}
+          if(tree){vec4 tex=texture(u_assetTexture,v_uv);if(tex.a<.45)discard;albedo*=tex.rgb;float fade=1.-smoothstep(u_forestRange-55.,u_forestRange,length(v_world.xz-u_camera.xz));if(fract(dot(floor(gl_FragCoord.xy),vec2(.754877,.56984)))>fade)discard;albedo*=.94+.06*noise(v_world.xz*3.+v_world.y);float gray=dot(albedo,vec3(.2126,.7152,.0722));albedo=mix(vec3(gray),albedo,.83);}
           if(log){
             if(v_uv.x>2.5){vec2 p=vec2(v_uv.x-4.,v_uv.y);float r=length(p),rings=sin(r*69.+noise(p*8.)*2.);albedo=mix(vec3(.36,.245,.13),vec3(.56,.42,.26),.5+rings*.24)*(.86+.16*noise(p*39.));float split=pow(abs(sin(atan(p.y,p.x)*4.+r*.18)),55.)*smoothstep(.15,.7,r);albedo*=1.-split*.45;}
             else{float grain=noise(v_uv*vec2(4.,150.)),groove=smoothstep(.45,.72,noise(v_uv*vec2(12.,48.)));albedo=mix(vec3(.12,.115,.09),vec3(.29,.26,.20),grain)*(1.-groove*.35);albedo=mix(albedo,vec3(.20,.25,.10),smoothstep(.6,.84,noise(v_world.xz*.9))*max(n.y,0.)*.48);}
           }
-          if(u_assetKind>12.5){albedo*=.80+.25*noise(v_world.xz*7.1+v_world.y);if(u_assetKind>13.5)albedo=mix(albedo,vec3(.13,.20,.075),smoothstep(.43,.73,noise(v_world.xz*.8+v_world.y*.2))*max(n.y,0.)*.8);}
+          bool packFabric=u_assetKind>15.5&&u_assetKind<16.5;
+          if(u_assetKind>12.5&&u_assetKind<14.5){albedo*=.80+.25*noise(v_world.xz*7.1+v_world.y);if(u_assetKind>13.5)albedo=mix(albedo,vec3(.13,.20,.075),smoothstep(.43,.73,noise(v_world.xz*.8+v_world.y*.2))*max(n.y,0.)*.8);}
+          if(packFabric)albedo*=.92+.08*noise(v_local.xz*260.+v_local.y*93.);
           if(steel&&u_variant>.5){float rust=smoothstep(.42,.75,noise(v_world.xz*.18+v_world.y*.04));albedo=mix(albedo,vec3(.35,.18,.09),rust*(u_variant<1.5?.30:.55));}
           if(torch)n=mappedNormal(v_world,n,v_uv,texture(u_assetNormal,v_uv).rgb,.055);
           if(u_assetKind>1.5&&u_assetKind<2.5){float gray=dot(albedo,vec3(.2126,.7152,.0722));albedo=vec3(.44+gray*.4);}
           float roughness=tree||log||u_assetKind>12.5?.94:cameraProp?.45:avatar?.9:steel?.62:torch?.38:.28,metalness=tree||log||avatar||u_assetKind>12.5?0.:steel?.7:torch?.3:.8;
           vec3 eye=normalize(u_camera-v_world);float vis=fieldShadow(v_world+geometric*.04);
           vec3 c=albedo*(interiorAmbient(v_world)+u_direct*max(dot(n,SUN),0.)*vis);
-          if(tree&&v_uv.x>.5)c+=albedo*u_direct*.22*max(dot(-n,SUN),0.)*vis;
+          if(tree&&v_uv.x>.5){c+=albedo*u_direct*.36*max(dot(-n,SUN),0.)*vis;c+=albedo*u_ambient*.18;}
           c+=u_direct*pow(max(dot(n,normalize(SUN+eye)),0.),mix(120.,16.,roughness))*.24*vis;
           c+=u_ambient*.08*pow(1.-max(dot(n,eye),0.),3.);
           c=flashLight(c,albedo,v_world,u_camera,n,metalness);
           if(tabletProp)c=max(c,albedo*.60);
+          if(packFabric)c=max(c,albedo*mix(.12,.70,u_day));
           if(torch&&max(v_color.r,max(v_color.g,v_color.b))>1.)c=v_color*(.28+u_torch*.44);
           color=linearOutput(applyFog(c,v_world,u_camera));return;
         }
@@ -1669,7 +1671,7 @@
   function syncUI(){
     const names={menu:'menu',settingsPanel:'settings',controlsPanel:'controls',pausePanel:'paused',lostPanel:'lost',loading:'loading',fieldPanel:'fieldPanel'};
     for(const [id,mode]of Object.entries(names))ui[id].hidden=game.mode!==mode;
-    document.getElementById('play').hidden=net.active;
+    document.getElementById('play').hidden=net.active;document.getElementById('multiplayerOpen').hidden=net.active;
     for(const id of ['resumeWorldMenu','leaveWorldMenu','worldMenuNotice'])document.getElementById(id).hidden=!net.active;
     ui.stealthReadout.hidden=game.mode!=='playing';ui.sodaControls.hidden=game.mode!=='playing';
     ui.hud.hidden=game.mode!=='playing';document.body.className=game.mode+(game.hasFlashlight?' equipped':'')+(touchMode?' touch':'');
@@ -1686,7 +1688,7 @@
     avatarCache.clear();networkPylons=[];localDroppedItems=[];localDropSerial=0;pendingDrop=null;localFlares=[];flareSerial=0;cameraDynamics=createBodyCamera();
     equippedTool='camera';kitPreviousFlashlight=false;resetEquipmentMotion();resetGun();resetBackpack();resetForestHaunts();resetForestLevel();tablet.progress=0;tablet.closing=false;game.godMode=false;game.infiniteSprint=false;
     turbine.x=playable?activeLayout.turbines[0].x:-35;turbine.z=playable?activeLayout.turbines[0].z:-250;turbine.y=terrainHeight(turbine.x,turbine.z);
-    resetEnemy();resetPowerCreature();resetOtherTurbines();buildPowerCorridor();resetRoadside();Object.assign(world,{phase:.43,cycle:true,turbineStopped:false,powerStopped:false,trafficStopped:false});updateEnvironment(0);
+    resetEnemy();resetPowerCreature();resetOtherTurbines();buildPowerCorridor();resetRoadside();Object.assign(world,{phase:playable?.43:.742,cycle:true,turbineStopped:false,powerStopped:false,trafficStopped:false});updateEnvironment(0);
     Object.assign(player,playable?{x:128,z:-34,yaw:-.015,pitch:-.025}:{x:0,z:6,yaw:0,pitch:-.01});
     player.y=shedFloor(player.x,player.z)+EYE_HEIGHT;
     Object.assign(bob,{phase:0,blend:0,strafe:0,vertical:0,lateral:0,roll:0});
@@ -2014,7 +2016,7 @@
     cameraPosition.set([player.x+cy*bob.lateral+jitter*.028,player.y+bob.vertical+cameraDynamics.vertical+(reducedMotion||game.mode==='fieldPanel'?0:Math.sin(cameraDynamics.breath)*.004*(1-bob.blend))+Math.sin(time*61)*shake*.045,player.z-sy*bob.lateral]);
     const x=cameraPosition[0],y=cameraPosition[1],z=cameraPosition[2];
     view.set([right[0],up[0],-forward[0],0,right[1],up[1],-forward[1],0,right[2],up[2],-forward[2],0,-(right[0]*x+right[1]*y+right[2]*z),-(up[0]*x+up[1]*y+up[2]*z),forward[0]*x+forward[1]*y+forward[2]*z,1]);
-    const targetTan=Math.tan((65+style*5+Math.min(1,cameraDynamics.speed/6.6)*(7+style*3))*Math.PI/360)/game.zoom;cameraTan=lerp(cameraTan+(targetTan-cameraTan)*(1-Math.exp(-5*dt)),TAN_HALF_FOV/lerp(1,1.4,ease(backpack.progress)),ease(Math.max(tablet.progress,backpack.progress)));
+    const targetTan=Math.tan((65+style*5+Math.min(1,cameraDynamics.speed/6.6)*(7+style*3))*Math.PI/360)/game.zoom;cameraTan=lerp(cameraTan+(targetTan-cameraTan)*(1-Math.exp(-5*dt)),TAN_HALF_FOV/lerp(1,1.12,ease(backpack.progress)),ease(Math.max(tablet.progress,backpack.progress)));
     projection[0]=1/(cameraTan*canvas.width/canvas.height);projection[5]=1/cameraTan;
     viewProjection.set(multiply(projection,view));
   }
@@ -2247,6 +2249,7 @@
       try{localStorage.setItem('tower-of-power-settings',JSON.stringify(settings));}catch(e){}
     });
   }
+  syncSettingsReadouts();
   // Native-feeling touchscreen input for the APK/mobile browser build.
   if(touchMode){
     document.documentElement.style.touchAction='none';

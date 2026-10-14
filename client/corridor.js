@@ -18,9 +18,43 @@ function spanGeometry(start,end,released=0,endReleased=0){
   }
   return g;
 }
+function corridorContact(g,x,z,radius){
+  const center=[x,terrainHeight(x,z)+.022,z],rings=16;
+  for(let i=0;i<rings;i++){
+    const a=i*Math.PI*2/rings,b=(i+1)*Math.PI*2/rings;
+    const p=[x+Math.cos(a)*radius,0,z+Math.sin(a)*radius],q=[x+Math.cos(b)*radius,0,z+Math.sin(b)*radius];p[1]=terrainHeight(p[0],p[2])+.023;q[1]=terrainHeight(q[0],q[2])+.023;
+    infraFace(g,[center,p,q],[.10,.115,.105]);
+  }
+}
+function pylonYardGeometry(tower){
+  const g=infraGeometry(),r=layoutRandom((activeLayout.seed^((tower.index+1)*73129))>>>0);
+  // A weathered service apron laid directly on the sampled terrain.
+  for(let z=-24;z<24;z+=3)for(let x=-24;x<24;x+=3){
+    if(Math.hypot(x+1.5,z+1.5)>25+r()*2)continue;
+    const points=[[x,z],[x+3,z],[x+3,z+3],[x,z+3]].map(([xx,zz])=>{const p=pylonPoint(tower,[xx,0,zz]);p[1]=terrainHeight(p[0],p[2])+.016;return p;});
+    const shade=.19+r()*.07;infraFace(g,points,[shade,shade*1.06,shade*.94],[[0,0],[1,0],[1,1],[0,1]]);
+  }
+  for(const foot of POWER_RIG.feet){
+    const p=pylonPoint(tower,foot),y=terrainHeight(p[0],p[2]);corridorContact(g,p[0],p[2],1.4);
+    infraBox(p[0],y+.038,p[2],1.16,.075,1.16,[.22,.24,.22],g);
+    for(const dx of [-.41,.41])for(const dz of [-.41,.41])infraBox(p[0]+dx,y+.09,p[2]+dz,.065,.10,.065,[.36,.35,.29],g);
+  }
+  // Low insulator racks and discarded cable spools at the edge of the apron.
+  for(let n=0;n<2;n++){
+    const p=pylonPoint(tower,[24,0,-8+n*6]),y=terrainHeight(p[0],p[2]);
+    corridorContact(g,p[0],p[2],1.05);
+    corridorBeam(g,[p[0],y+.14,p[2]],[p[0],y+.54,p[2]],.68,[.24,.19,.125],12);
+    for(let h=0;h<5;h++)corridorBeam(g,[p[0],y+.19+h*.066,p[2]],[p[0],y+.235+h*.066,p[2]],.58,[.085,.09,.085],12);
+  }
+  for(let i=0;i<55;i++){
+    const angle=r()*Math.PI*2,dist=19+r()*10,p=pylonPoint(tower,[Math.cos(angle)*dist,0,Math.sin(angle)*dist]),size=.035+r()*.10;
+    infraBox(p[0],terrainHeight(p[0],p[2])+size*.24,p[2],size*1.9,size*.6,size,[.29,.30,.26],g);
+  }
+  return mesh3D(g);
+}
 function buildPowerCorridor(){
   for(const span of corridorSpans)disposeFieldMesh(span.mesh);
-  for(const tower of corridorTowers)disposeFieldMesh(tower.shoes);
+  for(const tower of corridorTowers){disposeFieldMesh(tower.shoes);disposeFieldMesh(tower.yard);}
   disposeFieldMesh(corridorMesh);
   corridorTowers=activeLayout.pylons.map((t,index)=>({...groundedPylon(t,POWER_RIG,terrainHeight),index}));
   corridorColliders=corridorTowers.map(t=>[0,1,2,3].map(i=>{
@@ -42,7 +76,7 @@ function buildPowerCorridor(){
   for(const tower of corridorTowers){const shoes=infraGeometry();for(const local of POWER_RIG.feet){
     const at=pylonPoint(tower,local),floor=terrainHeight(at[0],at[2]);
     corridorBeam(shoes,[at[0],floor-.12,at[2]],[at[0],Math.max(floor+.35,at[1]+1.5*tower.scale),at[2]],.19*tower.scale,[.28,.31,.29],6);
-  }tower.shoes=mesh3D(shoes);}
+  }tower.shoes=mesh3D(shoes);tower.yard=pylonYardGeometry(tower);}
   // A narrow drainage channel, maintenance cabinets, and low edge kerbs.
   for(const side of [-1,1]){
     const x=POWER_ZONE.x+side*31.5;
@@ -83,6 +117,11 @@ function appendPowerObjects(){
     const model=multiply(transform(pylon.x,pylon.y,pylon.z),rotateY(pylon.heading));
     objectDraws.push({mesh:d>200?pylonLODMesh:pylonMesh,model,material:5,assetKind:3,variant:activeLayout.pylons[slot+1]?.style||0,bones,rigBlend:pylon.rigBlend,castShadow:d<220},{mesh:socketMesh,model,material:2,castShadow:false});
     for(const f of pylon.feet)objectDraws.push({mesh:ankleSteel,model:transform(f.position[0],f.position[1]-.12,f.position[2]),material:2,castShadow:d<80});
+  }
+  for(const tower of corridorTowers){
+    const distance=Math.hypot(player.x-tower.x,player.z-tower.z);if(distance>220)continue;
+    objectDraws.push({mesh:tower.yard,model:identity(),material:5,assetKind:13,castShadow:distance<65,pylonYard:true});
+    const active=activePylon(tower.index);if(active&&active.state==='dormant')objectDraws.push({mesh:tower.shoes,model:identity(),material:2,castShadow:true,pylonContact:true});
   }
   for(const tower of corridorTowers)if(!activePylon(tower.index)&&Math.hypot(player.x-tower.x,player.z-tower.z)<650){
     const model=multiply(transform(tower.x,tower.y,tower.z,tower.scale,tower.scale,tower.scale),rotateY(tower.heading));
