@@ -104,7 +104,7 @@ export function attachNetworking(
         if (["host", "join", "resume"].includes(m.type)) {
           // Older builds cannot draw the generated roads, towers or forest.
           // Keep login available, but never put them into an invisible world.
-          if (ws.layoutVersion !== LAYOUT_VERSION) throw Object.assign(Error('Update TOWER OF POWER to version 17.2 or newer to join multiplayer.'), { code: 'UPDATE_REQUIRED' });
+          if (ws.layoutVersion !== LAYOUT_VERSION) throw Object.assign(Error('Update TOWER OF POWER to version 19.2 or newer to join multiplayer.'), { code: 'UPDATE_REQUIRED' });
           if (room) throw Error("Already in a world.");
           const target =
               m.type === "host"
