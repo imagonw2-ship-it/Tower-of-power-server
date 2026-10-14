@@ -1,3 +1,27 @@
+## Version 19.2: opening backpack and faster transfers
+
+Removed the flat black panel that covered the backpack. The zipper seam is now cut cleanly, with a recessed fabric interior and an 85-degree opening lid. Whole carry handles, shoulder straps and front pockets stay attached. The lid closes with the pack, including when closing is requested during an item transfer.
+
+Item transfers take 0.78 seconds (previously 1.45 seconds). Opening and closing are quicker, with the same continuous motion and shared timing for local hands, other players and server ownership changes. The transparent menus, glass settings tabs and red host tablet from 19.1 are included.
+
+Validation: 27 focused checks passed, including real two-client WebSocket transfers, remote hand animation, cavity geometry, interrupted transfers and native GLES shader compilation. Android versionCode 39 / versionName 19.2 preserves the existing package and signer. Multiplayer layout capability is 13: update all players to 19.2 for the matching transfer timing. No account migration is required.
+
+## Version 19.1: transparent interface
+
+The inventory has no solid panel behind it. Its glass item cards fit the owned tools, with a compact hand row, brighter item previews and a soft selected-item marker. The main menu uses one small, aligned column of transparent, square-cornered buttons and removes the decorative text that crowded the screen.
+
+Settings keep the world at full width behind the controls, with a frosted category bar, a sliding selection highlight and short page fades. The host tablet uses a red wallpaper, subtler corners and matching animated selection and command feedback. Rapid tab changes cancel superseded page animations, and reduced-motion preferences disable the motion.
+
+Validation: 22 focused gameplay/interface checks passed, with browser checks for settings persistence, rapid switching, backpack equipment transfers, five-item layouts and host commands. Android versionCode 38 / versionName 19.1 preserves the existing package and signer. Multiplayer layout capability remains 12; the pending v19 server publication is still required for online play. Physical Android performance remains unverified.
+
+## Version 19: field interface and world polish
+
+The backpack keeps its original proportions, with smoother hand transfers and a readable inventory beside the held pack. The host tablet now has a glass-style Field OS interface, clearer navigation and grouped world controls. A new twilight main menu and Graphics, Camera, Audio and World settings tabs improve navigation while retaining the transparent in-game controls.
+
+Traffic-light poles remain straight and parallel through walking and stomping, with the hanging cable adapting to their changing stance. Pylon supports sample their whole footprint for ground contact; gravel aprons, anchor plates and discarded cable spools add detail to the corridor. Trees use separate near, shadow and distant detail ranges, restrained crown motion and softer foliage shading. Ferns have curved, shaded leaves.
+
+Validation: 39 focused checks pass, including two real WebSocket clients, host permissions, shared traffic-light motion, backpack ownership, terrain contact, settings interaction and native shader compilation. Mobile WebGL checks cover the menu, settings, tablet, backpack and corridor. Android versionCode 37 / versionName 19 preserves the existing package and signer. Layout capability 12 requires everyone in a multiplayer room to update to v19. Physical Android performance still needs device feedback.
+
 ## Version 18: adaptive pursuit and top-opening backpack
 
 Traffic lights see up to 64 m in a forward cone, with close awareness and terrain/shelter occlusion. They use a short last-seen memory, follow the road with wide shoulder steps at range, and smoothly narrow onto the asphalt near a victim. Their pole stomp predicts observed movement and can adjust during the lift; the final part of the windup and the descent commit to the landing point. Red lights and host pause still stop pursuit.
