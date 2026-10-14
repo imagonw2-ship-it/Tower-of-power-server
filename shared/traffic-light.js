@@ -17,17 +17,15 @@ export function createTrafficLights(layout,height){
   });
 }
 export function trafficLightGeometry(s){
-  // Each stiff pole pivots about its planted toe. Its length never stretches.
-  // Narrower running footprints produce the reference's wide, scissoring V pose.
-  const tops=s.feet.map((f,i)=>{
-    const sign=i?1:-1;let dx=s.x+Math.cos(s.heading)*SIGNAL_HALF_SPAN*sign+(s.leanX||0)-f.position[0],dz=s.z-Math.sin(s.heading)*SIGNAL_HALF_SPAN*sign+(s.leanZ||0)-f.position[2];
-    const distance=Math.hypot(dx,dz),limit=SIGNAL_HEIGHT*.63;if(distance>limit){dx*=limit/distance;dz*=limit/distance;}
-    return[f.position[0]+dx,f.position[1]+Math.sqrt(SIGNAL_HEIGHT*SIGNAL_HEIGHT-dx*dx-dz*dz),f.position[2]+dz];
-  });
+  // The full rigid pole translates with its foot. Both poles remain parallel;
+  // changing the road stance no longer leaves the tops spread into a V.
+  const dx=(s.leanX||0)*.10,dz=(s.leanZ||0)*.10;
+  const rise=Math.sqrt(SIGNAL_HEIGHT*SIGNAL_HEIGHT-dx*dx-dz*dz);
+  const tops=s.feet.map(f=>[f.position[0]+dx,f.position[1]+rise,f.position[2]+dz]);
   const attachments=tops.map((top,i)=>top.map((v,k)=>s.feet[i].position[k]+(v-s.feet[i].position[k])*SIGNAL_ATTACH_HEIGHT/SIGNAL_HEIGHT));
   const span=Math.hypot(attachments[0][0]-attachments[1][0],attachments[0][2]-attachments[1][2]);
   for(let i=0;i<2;i++)for(const k of [0,2])attachments[i][k]+=(tops[1-i][k]-tops[i][k])/Math.max(.01,span)*.15;
-  const sag=signalClamp(2.35+(SIGNAL_HALF_SPAN*2-span)*.38,.8,3.8);
+  const sag=signalClamp(span*.22,.48,2.35);
   const cablePoint=t=>{
     const bow=4*t*(1-t),p=attachments[0].map((v,k)=>v+(attachments[1][k]-v)*t);
     p[0]+=(s.swingX||0)*bow*.34;p[1]-=sag*bow;p[2]+=(s.swingZ||0)*bow*.34;return p;
