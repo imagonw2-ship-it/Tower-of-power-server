@@ -18,11 +18,13 @@ function forestFernGeometry(d,g){
   for(let f=0;f<7;f++){
     const angle=d.yaw+f*2.399,L=d.size*(.70+.20*Math.sin(f*3.1)),along=[Math.cos(angle),Math.sin(angle)],side=[-along[1],along[0]];
     const point=t=>[d.x+along[0]*t*L,d.y+.035+Math.sin(t*2.2)*L*.58,d.z+along[1]*t*L];
-    for(let j=1;j<=6;j++){
-      const t=j/7,p=point(t),next=point(t+.10),width=L*.21*Math.sin(t*Math.PI);
+    for(let j=1;j<=8;j++){
+      const t=j/9,p=point(t),next=point(t+.10),width=L*.21*Math.sin(t*Math.PI);
       for(const sign of [-1,1]){
         const tip=[p[0]+side[0]*width*sign+along[0]*L*.09,p[1]-.018,p[2]+side[1]*width*sign+along[1]*L*.09];
-        infraFace(g,[p,tip,next],[.12*d.shade,.235*d.shade,.075*d.shade]);
+        const mid=p.map((v,k)=>(v+tip[k])*.5+(k===1?.028:0)),base=[.13*d.shade,.245*d.shade,.095*d.shade];
+        infraFace(g,[p,tip,mid],base);infraFace(g,[mid,tip,next],base.map(v=>v*.8));
+        infraFace(g,[p,mid,next],base.map(v=>v*1.12));
       }
     }
   }

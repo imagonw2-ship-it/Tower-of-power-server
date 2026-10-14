@@ -20,6 +20,8 @@ function hostAction(command,options={}){
   refreshTablet();return true;
 }
 function refreshTablet(){
+  const phase=inForest()?(forestLevel.phase??.84):world.phase;
+  const minutes=Math.floor(phase*1440);document.getElementById('tabletClock').textContent=String(Math.floor(minutes/60)%24).padStart(2,'0')+':'+String(minutes%60).padStart(2,'0');
   const trafficButton=document.getElementById('trafficToggle');trafficButton.setAttribute('aria-pressed',String(!!world.trafficStopped));trafficButton.textContent=world.trafficStopped?'RESUME TRAFFIC LIGHTS':'STOP TRAFFIC LIGHTS';trafficButton.disabled=!isWorldHost();document.getElementById('trafficStatus').textContent=world.trafficStopped?'TRAFFIC LIGHTS STOPPED':'TRAFFIC LIGHTS ACTIVE';
   document.getElementById("tabletSector").textContent=inForest()?"FOREST / NO SIGNAL":"MEADOW / CONNECTED";refreshTabletPlayers();
   for(const [id,key] of [['godToggle','godMode'],['sprintToggle','infiniteSprint']]){
@@ -66,8 +68,8 @@ function positionTabletScreen(){
   ui.fieldPanel.style.pointerEvents=tablet.progress>.97&&!tablet.closing?'auto':'none';
 }
 for(const b of document.querySelectorAll('[data-tablet-tab]'))b.addEventListener('click',()=>{
-  for(const tab of document.querySelectorAll('[data-tablet-tab]'))tab.setAttribute('aria-pressed',String(tab===b));
-  for(const page of document.querySelectorAll('[data-tablet-page]'))page.hidden=page.dataset.tabletPage!==b.dataset.tabletTab;
+  document.getElementById('tabletPageTitle').textContent={travel:'Locations',threats:'Entities',player:'Operator',players:'Players',items:'Equipment',world:'World controls'}[b.dataset.tabletTab];
+  selectUiPage(b,'data-tablet-tab','data-tablet-page');
 });
 for(const b of document.querySelectorAll('[data-host-destination]'))b.addEventListener('click',()=>{
   if(hostAction('teleport',{destination:b.dataset.hostDestination}))tabletMessage('TRAVEL · '+b.querySelector('b').textContent.toUpperCase());
@@ -80,7 +82,7 @@ const originalTabletAction=net.hooks.action;
 net.hooks.action=(m,r)=>{originalTabletAction?.(m,r);if(m.action==='host')tabletMessage(m.ok?'COMMAND CONFIRMED':r?.value?.command==='mimic'?'A PLAYER MUST BE IN THE FOREST':'COMMAND UNAVAILABLE');};
 
 function refreshTabletPlayers(){
-  const tab=document.getElementById('tabletPlayersTab');tab.hidden=!net.active;document.querySelector('.tabletTabs').classList.toggle('multiplayer',net.active);
+  const tab=document.getElementById('tabletPlayersTab');tab.hidden=!net.active;const tabs=document.querySelector('.tabletTabs');tabs.classList.toggle('multiplayer',net.active);const visibleTabs=[...tabs.querySelectorAll('[data-tablet-tab]')].filter(b=>!b.hidden);tabs.style.setProperty('--tab-index',String(Math.max(0,visibleTabs.findIndex(b=>b.getAttribute('aria-pressed')==='true'))));
   if(!net.active){if(tab.getAttribute('aria-pressed')==='true')document.querySelector('[data-tablet-tab="travel"]').click();return;}
   const players=net.snapshots.at(-1)?.players.filter(p=>p.connected)||[],roster=document.getElementById('tabletRoster'),select=document.getElementById('playerDestination');
   if(!players.some(p=>p.id===tablet.selectedPlayer))tablet.selectedPlayer=players.find(p=>p.id!==net.player?.id)?.id||players[0]?.id;

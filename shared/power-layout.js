@@ -14,7 +14,7 @@ export function groundedPylon(tower,rig,heightAt) {
   const pose={...tower,y:0};
   // The lowest contact plane buries at most a small part of a foot on uneven
   // terrain; it cannot leave any of the four supports hovering above the soil.
-  pose.y=Math.min(...rig.feet.map(p=>{const w=pylonPoint(pose,p);return heightAt(w[0],w[2])-w[1];}))-.08;
+  pose.y=Math.min(...rig.feet.flatMap((p,i)=>{const w=pylonPoint(pose,[p[0],rig.bottoms?.[i]??p[1],p[2]]),r=.8*(tower.scale||1);return [[0,0],[-r,-r],[r,-r],[-r,r],[r,r]].map(([x,z])=>heightAt(w[0]+x,w[2]+z)-w[1]);}))-.16;
   return pose;
 }
 export function cablePoint(a,b,t,heightAt) {

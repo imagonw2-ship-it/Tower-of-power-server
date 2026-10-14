@@ -1,12 +1,29 @@
 // The owned pack is a passive capacity upgrade. The existing I / bag control
 // swings it around by its carry handle and opens only its zippered top.
-const backpack={parts:[],texture:null,liner:null,progress:0,progressVelocity:0,closing:false,yaw:0,pitch:0,zoom:1,model:null,action:null,closeRequested:false};
+const backpack={parts:[],texture:null,interior:null,lidLining:null,progress:0,progressVelocity:0,closing:false,yaw:0,pitch:0,zoom:1,model:null,action:null,closeRequested:false};
 function buildBackpack(){
   backpack.texture=importedTexture(BACKPACK_ASSET.texture,5);backpack.parts=BACKPACK_ASSET.meshes.map(p=>({name:p.name,mesh:unpackModel(p)}));
-  const g=infraGeometry(),s=BACKPACK_ASSET.screen;
-  infraFace(g,[[s[0],s[4]-.025,s[1]],[s[0],s[4]-.025,s[3]],[s[2],s[4]-.025,s[3]],[s[2],s[4]-.025,s[1]]],[.014,.018,.011],[[0,0],[0,1],[1,1],[1,0]]);backpack.liner=mesh3D(g);
+  // The old flat black quad extended over the front of the bag. This lining
+  // follows the cut zipper contour and descends into an actual fabric cavity.
+  const g=infraGeometry(),lid=infraGeometry(),rim=BACKPACK_ASSET.openingRim;
+  const ring=(scale,y)=>rim.map(([x,,z],i)=>[x*scale,y+(y<.39?.002*Math.sin(i*2.7):0),.01+(z-.01)*scale]);
+  const rings=[rim,ring(.963,.396),ring(.94,.32),ring(.86,.235),ring(.82,.205)];
+  for(let level=0;level<rings.length-1;level++)for(let i=0;i<rim.length;i++){
+    const j=(i+1)%rim.length,c=level===0?[.52,.48,.34]:level===1?[.44,.41,.29]:[.34,.33,.23];
+    infraFace(g,[rings[level][i],rings[level][j],rings[level+1][j],rings[level+1][i]],c);
+  }
+  const floor=rings.at(-1),lidRim=ring(.99,.396);
+  for(let i=0;i<rim.length;i++){
+    const j=(i+1)%rim.length;
+    infraFace(g,[[0,.201,.01],floor[i],floor[j]],i%3===0?[.31,.30,.21]:[.35,.34,.24]);
+    infraFace(lid,[[0,.391,.01],lidRim[j],lidRim[i]],i%4===0?[.44,.41,.30]:[.48,.45,.33]);
+  }
+  // The stitched inner sleeve gives depth without blocking the opening.
+  infraFace(g,[[-.092,.225,-.049],[.092,.225,-.049],[.096,.348,-.055],[-.096,.348,-.055]],[.43,.40,.29]);
+  infraFace(g,[[-.096,.344,-.054],[.096,.344,-.054],[.096,.350,-.054],[-.096,.350,-.054]],[.56,.52,.38]);
+  backpack.interior=mesh3D(g);backpack.lidLining=mesh3D(lid);
 }
-function resetBackpack(){Object.assign(backpack,{progress:0,progressVelocity:0,closing:false,model:null,action:null,closeRequested:false});fieldKit.classList.remove('physical');fieldKit.style.transform='';fieldKit.style.opacity='';}
+function resetBackpack(){Object.assign(backpack,{progress:0,progressVelocity:0,closing:false,model:null,action:null,closeRequested:false});fieldKit.classList.remove('physical');fieldKit.style.transform='';fieldKit.style.opacity='';fieldKit.style.width='';}
 function queueBackpackTool(tool){
   if(backpack.action||backpack.closing||backpack.progress<.97)return false;
   if(tool===equippedTool)return true;
@@ -26,24 +43,28 @@ function updateBackpack(dt){
   const before=backpack.progress;
   advancePackMotion(backpack,'progress',backpack.closing?0:1,dt);
   if(before<.63&&backpack.progress>=.63)sound.noise(.24,.10,3100,'highpass');
-  const t=gunPhase(.06,.82,backpack.progress);player.yaw=backpack.yaw;player.pitch=lerp(backpack.pitch,-.82,t);game.zoom=game.zoomTarget=lerp(backpack.zoom,1,t);
+  const t=gunPhase(.06,.82,backpack.progress);player.yaw=backpack.yaw;player.pitch=lerp(backpack.pitch,-.56,t);game.zoom=game.zoomTarget=lerp(backpack.zoom,1,t);
   if(backpack.closing&&backpack.progress===0){player.pitch=backpack.pitch;game.zoom=game.zoomTarget=backpack.zoom;finishCloseFieldKit();}
 }
 function backpackBasis(){
   const t=gunPhase(.08,.84,backpack.progress),yaw=backpack.yaw;
   const r=[Math.cos(yaw),0,-Math.sin(yaw)],u=[0,1,0],f=[-Math.sin(yaw),0,-Math.cos(yaw)];
-  const side=lerp(-.72,0,t),depth=lerp(-.25,.49,t),height=lerp(-.75,-.85,t)+Math.sin(Math.PI*t)*.045;
+  const side=lerp(-.72,-.32,t),depth=lerp(-.25,.64,t),height=lerp(-.75,-.83,t)+Math.sin(Math.PI*t)*.045;
   const p=[player.x,player.y,player.z].map((v,k)=>v+r[k]*side+u[k]*height+f[k]*depth);
   const basis=new Float32Array([...r,0,...u,0,-f[0],-f[1],-f[2],0,...p,1]);
-  return multiply(basis,multiply(rotateY((1-t)*2.3),multiply(rotateZ((1-t)*.18),multiply(rotateX(t*.12),transform(0,0,0,1.22,1.15,1.1)))));
+  return multiply(basis,multiply(rotateY((1-t)*2.3),multiply(rotateZ((1-t)*.18),multiply(rotateX(t*.12),transform(0,0,0,1,1,1)))));
 }
 function appendBackpackModel(model,open=0,shadow=false){
   const hinge=BACKPACK_ASSET.hinge;
+  const lid=multiply(model,multiply(transform(...hinge),multiply(rotateX(open*BACKPACK_ASSET.openingAngle),transform(...hinge.map(v=>-v)))));
   for(const part of backpack.parts){
-    const pose=part.name==='top'?multiply(model,multiply(transform(...hinge),multiply(rotateX(open*BACKPACK_ASSET.openingAngle),transform(...hinge.map(v=>-v))))):model;
+    const pose=part.name==='top'?lid:model;
     objectDraws.push({mesh:part.mesh,model:pose,texture:backpack.texture,material:5,assetKind:5,castShadow:shadow,receiveTorch:shadow,backpackPart:part.name});
   }
-  if(open>.05)objectDraws.push({mesh:backpack.liner,model,material:5,assetKind:11,castShadow:false,receiveTorch:false});
+  if(open>.005){
+    objectDraws.push({mesh:backpack.interior,model,material:5,assetKind:16,castShadow:false,receiveTorch:shadow,backpackPart:'interior'});
+    objectDraws.push({mesh:backpack.lidLining,model:lid,material:5,assetKind:16,castShadow:shadow,receiveTorch:shadow,backpackPart:'lidLining'});
+  }
 }
 function backpackGrip(model,position,kind='camera',tilt=0){
   const a=itemGripAnchors[kind]||itemGripAnchors.camera;
@@ -65,13 +86,12 @@ function appendBackpack(){
 }
 function positionBackpackInventory(){
   if(game.mode!=='inventory'||!game.hasBackpack||!backpack.model)return;
-  if(backpack.progress<=.90){fieldKit.style.opacity='0';fieldKit.style.pointerEvents='none';return;}
-  const s=BACKPACK_ASSET.screen,m=multiply(viewProjection,backpack.model);
-  const project=(x,z)=>{const y=s[4],w=m[3]*x+m[7]*y+m[11]*z+m[15];return[((m[0]*x+m[4]*y+m[8]*z+m[12])/w*.5+.5)*innerWidth,(-((m[1]*x+m[5]*y+m[9]*z+m[13])/w)*.5+.5)*innerHeight];};
-  const a=project(s[0],s[1]),b=project(s[2],s[1]),c=project(s[0],s[3]),d=project(s[2],s[3]);
-  // Map all four corners to the opening, including its perspective taper.
-  const dx1=b[0]-d[0],dx2=c[0]-d[0],dx3=a[0]-b[0]+d[0]-c[0],dy1=b[1]-d[1],dy2=c[1]-d[1],dy3=a[1]-b[1]+d[1]-c[1],det=dx1*dy2-dx2*dy1;
-  const g=(dx3*dy2-dx2*dy3)/det,h=(dx1*dy3-dx3*dy1)/det;
-  fieldKit.style.transform=`matrix3d(${(b[0]-a[0]+g*b[0])/640},${(b[1]-a[1]+g*b[1])/640},0,${g/640},${(c[0]-a[0]+h*c[0])/280},${(c[1]-a[1]+h*c[1])/280},0,${h/280},0,0,1,0,${a[0]},${a[1]},0,1)`;
-  fieldKit.style.opacity=String(clamp((backpack.progress-.90)/.10,0,1)*(backpack.action ? .18 : 1));fieldKit.style.pointerEvents=backpack.progress>.97&&!backpack.closing&&!backpack.action?'auto':'none';
+  // Size the transparent controls to the owned tools, preserving their proportions.
+  const columns=Math.max(1,kitCards.filter(card=>!card.hidden).length),width=Math.max(300,columns*98+(columns-1)*8),height=244;
+  const scale=Math.min(1,(innerWidth*.51)/width,(innerHeight-48)/height);
+  const x=Math.max(16,innerWidth-width*scale-32),y=Math.max(20,(innerHeight-height*scale)*.5);
+  fieldKit.style.width=width+'px';
+  fieldKit.style.transform=`translate(${x}px,${y}px) scale(${scale})`;
+  fieldKit.style.opacity=String(gunPhase(.78,.98,backpack.progress)*(backpack.action?.7:1));
+  fieldKit.style.pointerEvents=backpack.progress>.97&&!backpack.closing&&!backpack.action?'auto':'none';
 }

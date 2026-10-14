@@ -67,17 +67,17 @@ test('three upright heads, junctions and cable wraps stay attached to the lifted
   assert.ok(run('objectDraws.every(o=>Array.from(o.model).every(Number.isFinite))'));assert.ok(run('Math.abs(objectDraws.filter(o=>o.trafficWrap)[1].model[13]-qaSignal.feet[1].position[1])<.000001'));
   const s=scene().s,g=trafficLightGeometry(s);assert.ok(g.sag>2.2);assert.ok(g.attachments[0][1]<g.tops[0][1]);
 });
-test('walking poles pivot in wide strides while retaining their exact length and a planted support',()=>{
-  const {s,p}=scene();p.x=0;p.z=100;p.godMode=true;let maxTilt=0,planted=0;
+test('walking poles remain upright and parallel with fixed length and a planted support',()=>{
+  const {s,p}=scene();p.x=0;p.z=45;p.godMode=true;let maxTilt=0,planted=0;
   for(let i=0;i<180;i++){
     const before=s.feet.map(f=>f.position.slice());stepTrafficLights([s],1/120,[p],flat);const g=trafficLightGeometry(s);
-    s.feet.forEach((f,j)=>{const d=g.tops[j].map((v,k)=>v-f.position[k]);assert.ok(Math.abs(Math.hypot(...d)-SIGNAL_HEIGHT)<1e-9);maxTilt=Math.max(maxTilt,Math.hypot(d[0],d[2]));});
+    s.feet.forEach((f,j)=>{const d=g.tops[j].map((v,k)=>v-f.position[k]);assert.ok(Math.abs(Math.hypot(...d)-SIGNAL_HEIGHT)<1e-9);maxTilt=Math.max(maxTilt,Math.hypot(d[0],d[2]));for(const k of [0,2])assert.ok(Math.abs(d[k]-(g.tops[1-j][k]-s.feet[1-j].position[k]))<1e-9);});
     if(s.feet.some((f,j)=>f.position.every((v,k)=>v===before[j][k])))planted++;
   }
-  assert.ok(maxTilt>2.5);assert.ok(planted>170);
+  assert.ok(maxTilt<.12);assert.ok(Math.hypot(s.x,s.z)>5);assert.ok(planted>170);
 });
 test('three independently driven pendulums keep their hang lengths and settle after stopping',()=>{
-  const {s,p}=scene();p.x=0;p.z=100;p.godMode=true;let different=false;
+  const {s,p}=scene();p.x=0;p.z=45;p.godMode=true;let different=false;
   for(let i=0;i<180;i++){
     stepTrafficLights([s],1/120,[p],flat);const g=trafficLightGeometry(s);
     for(const h of g.heads)assert.ok(Math.abs(Math.hypot(...h.position.map((v,k)=>v-h.anchor[k]))-SIGNAL_HEAD_DROP)<1e-9);
