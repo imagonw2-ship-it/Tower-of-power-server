@@ -2,6 +2,8 @@
 // Their whole rectangle follows the camera warp; printed details stay clear.
 const suitCards=new Map(),suitCardDraws=[];
 let suitPortrait=null,suitPortraitReady=false,suitCardProgram=null;
+// Refresh cached printed names if a card was drawn before the embedded font loaded.
+document.fonts?.load('16px FieldBlock').then(()=>{if(suitCards.size)clearSuitCards();});
 const SUIT_CARD={width:.142,height:.089,center:[-.072,1.35,.216]};
 function clearSuitCards(){for(const c of suitCards.values())gl.deleteTexture(c.texture);suitCards.clear();}
 function makeSuitCard(player){
@@ -9,14 +11,14 @@ function makeSuitCard(player){
   const ctx=canvas.getContext('2d');if(!ctx)return null;
   if(!suitPortrait){suitPortrait=new Image();suitPortrait.onload=()=>{suitPortraitReady=true;clearSuitCards();};suitPortrait.src=SUIT_PORTRAIT;}
   ctx.fillStyle='#e7e8df';ctx.fillRect(0,0,1024,640);
-  ctx.fillStyle='#19211e';ctx.fillRect(0,0,1024,104);ctx.fillStyle='#f4f5ed';ctx.font='bold 48px sans-serif';ctx.fillText('TOWER OF POWER',36,70);
+  ctx.fillStyle='#19211e';ctx.fillRect(0,0,1024,104);ctx.fillStyle='#f4f5ed';ctx.font='bold 48px FieldBlock,monospace';ctx.fillText('TOWER OF POWER',36,70);
   ctx.fillStyle='#3a4240';ctx.fillRect(34,137,260,448);if(suitPortraitReady)ctx.drawImage(suitPortrait,34,137,260,448);
-  ctx.fillStyle='#202622';ctx.font='bold 38px sans-serif';ctx.fillText('FIELD CREW',330,198);
-  const name=String(player.username||'GUEST').slice(0,20);let size=88;ctx.font='bold '+size+'px sans-serif';
-  while(size>30&&ctx.measureText(name).width>656)ctx.font='bold '+(--size)+'px sans-serif';
+  ctx.fillStyle='#202622';ctx.font='bold 38px FieldBlock,monospace';ctx.fillText('FIELD CREW',330,198);
+  const name=String(player.username||'GUEST').slice(0,20);let size=88;ctx.font='bold '+size+'px FieldBlock,monospace';
+  while(size>30&&ctx.measureText(name).width>656)ctx.font='bold '+(--size)+'px FieldBlock,monospace';
   ctx.fillText(name,330,302);
-  const id=String(player.id||'guest').replace(/[^a-zA-Z0-9]/g,'').slice(-8).toUpperCase();ctx.font='40px monospace';ctx.fillText('ID '+id,330,408);
-  ctx.fillStyle='#858e83';ctx.fillRect(330,458,656,2);ctx.fillStyle='#262d28';ctx.font='36px sans-serif';ctx.fillText('AUTHORIZED PERSONNEL',330,548);
+  const id=String(player.id||'guest').replace(/[^a-zA-Z0-9]/g,'').slice(-8).toUpperCase();ctx.font='40px FieldBlock,monospace';ctx.fillText('ID '+id,330,408);
+  ctx.fillStyle='#858e83';ctx.fillRect(330,458,656,2);ctx.fillStyle='#262d28';ctx.font='36px FieldBlock,monospace';ctx.fillText('AUTHORIZED PERSONNEL',330,548);
   ctx.strokeStyle='#747e71';ctx.lineWidth=8;ctx.strokeRect(4,4,1016,632);
   const texture=gl.createTexture();gl.activeTexture(gl.TEXTURE0+5);gl.bindTexture(gl.TEXTURE_2D,texture);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,canvas);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
