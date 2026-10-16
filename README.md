@@ -1,3 +1,15 @@
+## Version 19.3.1: block typography throughout
+
+Extends the bundled block font to settings, controls, multiplayer forms, the inventory, host tablet, HUD, pause and loss screens, and printed player ID cards. Long ID names still shrink to fit, and cached cards refresh when the embedded font becomes ready. The original daylight menu background and layered animated buttons from 19.3 are retained.
+
+Validation: 10 focused typography and interface checks cover bundled-font coverage, the original menu, all settings categories, controls, multiplayer forms, five-item inventory, HUD and pause screens, five host tablet pages, long ID names and small landscape layouts. Android versionCode 41 / versionName 19.3.1 preserves the package and signing certificate, embeds the exact tested client, and installs over 19.3. Multiplayer remains compatible with 19.2 (layout capability 13). Physical Android appearance and performance remain unverified.
+
+## Version 19.3: original field and layered menu
+
+Restores the original daylight grass field and distant turbine behind the main menu. The title and menu labels use the bundled block font. Transparent buttons have overlapping shaded layers and fine outlines that fade into the left screen edge, with staggered entrances, sliding selection highlights and a brief light sweep. Pressing a button compresses its layers. Reduced-motion preferences disable the animations.
+
+Validation: 10 focused browser checks cover the original scene, bundled font, phone and desktop layouts, settings persistence, controls, multiplayer navigation, singleplayer return, connected-world menu state and reduced motion. Android versionCode 40 / versionName 19.3 preserves the package and signing certificate, and embeds the exact tested client. Multiplayer remains compatible with 19.2 (layout capability 13). Physical Android appearance and performance remain unverified.
+
 ## Version 19.2: opening backpack and faster transfers
 
 Removed the flat black panel that covered the backpack. The zipper seam is now cut cleanly, with a recessed fabric interior and an 85-degree opening lid. Whole carry handles, shoulder straps and front pockets stay attached. The lid closes with the pack, including when closing is requested during an item transfer.
